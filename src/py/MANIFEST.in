@@ -1,0 +1,2 @@
+include gamma/wrapping/_wrapping.cpython-38-x86_64-linux-gnu.so
+include gamma/wrapping/_wrapping.cpython-310-x86_64-linux-gnu.so
