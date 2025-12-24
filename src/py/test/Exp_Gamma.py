@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import gamma
+import gamma_routing_model as gamma
 
 import smash
 import functions_smash_plot

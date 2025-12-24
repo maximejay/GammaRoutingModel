@@ -48,16 +48,17 @@ OBJEXT      := o
 #---------------------------------------------------------------------------------
 #DO NOT EDIT BELOW THIS LINE
 #---------------------------------------------------------------------------------
-SOURCESC    := $(shell find $(SRCDIRc) -type f -name *.$(SRCEXTC))
+SOURCESC    := $(shell find $(SRCDIRc) -type f -name "*.$(SRCEXTC)")
 OBJECTSC    := $(patsubst $(SRCDIRc)/%,$(BUILDDIRC)/%,$(SOURCESc:.$(SRCEXTC)=.$(OBJEXT)))
 
-SOURCESF90  := $(shell find $(SRCDIRf90) -type f -name *.$(SRCEXTF90))
+SOURCESF90  := $(shell find $(SRCDIRf90) -type f -name "*.$(SRCEXTF90)")
 OBJECTSF90  := $(patsubst $(SRCDIRf90)/%,$(BUILDDIRF90)/%,$(SOURCESF90:.$(SRCEXTF90)=.$(OBJEXT)))
 
-SOURCESF77  := $(shell find $(SRCDIRf77) -type f -name *.$(SRCEXTF77))
+SOURCESF77  := $(shell find $(SRCDIRf77) -type f -name "*.$(SRCEXTF77)")
 OBJECTSF77  := $(patsubst $(SRCDIRf77)/%,$(BUILDDIRF77)/%,$(SOURCESF77:.$(SRCEXTF77)=.$(OBJEXT)))
 
 F90_INTERFACE := src/f90/mod_routing_setup.f90 src/f90/mod_routing_mesh.f90 src/f90/mod_routing_states.f90 src/f90/mod_routing_results.f90 src/f90/mod_routing_parameters.f90 src/f90/mod_gamma_interface.f90
+
 OBJ_INTERFACE := $(BUILDDIR)/*.o 
 F90_WRAPPERS  := $(SRCDIRwrap)/*.f90
 SHAREDLIB     := wrapping
@@ -138,7 +139,7 @@ module:
 	@echo " Making module extension "
 	@echo ""
 	@echo "********************************************"
-	f2py-f90wrap -c --fcompiler=gfortran --f90flags='-cpp -fPIC -fmax-errors=1 -Iobj' --arch='-march=native' --opt='-O3 -funroll-loops' --build-dir . -m _$(SHAREDLIB) $(OBJ_INTERFACE) $(F90_WRAPPERS)
+	f2py-f90wrap -c --fcompiler=gfortran --f90flags='-cpp -fPIC -fmax-errors=1 -Iobj' --arch='-march=native' --opt='-O3 -funroll-loops' --build-dir . -m _$(SHAREDLIB) $(F90_WRAPPERS) $(F90_INTERFACE)
 	mv $(SHAREDLIB)/mod* $(SRCDIRwrapping)/.
 	mv _$(SHAREDLIB)* $(SRCDIRwrapping)/.
 	rm -rf $(SHAREDLIB)
@@ -228,6 +229,8 @@ $(TARGET): \
  obj/cost_function.o \
  obj/run_forward.o \
  obj/lbfgsb.o \
+ obj/AADJ_b.o \
+ obj/ATLM_d.o \
  obj/control.o \
  $(OBJECTSFC) \
  $(OBJECTSF77) \

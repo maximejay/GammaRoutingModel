@@ -9,8 +9,13 @@ The Gamma Routing model is differentiable and come with it adjoint. The code int
 The Gamma Routing model is written in Fortran and come with a full Python interface. It can run and integrate Fortran or Python program.
 
 Compilation:
-make
-n
-y
+```
+bash build_gamma.sh
+```
 
 
+Build the adjoint model:
+```
+cd differentiation/
+bash make_adjoint.sh
+```
