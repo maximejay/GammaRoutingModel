@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gamma_routing_model"
+version = "0.1"
+authors = [
+  { name="Maxime Jay-Allemand", email="maxime.jay.allemand@hydris-hydrologie.fr" },
+]
+dependencies = [
+  "numpy",
+]
+description = "A conceptual routing model"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license-files = ["LICEN[CS]E*"]
+keywords = ["Routing", "hydraulics", "hydrologie"]
+
+[project.urls]
+Homepage = "https://codeberg.org/maximejay/GammaRoutingModel"
+Issues = "https://codeberg.org/maximejay/GammaRoutingModel/issues"
