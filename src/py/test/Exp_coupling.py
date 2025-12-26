@@ -1,9 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import smash
 
 import gamma_routing_model as gamma
-import smash
 import scipy
+
 
 # import functions_smash_plot
 # import functions_smash_stats
@@ -13,8 +14,10 @@ setup_cance, mesh_cance = smash.factory.load_dataset("Cance")
 setup_cance["routing_module"] = "rm_zero"
 smash_model = smash.Model(setup_cance, mesh_cance)
 smash_model.forward_run()
-smash_model.response.qt.shape
-smash_model.optimize(mapping="distributed")
+
+# smash_model.response.qt.shape
+
+# smash_model.optimize(mapping="distributed")
 
 # smash compilé avec les options de debuggage
 # At line 11781 of file ../smash/fcore/forward/forward_openmp_db.f90
@@ -69,7 +72,7 @@ ControlVector.update(
     {
         "bounds": {
             "cp": [0.1, 1000.0],
-            "cft": [0.1, 1000.0],
+            "ct": [0.1, 1000.0],
             "hydraulics_coefficient": [0.3, 5.0],
             "spreading": [0.5, 3.0],
         }
@@ -79,7 +82,40 @@ ControlVector.update(
 # get the inflows
 GammaInflows = gamma.smashplug.GetGammaInflowFromSmash(smash_model, dt=900)
 
+
+cost, grad = gamma.smashplug.ComputeCostAndGradients(
+    ControlVector["X"],
+    ControlVector,
+    smash_model,
+    model_gamma,
+    GammaGriddedObservation,
+    True,
+    True,
+)
+
 # Compute the gradient
 gradient = gamma.smashplug.ComputeModelGradients(
     ControlVector, smash_model, model_gamma, GammaInflows, GammaGriddedObservation
+)
+
+# optimize parameters
+# Here smash parameter are not normalized. That cause slow convergence. We try some gradient normalisation technics : ScaleGradientsByBounds and ScaleGammaGradients
+# the spreading coefficient will uniformly calibrated => the gradient of this variable is scaled by the nb of nodes !
+BestControlVector, optimized_smash_model, optimized_gamma_model = (
+    gamma.smashplug.OptimizeCoupledModel(
+        smash_model,
+        model_gamma,
+        GammaGriddedObservation,
+        control_parameters_list=["cp", "ct", "hydraulics_coefficient", "spreading"],
+        bounds={
+            "cp": [0.1, 1000.0],
+            "ct": [0.1, 1000.0],
+            "hydraulics_coefficient": [0.3, 5.0],
+            "spreading": [0.5, 3.0],
+        },
+        maxiter=15,
+        tol=0.00001,
+        ScaleGradientsByBounds=True,
+        ScaleGammaGradients=True,
+    )
 )

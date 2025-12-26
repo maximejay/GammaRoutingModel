@@ -2,6 +2,7 @@ import smash
 import gamma_routing_model as gamma
 import numpy as np
 import scipy
+import copy
 
 # ~ GammaRouting is a conceptual flow propagation model
 # ~ Copyright 2022, 2023 Hydris-hydrologie, Maxime Jay-Allemand
@@ -599,12 +600,14 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
 
     k = 0
 
+    # wrap_control_to_parameters(smash_model.setup, smash_model.mesh, smash_model._input_data, , wrap_options)
+
     # corresponding smash function : smash/core/simulation/_optimize/_x_to_parameters_states
     for ctrl_var in control_vector["ParamList"]:
 
-        if hasattr(smash_model.parameters, ctrl_var):
+        if ctrl_var in smash_model.rr_parameters.keys:
 
-            MatrixParameters = getattr(smash_model.parameters, ctrl_var)
+            MatrixParameters = smash_model.get_rr_parameters(ctrl_var)
 
             for sub_row in range(smash_model.mesh.nrow):
 
@@ -616,11 +619,12 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
 
                         k = k + 1
 
-            setattr(smash_model.parameters, ctrl_var, MatrixParameters)
+            # setattr(smash_model.parameters, ctrl_var, MatrixParameters)
+            smash_model.set_rr_parameters(ctrl_var, MatrixParameters)
 
-        if hasattr(smash_model.states, ctrl_var):
+        if ctrl_var in smash_model.rr_initial_states.keys:
 
-            MatrixStates = getattr(smash_model.states, ctrl_var)
+            MatrixStates = smash_model.get_rr_initial_states(ctrl_var)
 
             for sub_row in range(smash_model.mesh.nrow):
 
@@ -632,7 +636,8 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
 
                         k = k + 1
 
-            setattr(smash_model.states, ctrl_var, MatrixStates)
+            # setattr(smash_model.states, ctrl_var, MatrixStates)
+            smash_model.set_rr_initial_states(ctrl_var, MatrixStates)
 
     # Upgrade for Gamma only
     nb_nodes = control_vector["NbNodes"]
@@ -664,6 +669,83 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
                     ]
 
                 k = k + nb_nodes
+
+
+def _get_smash_gradient(model, control_smash):
+
+    from smash.fcore._mwd_options import OptionsDT
+    from smash.fcore._mwd_returns import ReturnsDT
+    from smash.core.model._build_model import _map_dict_to_fortran_derived_type
+    from smash.core.simulation.optimize._standardize import _standardize_optimize_args
+    from smash.fcore._mwd_parameters_manipulation import (
+        parameters_to_control as wrap_parameters_to_control,
+    )
+
+    (
+        mapping,
+        optimizer,
+        optimize_options,
+        cost_options,
+        common_options,
+        return_options,
+        callback,
+    ) = _standardize_optimize_args(
+        model,
+        mapping="distributed",
+        optimizer="lbfgsb",
+        optimize_options={
+            "parameters": control_smash["ParamList"],
+            "bounds": control_smash["bounds"],
+        },
+        cost_options=None,
+        common_options=None,
+        return_options=None,
+        callback=None,
+    )
+
+    wrap_options = OptionsDT(
+        model.setup,
+        model.mesh,
+        cost_options["njoc"],
+        cost_options["njrc"],
+    )
+
+    wrap_returns = ReturnsDT(
+        model.setup,
+        model.mesh,
+        return_options["nmts"],
+        return_options["fkeys"],
+    )
+
+    # % Map optimize_options dict to derived type
+    _map_dict_to_fortran_derived_type(optimize_options, wrap_options.optimize)
+
+    # % Map cost_options dict to derived type
+    _map_dict_to_fortran_derived_type(cost_options, wrap_options.cost)
+
+    # % Map common_options dict to derived type
+    _map_dict_to_fortran_derived_type(common_options, wrap_options.comm)
+
+    # % Map return_options dict to derived type
+    _map_dict_to_fortran_derived_type(return_options, wrap_returns)
+
+    parameters = model._parameters.copy()
+    wrap_parameters_to_control(
+        model.setup,
+        model.mesh,
+        model._input_data,
+        parameters,
+        wrap_options,
+    )
+    setattr(parameters.control, "x", parameters.control.x.copy())
+
+    parameters_b0 = smash.core.simulation.optimize._tools._get_parameters_b0(
+        model, parameters, wrap_options, wrap_returns
+    )
+
+    grad = parameters_b0.control.x.copy()
+
+    return grad
 
 
 def ComputeModelGradients(
@@ -702,7 +784,7 @@ def ComputeModelGradients(
     )
 
     print(
-        "call gamma.routing_gamma_forward_adjoint_b: Gradients of COST with respect to varying inputs ROUTING_PARAMETERS"
+        "</>  call gamma.routing_gamma_forward_adjoint_b: Gradients of COST with respect to varying inputs ROUTING_PARAMETERS"
     )
     gamma.libfgamma.Mod_Gamma_Interface.routing_gamma_forward_adjoint_b(
         model_gamma.routing_setup,
@@ -723,7 +805,7 @@ def ComputeModelGradients(
     )
 
     print(
-        "call gamma.routing_gamma_forward_adjoint_b0: Gradients of COST with respect to varying input INFLOWS (interpolated_inflows)"
+        "</>  call gamma.routing_gamma_forward_adjoint_b0: Gradients of COST with respect to varying input INFLOWS (interpolated_inflows)"
     )
     gamma.libfgamma.Mod_Gamma_Interface.routing_gamma_forward_adjoint_b0(
         model_gamma.routing_setup,
@@ -741,128 +823,97 @@ def ComputeModelGradients(
     for i in range(Grad_dCOST_dINFLOWS.shape[1]):
         Int_Grad_dCOST_dINFLOWS[i] = np.mean(Grad_dCOST_dINFLOWS[:, i])
 
-    # SMASH side gradients computation:
-
-    # Gradients of OUTPUT.QSIM_DOMAIN with respect to PARAMETERS and STATES
-
-    # Here we should normalize parameters
-    # (p-lb) / (ub-lb)
-    # set smash_model.setup._optimize.denormalize_parameter=1
-    # set smash_model.setup._optimize.lb_parameters=
-    # set smash_model.setup._optimize.ub_parameters=
-    # set smash_model.setup._optimize.optim_parameters=
-    # set for states also
-
-    # initialisation des types dérivés fortran
-    Grad_dQSIMDOMAIN_dPARAMETERS = smash.fcore._mwd_parameters.ParametersDT(
-        smash_model.setup, smash_model.mesh
-    )
-    Grad_dQSIMDOMAIN_dOUPUT = smash.fcore._mwd_output.OutputDT(
-        smash_model.setup, smash_model.mesh
-    )
-    Grad_dQSIMDOMAIN_dOUPUT.response.qt = np.float32(1)
-
-    # Options = smash.default_optimize_options(smash_model, mapping="distributed")
-    cost_options = (
-        smash.core.simulation._standardize._standardize_simulation_cost_options(
-            smash_model, "optimize", None
-        )
-    )
-    smash.core.simulation._standardize._standardize_simulation_cost_options_finalize(
-        smash_model, "optimize", cost_options
-    )
-
-    return_options = (
-        smash.core.simulation._standardize._standardize_simulation_return_options(
-            smash_model, "optimize", None
-        )
-    )
-    smash.core.simulation._standardize._standardize_simulation_return_options_finalize(
-        smash_model, return_options
-    )
-
     print(
-        "call smash.solver._mw_forward.wrapped_forward_b0: Gradients of OUTPUT.QSIM_DOMAIN with respect to varying inputs PARAMETERS and STATES"
+        "</> call _get_smash_gradient: Gradients of output.response.qt with respect to varying inputs PARAMETERS and STATES"
     )
-    smash.fcore._mw_forward.forward_run_b0(
-        smash_model.setup,
-        smash_model.mesh,
-        smash_model._input_data,
-        smash_model._parameters,
-        Grad_dQSIMDOMAIN_dPARAMETERS,
-        smash_model._output,
-        Grad_dQSIMDOMAIN_dOUPUT,
-        smash.fcore._mwd_options.OptionsDT(
-            smash_model.setup,
-            smash_model.mesh,
-            cost_options["njoc"],
-            cost_options["njrc"],
-        ),
-        smash.fcore._mwd_returns.ReturnsDT(
-            smash_model.setup,
-            smash_model.mesh,
-            return_options["nmts"],
-            return_options["fkeys"],
-        ),
+
+    control_smash = copy.deepcopy(control_vector)
+    param_gamma = ["hydraulics_coefficient", "spreading"]
+
+    for key, value in control_vector.items():
+        for p in param_gamma:
+
+            if key in param_gamma:
+                del control_smash["key"]
+
+            if isinstance(value, (list, tuple)):
+                if p in value:
+                    control_smash[key].remove(p)
+
+            if isinstance(value, dict):
+                if p in value.keys():
+                    del control_smash[key][p]
+
+    SmashGradients = _get_smash_gradient(smash_model, control_smash)
+
+    nb_param_smash = len(control_smash["ParamList"])
+    LinearizedGradientsForSmash = np.zeros(
+        model_gamma.routing_mesh.nb_nodes * nb_param_smash
     )
+    nbnode = model_gamma.routing_mesh.nb_nodes
+
+    for i in range(nb_param_smash):
+        LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] = (
+            SmashGradients[i * nbnode : nbnode + i * nbnode] * Int_Grad_dCOST_dINFLOWS[:]
+        )
+
+    #     LinearizedGradientsForSmash = (
+    #     SmashGradients[0 : len(Int_Grad_dCOST_dINFLOWS)] * Int_Grad_dCOST_dINFLOWS
+    # )
 
     # Smash gradients dSimDomain/dParameter are already integrated in time.But we need to vectorize these gradient and keep only those on the active cells. MoreOver we need to compute the full gradient dCost/dParameters (dCost/dXsmash) given by the product : dQSIMDOMAIN/dPARAMETERS x dCost/dInflows
+
     # linear_grandient_cp=np.zeros(Int_Grad_dCOST_dINFLOWS.shape)
 
     # ~ grad_param_smash_cp=LinearizedGradientsForSmash[:]*Int_Grad_dCOST_dINFLOWS[:]
 
-    list_param_smash = control_vector["ParamList"].copy()
-    if "hydraulics_coefficient" in list_param_smash:
-        list_param_smash.remove("hydraulics_coefficient")
+    # list_param_smash = control_vector["ParamList"].copy()
+    # if "hydraulics_coefficient" in list_param_smash:
+    #     list_param_smash.remove("hydraulics_coefficient")
 
-    if "spreading" in list_param_smash:
-        list_param_smash.remove("spreading")
-
-    nb_param_smash = len(list_param_smash)
-    LinearizedGradientsForSmash = np.zeros(
-        model_gamma.routing_mesh.nb_nodes * nb_param_smash
-    )
+    # if "spreading" in list_param_smash:
+    #     list_param_smash.remove("spreading")
 
     # print(control_vector['ParamList'],list_param_smash,len(LinearizedGradientsForSmash))
 
-    k = 0
-    for ctrl_var in control_vector["ParamList"]:
+    # k = 0
+    # for ctrl_var in control_vector["ParamList"]:
 
-        # check if parameters type
-        if hasattr(smash_model.parameters, ctrl_var):
+    #     # check if parameters type
+    #     if hasattr(smash_model.parameters, ctrl_var):
 
-            MatrixGradients = getattr(Grad_dQSIMDOMAIN_dPARAMETERS, ctrl_var)
-            i = 0
+    #         MatrixGradients = getattr(Grad_dQSIMDOMAIN_dPARAMETERS, ctrl_var)
+    #         i = 0
 
-            for sub_row in range(smash_model.mesh.nrow):
+    #         for sub_row in range(smash_model.mesh.nrow):
 
-                for sub_col in range(smash_model.mesh.ncol):
+    #             for sub_col in range(smash_model.mesh.ncol):
 
-                    if smash_model.mesh.active_cell[sub_row, sub_col] > 0:
+    #                 if smash_model.mesh.active_cell[sub_row, sub_col] > 0:
 
-                        LinearizedGradientsForSmash[k] = (
-                            MatrixGradients[sub_row, sub_col] * Int_Grad_dCOST_dINFLOWS[i]
-                        )
-                        k = k + 1
-                        i = i + 1
+    #                     LinearizedGradientsForSmash[k] = (
+    #                         MatrixGradients[sub_row, sub_col] * Int_Grad_dCOST_dINFLOWS[i]
+    #                     )
+    #                     k = k + 1
+    #                     i = i + 1
 
-        # check if states type
-        # if hasattr(smash_model.states, ctrl_var):
+    # # check if states type
+    # if hasattr(smash_model.states, ctrl_var):
 
-        #     MatrixGradients = getattr(Grad_dQSIMDOMAIN_dSTATES, ctrl_var)
-        #     i = 0
+    #     MatrixGradients = getattr(Grad_dQSIMDOMAIN_dSTATES, ctrl_var)
+    #     i = 0
 
-        #     for sub_row in range(smash_model.mesh.nrow):
+    #     for sub_row in range(smash_model.mesh.nrow):
 
-        #         for sub_col in range(smash_model.mesh.ncol):
+    #         for sub_col in range(smash_model.mesh.ncol):
 
-        #             if smash_model.mesh.active_cell[sub_row, sub_col] > 0:
+    #             if smash_model.mesh.active_cell[sub_row, sub_col] > 0:
 
-        #                 LinearizedGradientsForSmash[k] = (
-        #                     MatrixGradients[sub_row, sub_col] * Int_Grad_dCOST_dINFLOWS[i]
-        #                 )
-        #                 k = k + 1
-        #                 i = i + 1
+    #                 LinearizedGradientsForSmash[k] = (
+    #                     MatrixGradients[sub_row, sub_col] * Int_Grad_dCOST_dINFLOWS[i]
+    #                 )
+    #                 k = k + 1
+    #                 i = i + 1
 
     # At this step we own all gradients given by Tapenade.
     # Here we must normalise the gradients, so that the gradients of Gamma and Smash have the same magnitude (same physical meaning)
@@ -1006,7 +1057,7 @@ def ComputeCostAndGradients(
     SetVectorizedModelParameters(control_vector, smash_model, model_gamma)
 
     print("smash_model_run")
-    smash_model.run(inplace=True)
+    smash_model.forward_run()
 
     print("interolate inflows")
     interpolated_inflows = GetGammaInflowFromSmash(
@@ -1079,7 +1130,7 @@ def OptimizeCoupledModel(
     for control in control_parameters_list:
 
         # set only smash boundaries first
-        if hasattr(optimized_smash.parameters, control):
+        if control in optimized_smash.rr_parameters.keys:
 
             if not control in bounds:
                 raise ValueError(
@@ -1094,7 +1145,7 @@ def OptimizeCoupledModel(
             ][1]
             position = position + ControlVector["NbNodes"]
 
-        if hasattr(optimized_smash.states, control):
+        if control in optimized_smash.rr_initial_states.keys:
 
             if not control in bounds:
                 raise ValueError(
@@ -1148,6 +1199,16 @@ def OptimizeCoupledModel(
     if ScaleGradientsByBounds:
         ControlVector.update({"bounds": bounds})
 
+    cost, grad = gamma.smashplug.ComputeCostAndGradients(
+        ControlVector["X"],
+        ControlVector,
+        optimized_smash,
+        optimized_gamma,
+        observations,
+        ScaleGammaGradients,
+        ScaleGradientsByBounds,
+    )
+
     res = scipy.optimize.minimize(
         gamma.smashplug.ComputeCostAndGradients,
         ControlVector["X"],
@@ -1160,10 +1221,12 @@ def OptimizeCoupledModel(
             ScaleGradientsByBounds,
         ),
         method="L-BFGS-B",
+        # method="Newton-CG",
         jac=True,
         bounds=boundaries,
         tol=tol,
         options={"disp": True, "iprint": 101, "maxiter": maxiter},
+        # options={"disp": True, "maxiter": maxiter},
     )
 
     # get results
