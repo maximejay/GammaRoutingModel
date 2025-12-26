@@ -818,10 +818,12 @@ def ComputeModelGradients(
         Grad_dCOST_dINFLOWS,
     )
 
-    # Intégratioon over the time for Gradients of COST with respect to inflows (interpolated_inflows): Cost and Inflows have not the same dimension. Inflows vary in time but not Cost as it is alrady integrated. Thus Tapenade compte the gradients for all time step. We need to integrate it manually.
+    # Intégratioon over the time for Gradients of COST with respect to inflows (interpolated_inflows): Cost and Inflows have not the same dimension. Inflows vary in time but not Cost as it is alrady integrated. Thus Tapenade compte the gradients for all time step. We need to integrate it manually. Added 2025: start at model_gamma.routing_setup.pdt_start_optim !
     Int_Grad_dCOST_dINFLOWS = np.zeros(Grad_dCOST_dINFLOWS.shape[1])
     for i in range(Grad_dCOST_dINFLOWS.shape[1]):
-        Int_Grad_dCOST_dINFLOWS[i] = np.mean(Grad_dCOST_dINFLOWS[:, i])
+        Int_Grad_dCOST_dINFLOWS[i] = np.mean(
+            Grad_dCOST_dINFLOWS[model_gamma.routing_setup.pdt_start_optim :, i]
+        )
 
     print(
         "</> call _get_smash_gradient: Gradients of output.response.qt with respect to varying inputs PARAMETERS and STATES"
@@ -1196,8 +1198,8 @@ def OptimizeCoupledModel(
                 position = position + ControlVector["NbNodes"]
 
     # update the control vector with bounds
-    if ScaleGradientsByBounds:
-        ControlVector.update({"bounds": bounds})
+    # if ScaleGradientsByBounds:
+    ControlVector.update({"bounds": bounds})
 
     cost, grad = gamma.smashplug.ComputeCostAndGradients(
         ControlVector["X"],

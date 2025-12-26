@@ -115,7 +115,7 @@ BestControlVector, optimized_smash_model, optimized_gamma_model = (
         },
         maxiter=15,
         tol=0.00001,
-        ScaleGradientsByBounds=True,
-        ScaleGammaGradients=True,
+        ScaleGradientsByBounds=False,
+        ScaleGammaGradients=False,
     )
 )
