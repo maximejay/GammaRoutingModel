@@ -55,6 +55,8 @@ module mod_gamma_routing_parameters
         real,optional,intent(in) :: hydraulics_coefficient
         real,optional,intent(in) :: spreading
         
+        integer :: i
+        
         if (.not.allocated(routing_parameter%hydraulics_coefficient)) then
             allocate(routing_parameter%hydraulics_coefficient(routing_mesh%nb_nodes))
         end if
@@ -62,15 +64,22 @@ module mod_gamma_routing_parameters
             allocate(routing_parameter%spreading(routing_mesh%nb_nodes))
         end if
         
-        if (present(hydraulics_coefficient)) then
+        if (present(hydraulics_coefficient) .AND. hydraulics_coefficient>0) then
+            
             routing_parameter%hydraulics_coefficient=hydraulics_coefficient
         else
             routing_parameter%hydraulics_coefficient=1.0 !default value
         end if
-        if (present(spreading)) then
+        
+        if (present(spreading) .AND. spreading>0) then
+            
             routing_parameter%spreading=spreading ! given in s/m 
         else
-            routing_parameter%spreading=routing_setup%dt/routing_mesh%dx  !default value
+            
+            do i=1,routing_mesh%nb_nodes
+                routing_parameter%spreading(i)=routing_setup%dt/routing_mesh%dx(i)  !default value
+            end do
+            
         end if
         
         !reading parameter

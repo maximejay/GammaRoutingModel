@@ -170,7 +170,7 @@ module mod_gamma_interface
         
             routing_parameter%spreading=spreading
             
-            if (routing_setup%varying_spread) then
+            if (routing_setup%varying_spread>0) then
                 !routing_states%max_spreading=routing_setup%spreading_boundaries(2)
                 !routing_states%nb_spreads=int(routing_states%max_spreading/routing_setup%spreading_discretization_step)+1
             else

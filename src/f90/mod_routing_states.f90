@@ -81,8 +81,8 @@ module mod_gamma_routing_states
         allocate(routing_states%scale_coef(size(routing_mesh%varying_dx)))
         
         
-        if (routing_setup%varying_spread) then
-            routing_states%max_spreading=routing_setup%spreading_boundaries(2)            
+        if (routing_setup%varying_spread>0) then
+            routing_states%max_spreading=routing_setup%spreading_boundaries(2)
             routing_states%nb_spreads=int(routing_states%max_spreading/routing_setup%spreading_discretization_step)+1
         else
             routing_states%nb_spreads=1

@@ -16,8 +16,25 @@ smash_model = smash.Model(setup_cance, mesh_cance)
 smash_model.forward_run()
 
 # smash_model.response.qt.shape
-
-# smash_model.optimize(mapping="distributed")
+setup_cance, mesh_cance = smash.factory.load_dataset("Cance")
+smash_optimize = smash.Model(setup_cance, mesh_cance)
+optimize_options = {
+    "parameters": ["cp", "ct", "llr"],
+    "bounds": {"cp": (1, 1000), "ct": (1, 1000), "llr": (1, 1000)},
+    "termination_crit": {
+        "maxiter": 15,
+        "factr": 1e6,
+    },
+}
+cost_options = {
+    "gauge": "dws",
+    "end_warmup": "2014-10-02 00:00",
+}
+smash_optimize.optimize(
+    mapping="distributed",
+    optimize_options=optimize_options,
+    cost_options=cost_options,
+)
 
 # smash compilé avec les options de debuggage
 # At line 11781 of file ../smash/fcore/forward/forward_openmp_db.f90
@@ -39,7 +56,7 @@ model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
     varying_spread=1,
     spreading_uniform=1,
     criteria="nse",
-    ponderation_cost=10000.0,
+    ponderation_cost=100000.0,
     pdt_start_optim=1600,
 )
 
@@ -57,9 +74,7 @@ GammaGriddedObservation = gamma.smashplug.SmashDataVectorsToGrid(
 )
 
 # compute the initial cost
-initial_cost = model_gamma.cost_function(
-    GammaGriddedObservation, model_gamma.routing_results.discharges
-)
+model_gamma.cost_function(GammaGriddedObservation, model_gamma.routing_results.discharges)
 
 # Get the control vector
 ControlVector = gamma.smashplug.VectorizeModelParameters(
@@ -106,14 +121,13 @@ BestControlVector, optimized_smash_model, optimized_gamma_model = (
         smash_model,
         model_gamma,
         GammaGriddedObservation,
-        control_parameters_list=["cp", "ct", "hydraulics_coefficient", "spreading"],
+        control_parameters_list=["cp", "ct", "hydraulics_coefficient"],
         bounds={
             "cp": [0.1, 1000.0],
             "ct": [0.1, 1000.0],
             "hydraulics_coefficient": [0.3, 5.0],
-            "spreading": [0.5, 3.0],
         },
-        maxiter=15,
+        maxiter=30,
         tol=0.00001,
         ScaleGradientsByBounds=False,
         ScaleGammaGradients=False,

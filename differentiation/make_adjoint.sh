@@ -14,7 +14,8 @@ cp $SOURCES/mod_routing_mesh.f90  $SOURCES/mod_routing_setup.f90 $SOURCES/mod_ro
 
 #Create the adjoin code
 #make all
-make dJ_dQin
+make dJ_dQin_adj
+make dJ_dQin_tlm
 
 #Modification du code
 #sed -i "s/COMMON\_SIMU\_DIFF/COMMON\_SIMU\_DIFF\_D/g" ./forward/TLM_d.f90

@@ -69,10 +69,11 @@ program routing
     
     call system("mkdir out/")
     
-    !write(*,*) "manual_gradient_test..."
+    write(*,*) "manual_gradient_test..."
     !write(*,*) ""
-    !call manual_gradient_test()
+    call manual_gradient_test()
     
+    pause
     
     !simple test case
     
@@ -80,7 +81,7 @@ program routing
     write(*,*) ""
     call routing_setup_self_initialisation(routing_setup,npdt=100,dt=900.,vmin=0.1,vmax=10.,&
     &elongation_factor=1.0,mode_discretization_step=0.1,spreading_discretization_step=0.1,ponderation_regul=10000.0&
-    &,velocity_computation="qm3",varying_spread=.true.)
+    &,velocity_computation="qm3",varying_spread=1)
     
     write(*,*) "routing_mesh_self_initialisation..."
     write(*,*) ""
@@ -142,7 +143,7 @@ program routing
     write(*,*) ""
     call routing_setup_self_initialisation(routing_setup,npdt=100,dt=3600.,vmin=0.01,vmax=10.,&
     &elongation_factor=1.0,mode_discretization_step=0.1,spreading_discretization_step=0.1,ponderation_regul=10000.0&
-    &,velocity_computation="qm3",varying_spread=.true.)
+    &,velocity_computation="qm3",varying_spread=1)
     
     write(*,*) "routing_mesh_self_initialisation..."
     write(*,*) ""
@@ -177,7 +178,7 @@ program routing
     write(*,*) ""
     call routing_setup_self_initialisation(routing_setup,npdt=100,dt=900.,vmin=0.01,vmax=10.,&
     &elongation_factor=1.0,mode_discretization_step=0.1,spreading_discretization_step=0.1,ponderation_regul=10000.0&
-    &,velocity_computation="qm3",varying_spread=.true.)
+    &,velocity_computation="qm3",varying_spread=1)
     
     write(*,*) "routing_mesh_self_initialisation..."
     write(*,*) ""
@@ -212,7 +213,7 @@ program routing
     write(*,*) ""
     call routing_setup_self_initialisation(routing_setup,npdt=100,dt=3600.,vmin=0.005,vmax=10.,&
     &elongation_factor=1.0,mode_discretization_step=0.1,spreading_discretization_step=0.1,ponderation_regul=10000.0&
-    &,velocity_computation="qm3",varying_spread=.true.)
+    &,velocity_computation="qm3",varying_spread=1)
     
     write(*,*) "routing_mesh_self_initialisation..."
     write(*,*) ""
@@ -255,7 +256,7 @@ program routing
     write(*,*) ""
     call routing_setup_self_initialisation(routing_setup,npdt=100,dt=900.,vmin=0.1,vmax=10.,&
     &elongation_factor=1.0,mode_discretization_step=0.1,spreading_discretization_step=0.2,ponderation_regul=10000.0&
-    &,velocity_computation="qm3",varying_spread=.true.)
+    &,velocity_computation="qm3",varying_spread=1)
     
     
     
@@ -543,7 +544,7 @@ program routing
 !~     call routing_setup_clear(routing_setup)
 !~     call routing_setup_self_initialisation(routing_setup,dt=900.,vmin=0.1,vmax=10.,&
 !~     &max_spreading=9000.0,elongation_factor=1.0,mode_discretization_step=0.1,spreading_discretization_step=300.&
-!~     &,velocity_computation="qmm",varying_spread=.true.)
+!~     &,velocity_computation="qmm",varying_spread=1)
     
 !~     routing_mesh%dx=1000.0
     

@@ -26,11 +26,17 @@ b: $(FILES_FTR)
 	-O $(PWD)/backward $(FILES_FTR)
 	
 	
-dJ_dQin: $(FILES_FTR)
+dJ_dQin_adj: $(FILES_FTR)
 	tapenade -backward -fixinterface -msglevel 20 \
 	-head "routing_hydrogram_forward(routing_parameter)\(cost) routing_hydrogram_forward(inflows)\(cost)" \
 	-output "ADJ" \
 	-O $(PWD)/backward $(FILES_FTR)
+
+dJ_dQin_tlm: $(FILES_FTR)
+	tapenade -forward -fixinterface -msglevel 20 \
+	-head "routing_hydrogram_forward(routing_parameter)\(cost) routing_hydrogram_forward(inflows)\(cost)" \
+	-output "TLM" \
+	-O $(PWD)/forward $(FILES_FTR)
 	
 	
 c: $(FILES_FTR)

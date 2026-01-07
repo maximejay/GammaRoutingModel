@@ -783,9 +783,9 @@ def ComputeModelGradients(
         shape=(2, model_gamma.routing_mesh.nb_nodes), order="F", dtype="float32"
     )
 
-    print(
-        "</>  call gamma.routing_gamma_forward_adjoint_b: Gradients of COST with respect to varying inputs ROUTING_PARAMETERS"
-    )
+    # print(
+    #     "</>  call gamma.routing_gamma_forward_adjoint_b: Gradients of COST with respect to varying inputs ROUTING_PARAMETERS"
+    # )
     gamma.libfgamma.Mod_Gamma_Interface.routing_gamma_forward_adjoint_b(
         model_gamma.routing_setup,
         model_gamma.routing_mesh,
@@ -804,9 +804,9 @@ def ComputeModelGradients(
         dtype="float32",
     )
 
-    print(
-        "</>  call gamma.routing_gamma_forward_adjoint_b0: Gradients of COST with respect to varying input INFLOWS (interpolated_inflows)"
-    )
+    # print(
+    #     "</>  call gamma.routing_gamma_forward_adjoint_b0: Gradients of COST with respect to varying input INFLOWS (interpolated_inflows)"
+    # )
     gamma.libfgamma.Mod_Gamma_Interface.routing_gamma_forward_adjoint_b0(
         model_gamma.routing_setup,
         model_gamma.routing_mesh,
@@ -825,9 +825,9 @@ def ComputeModelGradients(
             Grad_dCOST_dINFLOWS[model_gamma.routing_setup.pdt_start_optim :, i]
         )
 
-    print(
-        "</> call _get_smash_gradient: Gradients of output.response.qt with respect to varying inputs PARAMETERS and STATES"
-    )
+    # print(
+    #     "</> call _get_smash_gradient: Gradients of output.response.qt with respect to varying inputs PARAMETERS and STATES"
+    # )
 
     control_smash = copy.deepcopy(control_vector)
     param_gamma = ["hydraulics_coefficient", "spreading"]
@@ -858,64 +858,6 @@ def ComputeModelGradients(
         LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] = (
             SmashGradients[i * nbnode : nbnode + i * nbnode] * Int_Grad_dCOST_dINFLOWS[:]
         )
-
-    #     LinearizedGradientsForSmash = (
-    #     SmashGradients[0 : len(Int_Grad_dCOST_dINFLOWS)] * Int_Grad_dCOST_dINFLOWS
-    # )
-
-    # Smash gradients dSimDomain/dParameter are already integrated in time.But we need to vectorize these gradient and keep only those on the active cells. MoreOver we need to compute the full gradient dCost/dParameters (dCost/dXsmash) given by the product : dQSIMDOMAIN/dPARAMETERS x dCost/dInflows
-
-    # linear_grandient_cp=np.zeros(Int_Grad_dCOST_dINFLOWS.shape)
-
-    # ~ grad_param_smash_cp=LinearizedGradientsForSmash[:]*Int_Grad_dCOST_dINFLOWS[:]
-
-    # list_param_smash = control_vector["ParamList"].copy()
-    # if "hydraulics_coefficient" in list_param_smash:
-    #     list_param_smash.remove("hydraulics_coefficient")
-
-    # if "spreading" in list_param_smash:
-    #     list_param_smash.remove("spreading")
-
-    # print(control_vector['ParamList'],list_param_smash,len(LinearizedGradientsForSmash))
-
-    # k = 0
-    # for ctrl_var in control_vector["ParamList"]:
-
-    #     # check if parameters type
-    #     if hasattr(smash_model.parameters, ctrl_var):
-
-    #         MatrixGradients = getattr(Grad_dQSIMDOMAIN_dPARAMETERS, ctrl_var)
-    #         i = 0
-
-    #         for sub_row in range(smash_model.mesh.nrow):
-
-    #             for sub_col in range(smash_model.mesh.ncol):
-
-    #                 if smash_model.mesh.active_cell[sub_row, sub_col] > 0:
-
-    #                     LinearizedGradientsForSmash[k] = (
-    #                         MatrixGradients[sub_row, sub_col] * Int_Grad_dCOST_dINFLOWS[i]
-    #                     )
-    #                     k = k + 1
-    #                     i = i + 1
-
-    # # check if states type
-    # if hasattr(smash_model.states, ctrl_var):
-
-    #     MatrixGradients = getattr(Grad_dQSIMDOMAIN_dSTATES, ctrl_var)
-    #     i = 0
-
-    #     for sub_row in range(smash_model.mesh.nrow):
-
-    #         for sub_col in range(smash_model.mesh.ncol):
-
-    #             if smash_model.mesh.active_cell[sub_row, sub_col] > 0:
-
-    #                 LinearizedGradientsForSmash[k] = (
-    #                     MatrixGradients[sub_row, sub_col] * Int_Grad_dCOST_dINFLOWS[i]
-    #                 )
-    #                 k = k + 1
-    #                 i = i + 1
 
     # At this step we own all gradients given by Tapenade.
     # Here we must normalise the gradients, so that the gradients of Gamma and Smash have the same magnitude (same physical meaning)
@@ -993,32 +935,32 @@ def ComputeModelGradients(
 
                 position = position + control_vector["NbNodes"]
 
-    # Normalize the output gradients with respect to the boundaries
-    if ("bounds" in control_vector) and (ScaleGradientsByBounds == True):
+    # # Normalize the output gradients with respect to the boundaries
+    # if ("bounds" in control_vector) and (ScaleGradientsByBounds == True):
 
-        position = 0
-        max_amplitude = 0.0
-        # sum_amplitude=0.
-        for param in control_vector["ParamList"]:
+    #     position = 0
+    #     max_amplitude = 0.0
+    #     # sum_amplitude=0.
+    #     for param in control_vector["ParamList"]:
 
-            amplitude = (
-                control_vector["bounds"][param][1] - control_vector["bounds"][param][0]
-            )
+    #         amplitude = (
+    #             control_vector["bounds"][param][1] - control_vector["bounds"][param][0]
+    #         )
 
-            if amplitude > max_amplitude:
-                max_amplitude = amplitude
-                # sum_amplitude=sum_amplitude+amplitude
+    #         if amplitude > max_amplitude:
+    #             max_amplitude = amplitude
+    #             # sum_amplitude=sum_amplitude+amplitude
 
-            if amplitude > 0:
-                OutputsGradients[position : position + control_vector["NbNodes"]] = (
-                    OutputsGradients[position : position + control_vector["NbNodes"]]
-                    / amplitude
-                )
+    #         if amplitude > 0:
+    #             OutputsGradients[position : position + control_vector["NbNodes"]] = (
+    #                 OutputsGradients[position : position + control_vector["NbNodes"]]
+    #                 / amplitude
+    #             )
 
-            position = position + control_vector["NbNodes"]
+    #         position = position + control_vector["NbNodes"]
 
-        OutputsGradients = OutputsGradients * max_amplitude
-        # OutputsGradients=OutputsGradients* sum_amplitude / len(control_vector["ParamList"])
+    #     OutputsGradients = OutputsGradients * max_amplitude
+    #     # OutputsGradients=OutputsGradients* sum_amplitude / len(control_vector["ParamList"])
 
     return OutputsGradients
 
@@ -1029,9 +971,9 @@ def RunCoupledModel(smash_model, model_gamma):
     print("Run of the Smash model")
     smash_model.forward_run()
 
-    print(
-        f"Getting the interpolated Smash outflow at time-step {model_gamma.routing_setup.dt}"
-    )
+    # print(
+    #     f"Getting the interpolated Smash outflow at time-step {model_gamma.routing_setup.dt}"
+    # )
     interpolated_inflows = GetGammaInflowFromSmash(
         smash_model, dt=model_gamma.routing_setup.dt
     )
@@ -1074,7 +1016,17 @@ def ComputeCostAndGradients(
     model_gamma.cost_function(observations, model_gamma.routing_results.discharges)
     cost = model_gamma.routing_results.costs[0]
 
-    print("compute gradients")
+    print(
+        "------------------------------------------------------------------------------"
+    )
+    print(
+        f"Cost={model_gamma.routing_results.costs[0]} | J0={model_gamma.routing_results.costs[1]} | Jreg={model_gamma.routing_setup.ponderation_regul*model_gamma.routing_results.costs[2]}"
+    )
+    print(
+        "-------------------------------------------------------------------------------"
+    )
+    # print("")
+    # print("-> New gradient computations ... ")
     gradient = ComputeModelGradients(
         control_vector,
         smash_model,

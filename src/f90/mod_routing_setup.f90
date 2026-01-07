@@ -34,9 +34,9 @@ module mod_gamma_routing_setup
         integer :: hydraulics_coef_uniform=0
         integer :: spreading_uniform=0
         integer :: iter_max=100 ! maximum number of iteraration during the calibration
+        integer :: varying_spread=0 !fixed or varying spreading coefficient
         character(3) :: velocity_computation="qmm" ! mm or m3/s : qmm or qm3
         character(4) :: criteria="rmse" ! mm or m3/s : qmm or qm3
-        logical :: varying_spread=.false. !fixed or varying spreading coefficient
     end type type_routing_setup
     
     
@@ -85,9 +85,9 @@ module mod_gamma_routing_setup
         integer, optional :: hydraulics_coef_uniform
         integer, optional :: spreading_uniform
         integer, optional :: iter_max
+        integer,optional :: varying_spread
         character(3), optional :: velocity_computation
         character(4), optional :: criteria
-        logical,optional :: varying_spread
         
         
         if (present(dt)) then
@@ -111,7 +111,7 @@ module mod_gamma_routing_setup
         if (present(spreading_discretization_step)) then 
             routing_setup%spreading_discretization_step=spreading_discretization_step
             
-            if (spreading_discretization_step>dt .and. routing_setup%varying_spread) then
+            if (spreading_discretization_step>dt .and. routing_setup%varying_spread>0) then
                 write(*,*) "spreading_discretization_step have to be lower then dt !"
                 stop 0
             end if

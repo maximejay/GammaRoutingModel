@@ -66,7 +66,7 @@ subroutine manual_gradient_test()
 
         REAL, dimension(2) :: grad !Tableau des gradients de l'adjoint
         
-        logical :: var_spread
+        integer :: var_spread
 
         DATA dx_tab1 /0.001,0.002,0.005,0.01/ 
         DATA dx_tab2 /0.1,1.,10.,100./ 
@@ -78,10 +78,10 @@ subroutine manual_gradient_test()
 
         if (ni.eq.1) then
             dx_tab=dx_tab1
-            var_spread=.false.
+            var_spread=0
         elseif(ni.eq.2)then
             dx_tab=dx_tab2
-            var_spread=.true.
+            var_spread=1
         endif
 
         write(*,*) dx_tab

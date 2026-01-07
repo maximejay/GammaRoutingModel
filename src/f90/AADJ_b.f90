@@ -47,6 +47,7 @@ CONTAINS
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
     REAL, OPTIONAL, INTENT(IN) :: hydraulics_coefficient
     REAL, OPTIONAL, INTENT(IN) :: spreading
+    INTEGER :: i
     INTRINSIC ALLOCATED
     INTRINSIC PRESENT
     IF (.NOT.ALLOCATED(routing_parameter%hydraulics_coefficient)) THEN
@@ -63,11 +64,18 @@ CONTAINS
       routing_parameter%hydraulics_coefficient = 1.0
     END IF
     IF (PRESENT(spreading)) THEN
+      WRITE(*, *) 'Not present', spreading
+      PAUSE  
 ! given in s/m 
       routing_parameter%spreading = spreading
     ELSE
+      WRITE(*, *) 'present'
+      PAUSE  
+      DO i=1,routing_mesh%nb_nodes
 !default value
-      routing_parameter%spreading = routing_setup%dt/routing_mesh%dx
+        routing_parameter%spreading(i) = routing_setup%dt/routing_mesh%&
+&         dx(i)
+      END DO
     END IF
   END SUBROUTINE ROUTING_PARAMETER_SELF_INITIALISATION
 
@@ -187,7 +195,7 @@ USE  MOD_GAMMA_ROUTING_PARAMETERS
       DEALLOCATE(routing_states%scale_coef)
     END IF
     ALLOCATE(routing_states%scale_coef(SIZE(routing_mesh%varying_dx)))
-    IF (routing_setup%varying_spread) THEN
+    IF (routing_setup%varying_spread .GT. 0) THEN
       routing_states%max_spreading = routing_setup%spreading_boundaries(&
 &       2)
       routing_states%nb_spreads = INT(routing_states%max_spreading/&
@@ -1615,6 +1623,11 @@ SUBROUTINE COST_FUNCTION_B(routing_setup, routing_mesh, &
   USE MOD_GAMMA_ROUTING_MESH
 USE  MOD_GAMMA_ROUTING_PARAMETERS
   IMPLICIT NONE
+!~     write(*,*) ""
+!~     write(*,*) "-----------------------------------------------------"
+!~     write(*,*) "cost=",cost_final," ; j0=",cost," ; penalty=",routing_setup%ponderation_regul*penalty
+!~     write(*,*) "-----------------------------------------------------"
+!~     write(*,*) ""
   TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
   TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
   TYPE(TYPE_ROUTING_PARAMETER), INTENT(IN) :: routing_parameter
@@ -1750,6 +1763,11 @@ SUBROUTINE COST_FUNCTION_NODIFF(routing_setup, routing_mesh, &
   USE MOD_GAMMA_ROUTING_MESH
 USE  MOD_GAMMA_ROUTING_PARAMETERS
   IMPLICIT NONE
+!~     write(*,*) ""
+!~     write(*,*) "-----------------------------------------------------"
+!~     write(*,*) "cost=",cost_final," ; j0=",cost," ; penalty=",routing_setup%ponderation_regul*penalty
+!~     write(*,*) "-----------------------------------------------------"
+!~     write(*,*) ""
   TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
   TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
   TYPE(TYPE_ROUTING_PARAMETER), INTENT(IN) :: routing_parameter
@@ -1811,12 +1829,6 @@ USE  MOD_GAMMA_ROUTING_PARAMETERS
   tab_cost(1) = cost_final
   tab_cost(2) = cost
   tab_cost(3) = penalty
-  WRITE(*, *) ''
-  WRITE(*, *) '-----------------------------------------------------'
-  WRITE(*, *) 'cost=', cost_final, ' ; j0=', cost, ' ; penalty=', &
-& routing_setup%ponderation_regul*penalty
-  WRITE(*, *) '-----------------------------------------------------'
-  WRITE(*, *) ''
 END SUBROUTINE COST_FUNCTION_NODIFF
 
 !  Differentiation of regularization in reverse (adjoint) mode (with options fixinterface):

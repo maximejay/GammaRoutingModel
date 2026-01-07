@@ -353,12 +353,28 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
             _libfgamma.f90wrap_type_routing_setup__set__iter_max(self._handle, iter_max)
         
         @property
+        def varying_spread(self):
+            """
+            Element varying_spread ftype=integer  pytype=int
+            
+            
+            Defined at mod_routing_setup.f90 line 28
+            
+            """
+            return _libfgamma.f90wrap_type_routing_setup__get__varying_spread(self._handle)
+        
+        @varying_spread.setter
+        def varying_spread(self, varying_spread):
+            _libfgamma.f90wrap_type_routing_setup__set__varying_spread(self._handle, \
+                varying_spread)
+        
+        @property
         def velocity_computation(self):
             """
             Element velocity_computation ftype=character(3) pytype=str
             
             
-            Defined at mod_routing_setup.f90 line 28
+            Defined at mod_routing_setup.f90 line 29
             
             """
             return \
@@ -375,7 +391,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
             Element criteria ftype=character(4) pytype=str
             
             
-            Defined at mod_routing_setup.f90 line 29
+            Defined at mod_routing_setup.f90 line 30
             
             """
             return _libfgamma.f90wrap_type_routing_setup__get__criteria(self._handle)
@@ -383,22 +399,6 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         @criteria.setter
         def criteria(self, criteria):
             _libfgamma.f90wrap_type_routing_setup__set__criteria(self._handle, criteria)
-        
-        @property
-        def varying_spread(self):
-            """
-            Element varying_spread ftype=logical pytype=bool
-            
-            
-            Defined at mod_routing_setup.f90 line 30
-            
-            """
-            return _libfgamma.f90wrap_type_routing_setup__get__varying_spread(self._handle)
-        
-        @varying_spread.setter
-        def varying_spread(self, varying_spread):
-            _libfgamma.f90wrap_type_routing_setup__set__varying_spread(self._handle, \
-                varying_spread)
         
         def __str__(self):
             ret = ['<type_routing_setup>{\n']
@@ -436,12 +436,12 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
             ret.append(repr(self.spreading_uniform))
             ret.append(',\n    iter_max : ')
             ret.append(repr(self.iter_max))
+            ret.append(',\n    varying_spread : ')
+            ret.append(repr(self.varying_spread))
             ret.append(',\n    velocity_computation : ')
             ret.append(repr(self.velocity_computation))
             ret.append(',\n    criteria : ')
             ret.append(repr(self.criteria))
-            ret.append(',\n    varying_spread : ')
-            ret.append(repr(self.varying_spread))
             ret.append('}')
             return ''.join(ret)
         
@@ -483,7 +483,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         iter_max : int
         velocity_computation : str
         criteria : str
-        varying_spread : bool
+        varying_spread : int
         
         """
         _libfgamma.f90wrap_mod_gamma_routing_setup__routing_setup_self_initiala6ab(routing_setup=self._handle, \
@@ -1056,7 +1056,7 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
     Module mod_gamma_routing_parameters
     
     
-    Defined at mod_routing_parameters.f90 lines 8-78
+    Defined at mod_routing_parameters.f90 lines 8-81
     
     """
     @f90wrap.runtime.register_class("libfgamma.type_routing_parameter")
@@ -1176,7 +1176,7 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
             hydraulics_coefficient, spreading])
         
         
-        Defined at mod_routing_parameters.f90 lines 16-57
+        Defined at mod_routing_parameters.f90 lines 16-60
         
         Parameters
         ----------
@@ -1197,7 +1197,7 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
         routing_parameter_clear(self)
         
         
-        Defined at mod_routing_parameters.f90 lines 59-73
+        Defined at mod_routing_parameters.f90 lines 62-76
         
         Parameters
         ----------
@@ -1212,7 +1212,7 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
         object_copy = routing_parameter_copy(self)
         
         
-        Defined at mod_routing_parameters.f90 lines 75-78
+        Defined at mod_routing_parameters.f90 lines 78-81
         
         Parameters
         ----------

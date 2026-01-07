@@ -139,11 +139,11 @@ subroutine cost_function(routing_setup,routing_mesh,routing_parameter,observatio
     tab_cost(2)=cost
     tab_cost(3)=penalty
     
-    write(*,*) ""
-    write(*,*) "-----------------------------------------------------"
-    write(*,*) "cost=",cost_final," ; j0=",cost," ; penalty=",routing_setup%ponderation_regul*penalty
-    write(*,*) "-----------------------------------------------------"
-    write(*,*) ""
+!~     write(*,*) ""
+!~     write(*,*) "-----------------------------------------------------"
+!~     write(*,*) "cost=",cost_final," ; j0=",cost," ; penalty=",routing_setup%ponderation_regul*penalty
+!~     write(*,*) "-----------------------------------------------------"
+!~     write(*,*) ""
     
     
 endsubroutine cost_function

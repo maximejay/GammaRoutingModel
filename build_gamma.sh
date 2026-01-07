@@ -8,6 +8,10 @@ case $1 in
     shift
     DEBUG=1
     ;;
+    --build_only)
+    shift
+    BUILD_ONLY=1
+    ;;
     *)
     echo "Unknow option $1 ..."
     echo "Use --help to see availbale options."

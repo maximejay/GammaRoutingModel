@@ -11,7 +11,7 @@
 !~ You should have received a copy of the GNU General Public License along with GammaRouting. If not, see <https://www.gnu.org/li
 !censes/>
 !~ Contact: maxime.jay.allemand@hydris-hydrologie.fr
-MODULE MOD_GAMMA_ROUTING_PARAMETERS_DIFF_D_D_D_D_D_D
+MODULE MOD_GAMMA_ROUTING_PARAMETERS_DIFF_D
   IMPLICIT NONE
 ! damping coefficient in seconds (s/m): spreading of the Gamma law
   TYPE TYPE_ROUTING_PARAMETER
@@ -47,6 +47,7 @@ CONTAINS
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
     REAL, OPTIONAL, INTENT(IN) :: hydraulics_coefficient
     REAL, OPTIONAL, INTENT(IN) :: spreading
+    INTEGER :: i
     INTRINSIC ALLOCATED
     INTRINSIC PRESENT
     IF (.NOT.ALLOCATED(routing_parameter%hydraulics_coefficient)) THEN
@@ -63,11 +64,18 @@ CONTAINS
       routing_parameter%hydraulics_coefficient = 1.0
     END IF
     IF (PRESENT(spreading)) THEN
+      WRITE(*, *) 'Not present', spreading
+      PAUSE  
 ! given in s/m 
       routing_parameter%spreading = spreading
     ELSE
+      WRITE(*, *) 'present'
+      PAUSE  
+      DO i=1,routing_mesh%nb_nodes
 !default value
-      routing_parameter%spreading = routing_setup%dt/routing_mesh%dx
+        routing_parameter%spreading(i) = routing_setup%dt/routing_mesh%&
+&         dx(i)
+      END DO
     END IF
   END SUBROUTINE ROUTING_PARAMETER_SELF_INITIALISATION
 
@@ -89,7 +97,14 @@ CONTAINS
     routing_parameter = routing_parameter_new
   END SUBROUTINE ROUTING_PARAMETER_CLEAR
 
-END MODULE MOD_GAMMA_ROUTING_PARAMETERS_DIFF_D_D_D_D_D_D
+  SUBROUTINE ROUTING_PARAMETER_COPY(routing_parameter, object_copy)
+    IMPLICIT NONE
+    TYPE(TYPE_ROUTING_PARAMETER), INTENT(IN) :: routing_parameter
+    TYPE(TYPE_ROUTING_PARAMETER), INTENT(OUT) :: object_copy
+    object_copy = routing_parameter
+  END SUBROUTINE ROUTING_PARAMETER_COPY
+
+END MODULE MOD_GAMMA_ROUTING_PARAMETERS_DIFF_D
 
 !~ GammaRouting is a conceptual flow propagation model
 !~ Copyright 2022, 2023 Hydris-hydrologie, Maxime Jay-Allemand
@@ -101,7 +116,7 @@ END MODULE MOD_GAMMA_ROUTING_PARAMETERS_DIFF_D_D_D_D_D_D
 !~ You should have received a copy of the GNU General Public License along with GammaRouting. If not, see <https://www.gnu.org/li
 !censes/>
 !~ Contact: maxime.jay.allemand@hydris-hydrologie.fr
-MODULE MOD_GAMMA_ROUTING_STATES_DIFF_D_D_D_D_D_D
+MODULE MOD_GAMMA_ROUTING_STATES_DIFF_D
   IMPLICIT NONE
 ! length of the delay windows (model memory)
 !number of discretization mode
@@ -180,7 +195,7 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
       DEALLOCATE(routing_states%scale_coef)
     END IF
     ALLOCATE(routing_states%scale_coef(SIZE(routing_mesh%varying_dx)))
-    IF (routing_setup%varying_spread) THEN
+    IF (routing_setup%varying_spread .GT. 0) THEN
       routing_states%max_spreading = routing_setup%spreading_boundaries(&
 &       2)
       routing_states%nb_spreads = INT(routing_states%max_spreading/&
@@ -232,7 +247,14 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
     routing_states = routing_states_new
   END SUBROUTINE ROUTING_STATES_CLEAR
 
-END MODULE MOD_GAMMA_ROUTING_STATES_DIFF_D_D_D_D_D_D
+  SUBROUTINE ROUTING_STATES_COPY(routing_states, object_copy)
+    IMPLICIT NONE
+    TYPE(TYPE_ROUTING_STATES), INTENT(IN) :: routing_states
+    TYPE(TYPE_ROUTING_STATES), INTENT(OUT) :: object_copy
+    object_copy = routing_states
+  END SUBROUTINE ROUTING_STATES_COPY
+
+END MODULE MOD_GAMMA_ROUTING_STATES_DIFF_D
 
 !~ GammaRouting is a conceptual flow propagation model
 !~ Copyright 2022, 2023 Hydris-hydrologie, Maxime Jay-Allemand
@@ -244,11 +266,11 @@ END MODULE MOD_GAMMA_ROUTING_STATES_DIFF_D_D_D_D_D_D
 !~ You should have received a copy of the GNU General Public License along with GammaRouting. If not, see <https://www.gnu.org/li
 !censes/>
 !~ Contact: maxime.jay.allemand@hydris-hydrologie.fr
-MODULE MOD_GAMMA_ROUTING_DIFF_D_D_D_D_D_D
+MODULE MOD_GAMMA_ROUTING_DIFF_D
   USE MOD_GAMMA_ROUTING_SETUP
   USE MOD_GAMMA_ROUTING_MESH
 USE MOD_GAMMA_ROUTING_PARAMETERS
-  USE MOD_GAMMA_ROUTING_STATES_DIFF_D_D_D_D_D_D
+  USE MOD_GAMMA_ROUTING_STATES_DIFF_D
   USE MOD_GAMMA_ROUTING_RESULTS
   IMPLICIT NONE
 ! Creation of a local type useful for the routing model (memory) ! this is a trick for the differentiation of the model. This typ
@@ -302,18 +324,21 @@ CONTAINS
 !   variations   of useful results: routingmem.states routingmem.remainder
 !                qnetwork
 !   with respect to varying inputs: routingmem.states routingmem.remainder
-!                *(routing_parameter.hydraulics_coefficient) *(routing_parameter.spreading)
+!                inflows *(routing_parameter.hydraulics_coefficient)
+!                *(routing_parameter.spreading)
 !   Plus diff mem management of: routing_parameter.hydraulics_coefficient:in
 !                routing_parameter.spreading:in
   SUBROUTINE ROUTING_FLOW_D(routing_setup, routing_mesh, &
-&   routing_parameter, routing_parameterd, inflows, routing_states, &
-&   routingmem, routingmemd, qnetwork, qnetworkd, velocities)
+&   routing_parameter, routing_parameterd, inflows, inflowsd, &
+&   routing_states, routingmem, routingmemd, qnetwork, qnetworkd, &
+&   velocities)
     IMPLICIT NONE
     TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
     TYPE(TYPE_ROUTING_PARAMETER), INTENT(IN) :: routing_parameter
     TYPE(TYPE_ROUTING_PARAMETER), INTENT(IN) :: routing_parameterd
     REAL, DIMENSION(routing_mesh%nb_nodes), INTENT(IN) :: inflows
+    REAL, DIMENSION(routing_mesh%nb_nodes), INTENT(IN) :: inflowsd
     TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
     INTRINSIC SIZE
     TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
@@ -342,7 +367,7 @@ CONTAINS
 !upstream routed discharges + inflow (m3/s)
       CALL GET_DISCHARGES_D(routing_mesh, routing_states, routingmem, &
 &                     routingmemd, current_node, inflows(current_node), &
-&                     qcell, qcelld)
+&                     inflowsd(current_node), qcell, qcelld)
 !qnetwork is always in m3 => output discharges
       qnetworkd(current_node) = qcelld
       qnetwork(current_node) = qcell
@@ -451,10 +476,10 @@ CONTAINS
 
 !  Differentiation of get_discharges in forward (tangent) mode (with options fixinterface):
 !   variations   of useful results: qcell
-!   with respect to varying inputs: routingmem.states
+!   with respect to varying inputs: routingmem.states inflow
 !get the discharge at current node
   SUBROUTINE GET_DISCHARGES_D(routing_mesh, routing_states, routingmem, &
-&   routingmemd, current_node, inflow, qcell, qcelld)
+&   routingmemd, current_node, inflow, inflowd, qcell, qcelld)
     IMPLICIT NONE
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
     TYPE(TYPE_ROUTING_STATES), INTENT(IN) :: routing_states
@@ -465,6 +490,7 @@ CONTAINS
 &   routing_mesh%nb_nodes), INTENT(IN) :: routingmemd
     INTEGER, INTENT(IN) :: current_node
     REAL, INTENT(IN) :: inflow
+    REAL, INTENT(IN) :: inflowd
     REAL, INTENT(OUT) :: qcell
     REAL, INTENT(OUT) :: qcelld
     INTEGER :: i
@@ -483,7 +509,7 @@ CONTAINS
       END IF
     END DO
 ! en m3 
-    qcelld = qroutd
+    qcelld = inflowd + qroutd
     qcell = inflow + qrout
   END SUBROUTINE GET_DISCHARGES_D
 
@@ -1054,7 +1080,132 @@ CONTAINS
     END IF
   END SUBROUTINE MEMMASSTRANSFERT
 
-END MODULE MOD_GAMMA_ROUTING_DIFF_D_D_D_D_D_D
+END MODULE MOD_GAMMA_ROUTING_DIFF_D
+
+!  Differentiation of routing_hydrogram_forward in forward (tangent) mode (with options fixinterface):
+!   variations   of useful results: cost
+!   with respect to varying inputs: inflows
+!   RW status of diff variables: inflows:in *(routing_parameter.hydraulics_coefficient):(loc)
+!                *(routing_parameter.spreading):(loc) cost:out
+!   Plus diff mem management of: routing_parameter.hydraulics_coefficient:in
+!                routing_parameter.spreading:in
+!~ GammaRouting is a conceptual flow propagation model
+!~ Copyright 2022, 2023 Hydris-hydrologie, Maxime Jay-Allemand
+!~ This file is part of GammaRouting.
+!~ GammaRouting is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as p
+!ublished by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+!~ GammaRouting is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+!~ You should have received a copy of the GNU General Public License along with GammaRouting. If not, see <https://www.gnu.org/li
+!censes/>
+!~ Contact: maxime.jay.allemand@hydris-hydrologie.fr
+SUBROUTINE ROUTING_HYDROGRAM_FORWARD_D0(routing_setup, routing_mesh, &
+& routing_parameter, routing_parameterd, inflows, inflowsd, observations&
+& , routing_states, routing_results, cost, costd)
+! Notes
+! -----
+! **routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,routing_states,routing_results,co
+!st)** :
+!
+! - Run the model an propagate the hydrogram thanks to the inflows and compute the cost function. This subroutine is differentiab
+!le
+!        
+! =============================           ===================================
+! Parameters                              Description
+! =============================           ===================================
+! ``routing_setup``                       routing_setup Derived Type (in)
+! ``routing_mesh``                        Routing_mesh Derived Type (in)
+! ``routing_parameter``                   routing_parameter Derived Type (in)
+! ``inflows``                             Inflows, array(npdt,nb_nodes) (in)
+! ``observations``                        Discharges observations, array(npdt,nb_nodes) (in)
+! ``routing_states``                      Routing_mesh Derived Type (inout)
+! ``routing_results``                     Routing_results Derived Type (inout)
+! ``cost``                                Cost function evaluation (inout)
+! =============================           ===================================
+  USE MOD_GAMMA_ROUTING_SETUP
+  USE MOD_GAMMA_ROUTING_MESH
+USE MOD_GAMMA_ROUTING_PARAMETERS
+  USE MOD_GAMMA_ROUTING_STATES_DIFF_D
+  USE MOD_GAMMA_ROUTING_RESULTS
+  USE MOD_GAMMA_ROUTING_DIFF_D
+  IMPLICIT NONE
+  TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
+  TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
+  TYPE(TYPE_ROUTING_PARAMETER), INTENT(INOUT) :: routing_parameter
+  TYPE(TYPE_ROUTING_PARAMETER), INTENT(INOUT) :: routing_parameterd
+  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
+& :: inflows
+  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
+& :: inflowsd
+  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
+& :: observations
+  TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
+  TYPE(TYPE_ROUTING_RESULTS), INTENT(INOUT) :: routing_results
+  REAL, INTENT(OUT) :: cost
+  REAL, INTENT(OUT) :: costd
+  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes) :: qnetwork
+  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes) :: &
+& qnetworkd
+  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes) :: vnetwork
+  REAL, DIMENSION(3) :: tab_cost
+  INTEGER :: i
+  REAL, DIMENSION(routing_mesh%nb_nodes) :: qmesh
+  REAL, DIMENSION(routing_mesh%nb_nodes) :: qmeshd
+  REAL, DIMENSION(routing_mesh%nb_nodes) :: velocities
+  REAL, DIMENSION(routing_mesh%nb_nodes) :: inflow
+  REAL, DIMENSION(routing_mesh%nb_nodes) :: inflowd
+  INTRINSIC SIZE
+  TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
+& routing_mesh%nb_nodes) :: routingmem
+  TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
+& routing_mesh%nb_nodes) :: routingmemd
+  IF (routing_setup%hydraulics_coef_uniform .EQ. 1) THEN
+    DO i=1,routing_mesh%nb_nodes
+      routing_parameterd%hydraulics_coefficient(i) = 0.0
+      routing_parameter%hydraulics_coefficient(i) = routing_parameter%&
+&       hydraulics_coefficient(1)
+    END DO
+  END IF
+  IF (routing_setup%spreading_uniform .EQ. 1) THEN
+    DO i=1,routing_mesh%nb_nodes
+      routing_parameterd%spreading(i) = 0.0
+      routing_parameter%spreading(i) = routing_parameter%spreading(1)
+    END DO
+  END IF
+!Here we should denormalise parameter if nedeed:
+!if routing_setup_normalized=True:
+!   call denormalized(routing_parameter)
+  routingmem(:, :)%states = routing_states%states
+  routingmem(:, :)%remainder = routing_states%remainder
+  routingmemd%states = 0.0
+  routingmemd%remainder = 0.0
+  qnetworkd = 0.0
+  DO i=1,routing_setup%npdt
+    velocities = 0.
+    qmesh = 0.
+    inflowd = inflowsd(i, 1:routing_mesh%nb_nodes)
+    inflow = inflows(i, 1:routing_mesh%nb_nodes)
+    routing_parameterd%hydraulics_coefficient = 0.0
+    routing_parameterd%spreading = 0.0
+    CALL ROUTING_FLOW_D(routing_setup, routing_mesh, routing_parameter, &
+&                 routing_parameterd, inflow, inflowd, routing_states, &
+&                 routingmem, routingmemd, qmesh, qmeshd, velocities)
+    qnetworkd(i, :) = qmeshd
+    qnetwork(i, :) = qmesh
+    vnetwork(i, :) = velocities
+  END DO
+  routing_parameterd%hydraulics_coefficient = 0.0
+  routing_parameterd%spreading = 0.0
+  CALL COST_FUNCTION_D(routing_setup, routing_mesh, routing_parameter, &
+&                routing_parameterd, observations, qnetwork, qnetworkd, &
+&                tab_cost, cost, costd)
+!storing results
+  routing_results%costs = tab_cost
+  routing_results%discharges = qnetwork
+  routing_results%velocities = vnetwork
+  routing_states%states = routingmem(:, :)%states
+  routing_states%remainder = routingmem(:, :)%remainder
+END SUBROUTINE ROUTING_HYDROGRAM_FORWARD_D0
 
 !  Differentiation of routing_hydrogram_forward in forward (tangent) mode (with options fixinterface):
 !   variations   of useful results: cost
@@ -1102,9 +1253,9 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_D(routing_setup, routing_mesh, &
   USE MOD_GAMMA_ROUTING_SETUP
   USE MOD_GAMMA_ROUTING_MESH
 USE MOD_GAMMA_ROUTING_PARAMETERS
-  USE MOD_GAMMA_ROUTING_STATES_DIFF_D_D_D_D_D_D
+  USE MOD_GAMMA_ROUTING_STATES_DIFF_D
   USE MOD_GAMMA_ROUTING_RESULTS
-  USE MOD_GAMMA_ROUTING_DIFF_D_D_D_D_D_D
+  USE MOD_GAMMA_ROUTING_DIFF_D
   IMPLICIT NONE
   TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
   TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
@@ -1112,6 +1263,7 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
   TYPE(TYPE_ROUTING_PARAMETER), INTENT(INOUT) :: routing_parameterd
   REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
 & :: inflows
+  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes) :: inflowsd
   REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
 & :: observations
   TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
@@ -1128,6 +1280,7 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
   REAL, DIMENSION(routing_mesh%nb_nodes) :: qmeshd
   REAL, DIMENSION(routing_mesh%nb_nodes) :: velocities
   REAL, DIMENSION(routing_mesh%nb_nodes) :: inflow
+  REAL, DIMENSION(routing_mesh%nb_nodes) :: inflowd
   INTRINSIC SIZE
   TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
 & routing_mesh%nb_nodes) :: routingmem
@@ -1147,6 +1300,9 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
       routing_parameter%spreading(i) = routing_parameter%spreading(1)
     END DO
   END IF
+!Here we should denormalise parameter if nedeed:
+!if routing_setup_normalized=True:
+!   call denormalized(routing_parameter)
   routingmem(:, :)%states = routing_states%states
   routingmem(:, :)%remainder = routing_states%remainder
   routingmemd%states = 0.0
@@ -1156,9 +1312,10 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
     velocities = 0.
     qmesh = 0.
     inflow = inflows(i, 1:routing_mesh%nb_nodes)
+    inflowd = 0.0
     CALL ROUTING_FLOW_D(routing_setup, routing_mesh, routing_parameter, &
-&                 routing_parameterd, inflow, routing_states, routingmem&
-&                 , routingmemd, qmesh, qmeshd, velocities)
+&                 routing_parameterd, inflow, inflowd, routing_states, &
+&                 routingmem, routingmemd, qmesh, qmeshd, velocities)
     qnetworkd(i, :) = qmeshd
     qnetwork(i, :) = qmesh
     vnetwork(i, :) = velocities
@@ -1184,7 +1341,7 @@ END SUBROUTINE ROUTING_HYDROGRAM_FORWARD_D
 !~ You should have received a copy of the GNU General Public License along with GammaRouting. If not, see <https://www.gnu.org/li
 !censes/>
 !~ Contact: maxime.jay.allemand@hydris-hydrologie.fr
-SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF_D_D_D_D_D_D(routing_setup, routing_mesh&
+SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF_D(routing_setup, routing_mesh&
 & , routing_parameter, inflows, observations, routing_states, &
 & routing_results, cost)
 ! Notes
@@ -1210,9 +1367,9 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF_D_D_D_D_D_D(routing_setup, routing_m
   USE MOD_GAMMA_ROUTING_SETUP
   USE MOD_GAMMA_ROUTING_MESH
 USE MOD_GAMMA_ROUTING_PARAMETERS
-  USE MOD_GAMMA_ROUTING_STATES_DIFF_D_D_D_D_D_D
+  USE MOD_GAMMA_ROUTING_STATES_DIFF_D
   USE MOD_GAMMA_ROUTING_RESULTS
-  USE MOD_GAMMA_ROUTING_DIFF_D_D_D_D_D_D
+  USE MOD_GAMMA_ROUTING_DIFF_D
   IMPLICIT NONE
   TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
   TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
@@ -1245,6 +1402,9 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
       routing_parameter%spreading(i) = routing_parameter%spreading(1)
     END DO
   END IF
+!Here we should denormalise parameter if nedeed:
+!if routing_setup_normalized=True:
+!   call denormalized(routing_parameter)
   routingmem(:, :)%states = routing_states%states
   routingmem(:, :)%remainder = routing_states%remainder
   DO i=1,routing_setup%npdt
@@ -1256,7 +1416,7 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
     qnetwork(i, :) = qmesh
     vnetwork(i, :) = velocities
   END DO
-  CALL COST_FUNCTION_NODIFF_D_D_D_D_D_D(routing_setup, routing_mesh, &
+  CALL COST_FUNCTION_NODIFF_D(routing_setup, routing_mesh, &
 &                     routing_parameter, observations, qnetwork, &
 &                     tab_cost, cost)
 !storing results
@@ -1265,7 +1425,7 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
   routing_results%velocities = vnetwork
   routing_states%states = routingmem(:, :)%states
   routing_states%remainder = routingmem(:, :)%remainder
-END SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF_D_D_D_D_D_D
+END SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF_D
 
 !  Differentiation of cost_function in forward (tangent) mode (with options fixinterface):
 !   variations   of useful results: cost_final
@@ -1307,6 +1467,11 @@ SUBROUTINE COST_FUNCTION_D(routing_setup, routing_mesh, &
   USE MOD_GAMMA_ROUTING_MESH
 USE MOD_GAMMA_ROUTING_PARAMETERS
   IMPLICIT NONE
+!~     write(*,*) ""
+!~     write(*,*) "-----------------------------------------------------"
+!~     write(*,*) "cost=",cost_final," ; j0=",cost," ; penalty=",routing_setup%ponderation_regul*penalty
+!~     write(*,*) "-----------------------------------------------------"
+!~     write(*,*) ""
   TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
   TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
   TYPE(TYPE_ROUTING_PARAMETER), INTENT(IN) :: routing_parameter
@@ -1329,6 +1494,7 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
   cost = 0.
   tab_cost = 0.
   cost_final = 0.
+!write(*,*) any((observations-qnetwork)**2.>0)
   SELECT CASE  (TRIM(routing_setup%criteria)) 
   CASE ('rmse') 
     cost = 0.
@@ -1337,6 +1503,10 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
       k = routing_mesh%controlled_nodes(j)
       IF (k .GT. 0 .AND. k .LE. routing_mesh%nb_nodes) THEN
         DO i=routing_setup%pdt_start_optim,routing_setup%npdt
+!write(*,*) i,k,(observations(i,k)-qnetwork(i,k))**2.,observations(i,k),qnetwork(i,k)
+!~                     if (observations(i,k).ne.qnetwork(i,k))then
+!~                         write(*,*) i,k,(observations(i,k)-qnetwork(i,k))**2.,observations(i,k),qnetwork(i,k)
+!~                     end if
           costd = costd - 2.*(observations(i, k)-qnetwork(i, k))*&
 &           qnetworkd(i, k)
           cost = cost + (observations(i, k)-qnetwork(i, k))**2.
@@ -1388,12 +1558,6 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
   tab_cost(1) = cost_final
   tab_cost(2) = cost
   tab_cost(3) = penalty
-  WRITE(*, *) ''
-  WRITE(*, *) '-----------------------------------------------------'
-  WRITE(*, *) 'cost=', cost_final, ' ; j0=', cost, ' ; penalty=', &
-& routing_setup%ponderation_regul*penalty
-  WRITE(*, *) '-----------------------------------------------------'
-  WRITE(*, *) ''
 END SUBROUTINE COST_FUNCTION_D
 
 !~ This file is part of GammaRouting.
@@ -1408,7 +1572,7 @@ END SUBROUTINE COST_FUNCTION_D
 !censes/>
 !~ Contact: maxime.jay.allemand@hydris-hydrologie.fr
 !>costfun : Fonction cout
-SUBROUTINE COST_FUNCTION_NODIFF_D_D_D_D_D_D(routing_setup, routing_mesh, &
+SUBROUTINE COST_FUNCTION_NODIFF_D(routing_setup, routing_mesh, &
 & routing_parameter, observations, qnetwork, tab_cost, cost_final)
 ! Notes
 ! -----
@@ -1429,6 +1593,11 @@ SUBROUTINE COST_FUNCTION_NODIFF_D_D_D_D_D_D(routing_setup, routing_mesh, &
   USE MOD_GAMMA_ROUTING_MESH
 USE MOD_GAMMA_ROUTING_PARAMETERS
   IMPLICIT NONE
+!~     write(*,*) ""
+!~     write(*,*) "-----------------------------------------------------"
+!~     write(*,*) "cost=",cost_final," ; j0=",cost," ; penalty=",routing_setup%ponderation_regul*penalty
+!~     write(*,*) "-----------------------------------------------------"
+!~     write(*,*) ""
   TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
   TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
   TYPE(TYPE_ROUTING_PARAMETER), INTENT(IN) :: routing_parameter
@@ -1445,6 +1614,7 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
   cost = 0.
   tab_cost = 0.
   cost_final = 0.
+!write(*,*) any((observations-qnetwork)**2.>0)
   SELECT CASE  (TRIM(routing_setup%criteria)) 
   CASE ('rmse') 
     cost = 0.
@@ -1452,6 +1622,10 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
       k = routing_mesh%controlled_nodes(j)
       IF (k .GT. 0 .AND. k .LE. routing_mesh%nb_nodes) THEN
         DO i=routing_setup%pdt_start_optim,routing_setup%npdt
+!write(*,*) i,k,(observations(i,k)-qnetwork(i,k))**2.,observations(i,k),qnetwork(i,k)
+!~                     if (observations(i,k).ne.qnetwork(i,k))then
+!~                         write(*,*) i,k,(observations(i,k)-qnetwork(i,k))**2.,observations(i,k),qnetwork(i,k)
+!~                     end if
           cost = cost + (observations(i, k)-qnetwork(i, k))**2.
         END DO
       END IF
@@ -1479,19 +1653,13 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
     END DO
   END SELECT
   penalty = 0.
-  CALL REGULARIZATION_NODIFF_D_D_D_D_D_D(routing_mesh, routing_parameter, penalty)
+  CALL REGULARIZATION_NODIFF_D(routing_mesh, routing_parameter, penalty)
   cost_final = routing_setup%ponderation_cost*cost + routing_setup%&
 &   ponderation_regul*penalty
   tab_cost(1) = cost_final
   tab_cost(2) = cost
   tab_cost(3) = penalty
-  WRITE(*, *) ''
-  WRITE(*, *) '-----------------------------------------------------'
-  WRITE(*, *) 'cost=', cost_final, ' ; j0=', cost, ' ; penalty=', &
-& routing_setup%ponderation_regul*penalty
-  WRITE(*, *) '-----------------------------------------------------'
-  WRITE(*, *) ''
-END SUBROUTINE COST_FUNCTION_NODIFF_D_D_D_D_D_D
+END SUBROUTINE COST_FUNCTION_NODIFF_D
 
 !  Differentiation of regularization in forward (tangent) mode (with options fixinterface):
 !   variations   of useful results: penalty
@@ -1560,7 +1728,7 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
   END DO
 END SUBROUTINE REGULARIZATION_D
 
-SUBROUTINE REGULARIZATION_NODIFF_D_D_D_D_D_D(routing_mesh, routing_parameter, &
+SUBROUTINE REGULARIZATION_NODIFF_D(routing_mesh, routing_parameter, &
 & penalty)
 USE MOD_GAMMA_ROUTING_PARAMETERS
   USE MOD_GAMMA_ROUTING_MESH
@@ -1593,5 +1761,5 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
 &     %spreading(current_node)-routing_parameter%spreading(next_node))**&
 &     2.)**2.
   END DO
-END SUBROUTINE REGULARIZATION_NODIFF_D_D_D_D_D_D
+END SUBROUTINE REGULARIZATION_NODIFF_D
 

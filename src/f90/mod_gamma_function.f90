@@ -252,7 +252,7 @@ module mod_gamma_function
             routing_states%window_length(j)=ceiling( routing_mesh%dx(j)/(routing_setup%vmin*routing_setup%dt) &
             & + 2/skweness_gamma( (routing_mesh%dx(j)/(routing_setup%vmin*routing_setup%dt))+1.0,&
             &routing_states%scale_coef(index_scale_coef) )&
-            & * max(spreading,1.0) )  !Longueur de la fenetre d'itnertie du modèle en nb pdt
+            & * max(spreading, 1.0) )  !Longueur de la fenetre d'itnertie du modèle en nb pdt
             
         end do
         
@@ -267,7 +267,6 @@ module mod_gamma_function
             deallocate(routing_states%quantile)
         endif
         allocate(routing_states%quantile(maxval(routing_states%window_length)))
-        
         
         do i=1,maxval(routing_states%window_length)
             routing_states%quantile(i)=i
@@ -539,7 +538,7 @@ module mod_gamma_function
         ! =============================           ===================================
         ! ``scale``                               Scale coefficient of the Gamma pdf/cdf, real (in)
         ! ``mode``                                mode of the Gamma pdf/cdf, real (in)
-        ! ``quatile``                             The quantile where to compute the gamma pdf/cdf, array(window_lenght), real (in)
+        ! ``quantile``                            The quantile where to compute the gamma pdf/cdf, array(window_lenght), real (in)
         ! ``windows_shift``                       The shift value to shift the quantile so that the minimum mode equal to the minimum quantile
         ! ``density_function``                    use the 'pdf' or the 'cdf', string, prefer the cdf (numerical issues with the pdf)
         ! ``gamma_coefficient``                   The value of the routing coefficient based on the Gamma pdf/cdf for each quantile, array(windows_length), real (in)
@@ -925,10 +924,10 @@ module mod_gamma_function
         scale=1.0
         spread=0.
         
-        if (routing_setup%varying_spread .eqv. .false.) then
+        if (routing_setup%varying_spread==0) then
             spreading_step=routing_states%max_spreading
         end if
-        if (routing_setup%varying_spread .eqv. .true.) then
+        if (routing_setup%varying_spread>0) then
             spreading_step=routing_setup%spreading_discretization_step
         end if
         
