@@ -91,6 +91,7 @@ module mod_gamma_routing_states
                 max_spreading=max(max_spreading,routing_parameter%spreading(i))
             end do
             routing_states%max_spreading=max_spreading
+!~             routing_states%max_spreading=routing_setup%spreading_boundaries(2)
         end if
         
         

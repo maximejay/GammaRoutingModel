@@ -412,7 +412,7 @@ module mod_gamma_routing
         
         integer :: i
         integer :: ix1,iy1,ix2,iy2
-        real :: x1,y1,x2,y2
+        real :: x1,y1,x2,y2,fx,fy
         real :: true_spreading
         
         !unormalise spreading
@@ -424,9 +424,9 @@ module mod_gamma_routing
         !true_spreading=spreading*routing_states%param_normalisation(2)+spreading*routing_states%param_normalisation(2)*mode**0.5
         
         !search indices for delay x
-        ix1=0
-        ix2=1
-        do i=1,routing_states%nb_mode
+        ix1=1
+        ix2=2
+        do i=2,routing_states%nb_mode
             if (mode<routing_states%tabulated_delay(i)) then
                 ix1=i-1
                 ix2=i
@@ -445,19 +445,10 @@ module mod_gamma_routing
             endif
         end do
         
-!~         if (ix1<1) then
-            
-!~             write(*,*) mode
-!~             write(*,*) routing_states%tabulated_delay
-!~             stop 1
-            
-!~         end if
-        
         x1=routing_states%tabulated_delay(ix1)
         x2=routing_states%tabulated_delay(ix2)
         y1=routing_states%tabulated_spreading(iy1)
         y2=routing_states%tabulated_spreading(iy2)
-        
         
         gamma_coefficient=&
         & ((mode-x2)/(x1-x2)) * ((true_spreading-y2)/(y1-y2)) * &
@@ -469,6 +460,18 @@ module mod_gamma_routing
         &+((mode-x1)/(x2-x1)) * ((true_spreading-y1)/(y2-y1)) * &
         &routing_states%tabulated_routing_coef(:,ix2,iy2,index_dx)
         
+        ! Interpolation factors
+!~         fx = (mode - routing_states%tabulated_delay(ix1))/(routing_states%tabulated_delay(ix2)&
+!~         & - routing_states%tabulated_delay(ix1))
+!~         fy = (true_spreading - routing_states%tabulated_spreading(iy1))/(routing_states%tabulated_spreading(iy2)&
+!~         & - routing_states%tabulated_spreading(iy1))
+
+!~         ! Bilinear interpolation
+!~         gamma_coefficient = routing_states%tabulated_routing_coef(:,iy1, iy1,index_dx)*(1.0 - fx)*(1.0 - fy) + &
+!~                  routing_states%tabulated_routing_coef(:,iy2, iy1,index_dx)*fx*(1.0 - fy) + &
+!~                  routing_states%tabulated_routing_coef(:,iy1, iy2,index_dx)*(1.0 - fx)*fy + &
+!~                  routing_states%tabulated_routing_coef(:,iy2, iy2,index_dx)*fx*fy
+    
     end subroutine interpolated_routing_coefficients_bilinear
     
     

@@ -57,20 +57,17 @@ CONTAINS
     IF (.NOT.ALLOCATED(routing_parameter%spreading)) THEN
       ALLOCATE(routing_parameter%spreading(routing_mesh%nb_nodes))
     END IF
-    IF (PRESENT(hydraulics_coefficient)) THEN
+    IF (PRESENT(hydraulics_coefficient) .AND. hydraulics_coefficient &
+&       .GT. 0) THEN
       routing_parameter%hydraulics_coefficient = hydraulics_coefficient
     ELSE
 !default value
       routing_parameter%hydraulics_coefficient = 1.0
     END IF
-    IF (PRESENT(spreading)) THEN
-      WRITE(*, *) 'Not present', spreading
-      PAUSE  
+    IF (PRESENT(spreading) .AND. spreading .GT. 0) THEN
 ! given in s/m 
       routing_parameter%spreading = spreading
     ELSE
-      WRITE(*, *) 'present'
-      PAUSE  
       DO i=1,routing_mesh%nb_nodes
 !default value
         routing_parameter%spreading(i) = routing_setup%dt/routing_mesh%&
@@ -211,6 +208,7 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
         END IF
       END DO
       routing_states%max_spreading = max_spreading
+!~             routing_states%max_spreading=routing_setup%spreading_boundaries(2)
     END IF
     result1 = MAXVAL(routing_mesh%dx)
     routing_states%max_mode = result1/routing_setup%vmin/routing_setup%&
@@ -743,6 +741,16 @@ CONTAINS
 &   spreading, spreadingd, index_dx, routing_states, gamma_coefficient, &
 &   gamma_coefficientd)
     IMPLICIT NONE
+! Interpolation factors
+!~         fx = (mode - routing_states%tabulated_delay(ix1))/(routing_states%tabulated_delay(ix2)&
+!~         & - routing_states%tabulated_delay(ix1))
+!~         fy = (true_spreading - routing_states%tabulated_spreading(iy1))/(routing_states%tabulated_spreading(iy2)&
+!~         & - routing_states%tabulated_spreading(iy1))
+!~         ! Bilinear interpolation
+!~         gamma_coefficient = routing_states%tabulated_routing_coef(:,iy1, iy1,index_dx)*(1.0 - fx)*(1.0 - fy) + &
+!~                  routing_states%tabulated_routing_coef(:,iy2, iy1,index_dx)*fx*(1.0 - fy) + &
+!~                  routing_states%tabulated_routing_coef(:,iy1, iy2,index_dx)*(1.0 - fx)*fy + &
+!~                  routing_states%tabulated_routing_coef(:,iy2, iy2,index_dx)*fx*fy
     REAL, INTENT(IN) :: mode
     REAL, INTENT(IN) :: moded
     REAL, INTENT(IN) :: spreading
@@ -756,7 +764,7 @@ CONTAINS
 &   gamma_coefficientd
     INTEGER :: i
     INTEGER :: ix1, iy1, ix2, iy2
-    REAL :: x1, y1, x2, y2
+    REAL :: x1, y1, x2, y2, fx, fy
     REAL :: true_spreading
     REAL :: true_spreadingd
     REAL :: temp
@@ -771,9 +779,9 @@ CONTAINS
 !ery well, less chocs when v is low (hydro_coef is low too)
 !true_spreading=spreading*routing_states%param_normalisation(2)+spreading*routing_states%param_normalisation(2)*mode**0.5
 !search indices for delay x
-    ix1 = 0
-    ix2 = 1
-    DO i=1,routing_states%nb_mode
+    ix1 = 1
+    ix2 = 2
+    DO i=2,routing_states%nb_mode
       IF (mode .LT. routing_states%tabulated_delay(i)) GOTO 100
     END DO
     GOTO 110
@@ -789,11 +797,6 @@ CONTAINS
     GOTO 130
  120 iy1 = i - 1
     iy2 = i
-!~         if (ix1<1) then
-!~             write(*,*) mode
-!~             write(*,*) routing_states%tabulated_delay
-!~             stop 1
-!~         end if
  130 x1 = routing_states%tabulated_delay(ix1)
     x2 = routing_states%tabulated_delay(ix2)
     y1 = routing_states%tabulated_spreading(iy1)
@@ -805,7 +808,7 @@ CONTAINS
     gamma_coefficientd = routing_states%tabulated_routing_coef(:, ix1, &
 &     iy1, index_dx)*((true_spreading-y2)*moded+(mode-x2)*&
 &     true_spreadingd)/temp + routing_states%tabulated_routing_coef(:, &
-&     ix2, iy1, index_dx)*((true_spreading-y2)*moded+(mode-x1)*&
+&     ix2, iy1, index_dx)*((true_spreading-y1)*moded+(mode-x1)*&
 &     true_spreadingd)/temp0 + routing_states%tabulated_routing_coef(:, &
 &     ix1, iy2, index_dx)*((true_spreading-y1)*moded+(mode-x2)*&
 &     true_spreadingd)/temp1 + routing_states%tabulated_routing_coef(:, &
@@ -814,7 +817,7 @@ CONTAINS
     gamma_coefficient = routing_states%tabulated_routing_coef(:, ix1, &
 &     iy1, index_dx)*((mode-x2)*(true_spreading-y2)/temp) + &
 &     routing_states%tabulated_routing_coef(:, ix2, iy1, index_dx)*((&
-&     mode-x1)*(true_spreading-y2)/temp0) + routing_states%&
+&     mode-x1)*(true_spreading-y1)/temp0) + routing_states%&
 &     tabulated_routing_coef(:, ix1, iy2, index_dx)*((mode-x2)*(&
 &     true_spreading-y1)/temp1) + routing_states%tabulated_routing_coef(&
 &     :, ix2, iy2, index_dx)*((mode-x1)*(true_spreading-y1)/temp2)
@@ -823,6 +826,16 @@ CONTAINS
   SUBROUTINE INTERPOLATED_ROUTING_COEFFICIENTS_BILINEAR(mode, spreading&
 &   , index_dx, routing_states, gamma_coefficient)
     IMPLICIT NONE
+! Interpolation factors
+!~         fx = (mode - routing_states%tabulated_delay(ix1))/(routing_states%tabulated_delay(ix2)&
+!~         & - routing_states%tabulated_delay(ix1))
+!~         fy = (true_spreading - routing_states%tabulated_spreading(iy1))/(routing_states%tabulated_spreading(iy2)&
+!~         & - routing_states%tabulated_spreading(iy1))
+!~         ! Bilinear interpolation
+!~         gamma_coefficient = routing_states%tabulated_routing_coef(:,iy1, iy1,index_dx)*(1.0 - fx)*(1.0 - fy) + &
+!~                  routing_states%tabulated_routing_coef(:,iy2, iy1,index_dx)*fx*(1.0 - fy) + &
+!~                  routing_states%tabulated_routing_coef(:,iy1, iy2,index_dx)*(1.0 - fx)*fy + &
+!~                  routing_states%tabulated_routing_coef(:,iy2, iy2,index_dx)*fx*fy
     REAL, INTENT(IN) :: mode
     REAL, INTENT(IN) :: spreading
     INTEGER, INTENT(IN) :: index_dx
@@ -832,7 +845,7 @@ CONTAINS
 &   gamma_coefficient
     INTEGER :: i
     INTEGER :: ix1, iy1, ix2, iy2
-    REAL :: x1, y1, x2, y2
+    REAL :: x1, y1, x2, y2, fx, fy
     REAL :: true_spreading
 !unormalise spreading
     true_spreading = spreading*routing_states%param_normalisation(2)
@@ -841,9 +854,9 @@ CONTAINS
 !ery well, less chocs when v is low (hydro_coef is low too)
 !true_spreading=spreading*routing_states%param_normalisation(2)+spreading*routing_states%param_normalisation(2)*mode**0.5
 !search indices for delay x
-    ix1 = 0
-    ix2 = 1
-    DO i=1,routing_states%nb_mode
+    ix1 = 1
+    ix2 = 2
+    DO i=2,routing_states%nb_mode
       IF (mode .LT. routing_states%tabulated_delay(i)) THEN
         ix1 = i - 1
         ix2 = i
@@ -861,18 +874,13 @@ CONTAINS
         GOTO 110
       END IF
     END DO
-!~         if (ix1<1) then
-!~             write(*,*) mode
-!~             write(*,*) routing_states%tabulated_delay
-!~             stop 1
-!~         end if
  110 x1 = routing_states%tabulated_delay(ix1)
     x2 = routing_states%tabulated_delay(ix2)
     y1 = routing_states%tabulated_spreading(iy1)
     y2 = routing_states%tabulated_spreading(iy2)
     gamma_coefficient = (mode-x2)/(x1-x2)*((true_spreading-y2)/(y1-y2))*&
 &     routing_states%tabulated_routing_coef(:, ix1, iy1, index_dx) + (&
-&     mode-x1)/(x2-x1)*((true_spreading-y2)/(y1-y2))*routing_states%&
+&     mode-x1)/(x2-x1)*((true_spreading-y1)/(y1-y2))*routing_states%&
 &     tabulated_routing_coef(:, ix2, iy1, index_dx) + (mode-x2)/(x1-x2)*&
 &     ((true_spreading-y1)/(y2-y1))*routing_states%&
 &     tabulated_routing_coef(:, ix1, iy2, index_dx) + (mode-x1)/(x2-x1)*&

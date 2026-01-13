@@ -21,6 +21,8 @@ subroutine manual_gradient_test()
         use mod_gamma_routing_states
         use mod_gamma_function
         use mod_gamma_routing
+        use mod_gamma_routing_results
+
         
         !use mod_gamma_routing_diff
         !use mod_gamma_routing_diff_d
@@ -33,6 +35,7 @@ subroutine manual_gradient_test()
         type(type_routing_mesh) :: routing_mesh
         type(type_routing_parameter) :: routing_parameter
         type(type_routing_states) :: routing_states
+        type(type_routing_results) :: routing_results
         real :: cost
         
         real, dimension(:,:), allocatable :: inflows,qnetwork,vnetwork,observations
@@ -69,7 +72,7 @@ subroutine manual_gradient_test()
         integer :: var_spread
 
         DATA dx_tab1 /0.001,0.002,0.005,0.01/ 
-        DATA dx_tab2 /0.1,1.,10.,100./ 
+        DATA dx_tab2 /0.001,0.002,0.005,0.01/
         
         WRITE(*,*) "Test du gradient : Les Resultats devraient satisfaire : derivative = costd = Cost_adjoint"
         
@@ -77,7 +80,7 @@ subroutine manual_gradient_test()
         ni=1 ! Numero du paramètre perturbe
 
         if (ni.eq.1) then
-            dx_tab=dx_tab1
+            dx_tab=dx_tab1*0.001
             var_spread=0
         elseif(ni.eq.2)then
             dx_tab=dx_tab2
@@ -89,15 +92,23 @@ subroutine manual_gradient_test()
         write(*,*) "routing_setup_self_initialisation..."
         write(*,*) ""
         call routing_setup_self_initialisation(routing_setup,npdt=30,dt=900.,vmin=0.1,vmax=10.,&
-        &elongation_factor=1.0,mode_discretization_step=0.1,spreading_discretization_step=100.&
-        &,velocity_computation="qm3",varying_spread=var_spread)
+        &elongation_factor=1.0,mode_discretization_step=0.1,spreading_discretization_step=0.1&
+        &,velocity_computation="qm3",varying_spread=1)
         
-        !routing_setup%hydrau_coef_boundaries=5.0
-        !routing_setup%spreading_boundaries=7200.0
         
         write(*,*) "routing_mesh_self_initialisation..."
         write(*,*) ""
         call routing_mesh_self_initialisation(routing_mesh,nb_nodes=5,nb_upstream_nodes=1)
+        
+        routing_mesh%controlled_nodes(1)=5
+        call mesh_update(routing_mesh)
+        
+        write(*,*) routing_mesh%upstream_to_downstream_nodes
+        write(*,*) routing_mesh%nodes_linker
+        write(*,*) routing_mesh%surface
+        write(*,*) routing_mesh%dx
+        write(*,*) routing_mesh%controlled_nodes
+        
         
         
         
@@ -119,13 +130,16 @@ subroutine manual_gradient_test()
         if (ni.eq.1) then
             call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
             &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-            &hydraulics_coefficient=0.5,spreading=1800.)
+            &hydraulics_coefficient=0.5,spreading=1.5)
         elseif(ni.eq.2)then
             call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
             &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-            &hydraulics_coefficient=1.0,spreading=2100.)
+            &hydraulics_coefficient=0.5,spreading=1.5)
         endif
         
+        write(*,*) routing_parameter%hydraulics_coefficient
+        write(*,*) routing_parameter%spreading
+        pause
         
         
         write(*,*) "routing_state_self_initialisation..."
@@ -136,16 +150,39 @@ subroutine manual_gradient_test()
         write(*,*) ""
         call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
         
+        
+        write(*,*) "routing_states:"
+        write(*,*) "routing_states%max_mode=",routing_states%max_mode
+        write(*,*) "routing_states%min_mode=",routing_states%min_mode
+        write(*,*) "routing_states%nb_mode=",routing_states%nb_mode
+        write(*,*) "routing_states%scale_coef=",routing_states%scale_coef
+        write(*,*) "routing_states%window_length=",routing_states%window_length    
+        write(*,*) "routing_states%nb_spreads=",routing_states%nb_spreads    
+        write(*,*) "routing_states%max_spreading=",routing_states%max_spreading
+        write(*,*) "routing_states%window_shift=",routing_states%window_shift 
+        write(*,*) "routing_states%param_normalisation=",routing_states%param_normalisation
+        write(*,*) "routing_states%quantile=",routing_states%quantile
+        pause
+        write(*,*) "routing_states%tabulated_delay=",routing_states%tabulated_delay
+        write(*,*) "routing_states%tabulated_spreading=",routing_states%tabulated_spreading
+        pause
+        
+        write(*,*) "routing_results_self_initialisation..."
+        call routing_results_self_initialisation(routing_setup,routing_mesh,routing_results)
+        
+        
         write(*,*) "routing_hydrogram_forward..."
         write(*,*) ""
         allocate(observations(routing_setup%npdt,routing_mesh%nb_nodes))
         observations=0.0
         call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,&
-        &routing_states,qnetwork,vnetwork,cost)
+        &routing_states,routing_results,cost)
         
-        observations=qnetwork
+        write(*,*) routing_results%discharges
+        write(*,*) cost
+        observations=routing_results%discharges
         
-        
+        pause
         
         
         do iter=1,size(dx_tab)
@@ -161,12 +198,12 @@ subroutine manual_gradient_test()
             call routing_states_reset(routing_states)
             call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
             &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-            &hydraulics_coefficient=1.0,spreading=1800.)
+            &hydraulics_coefficient=1.0,spreading=1.)
                
             ! run grd accoring spatial parameters  param and spatial time-varying states 
             cost=0.
             call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,&
-            &inflows,observations,routing_states,qnetwork,vnetwork,cost)
+            &inflows,observations,routing_states,routing_results,cost)
             COST_F(1)=cost
             write(*,*) "At starting point, initial cost=",COST_F(1)
                         
@@ -180,19 +217,18 @@ subroutine manual_gradient_test()
             if (ni.eq.1) then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0+pdx,spreading=1800.)
+                &hydraulics_coefficient=1.0+pdx,spreading=1.)
             elseif(ni.eq.2)then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0,spreading=1800.+pdx)
+                &hydraulics_coefficient=1.0,spreading=1.+pdx)
             endif
-           
-            
+            call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
 
-           ! run grd accoring spatial parameters  param and spatial time-varying states 
+           ! run gamma accoring spatial parameters  param and spatial time-varying states 
             cost=0.
             call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,&
-            &inflows,observations,routing_states,qnetwork,vnetwork,cost)
+            &inflows,observations,routing_states,routing_results,cost)
             COST_F(2)=cost
             write(*,*) "cost +pdx=",COST_F(2)
                         
@@ -206,19 +242,19 @@ subroutine manual_gradient_test()
             if (ni.eq.1) then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0-pdx,spreading=1800.)
+                &hydraulics_coefficient=1.0-pdx,spreading=1.)
             elseif(ni.eq.2)then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0,spreading=1800.-pdx)
+                &hydraulics_coefficient=1.0,spreading=1.-pdx)
             endif
            
            
 
-           ! run grd accoring spatial parameters  param and spatial time-varying states 
+           ! run gamma accoring spatial parameters  param and spatial time-varying states 
             cost=0.
             call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,&
-            &inflows,observations,routing_states,qnetwork,vnetwork,cost)
+            &inflows,observations,routing_states,routing_results,cost)
             COST_F(3)=cost
             write(*,*) "cost -pdx=",COST_F(3)
             
@@ -240,7 +276,7 @@ subroutine manual_gradient_test()
             if (ni.eq.1) then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0,spreading=1800.)
+                &hydraulics_coefficient=1.0,spreading=1.0)
                 
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameterd,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
@@ -249,20 +285,20 @@ subroutine manual_gradient_test()
             elseif(ni.eq.2)then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0,spreading=1800.)
+                &hydraulics_coefficient=1.0,spreading=1.0)
                 
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameterd,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
                 &hydraulics_coefficient=0.0,spreading=pdx)
             endif
             
-            ! run grd accoring spatial parameters  param and spatial time-varying states 
+            ! run gamma accoring spatial parameters  param and spatial time-varying states 
             cost=0.
             !call tangeant
             costd=1.
             call ROUTING_HYDROGRAM_FORWARD_D( routing_setup, &
             &   routing_mesh, routing_parameter, routing_parameterd, inflows, &
-            &   observations, routing_states, qnetwork, qnetworkd, vnetwork, cost, &
+            &   observations, routing_states, routing_results, cost, &
             &   costd)
             write(*,*) "New Cost = ",cost
             
@@ -278,7 +314,7 @@ subroutine manual_gradient_test()
             if (ni.eq.1) then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0,spreading=1800.)
+                &hydraulics_coefficient=1.0,spreading=1.0)
                 
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameterb,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
@@ -287,7 +323,7 @@ subroutine manual_gradient_test()
             elseif(ni.eq.2)then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0,spreading=1800.)
+                &hydraulics_coefficient=1.0,spreading=1.0)
                 
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameterb,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
@@ -300,7 +336,7 @@ subroutine manual_gradient_test()
             
             call ROUTING_HYDROGRAM_FORWARD_B( routing_setup, &
             &   routing_mesh, routing_parameter, routing_parameterb, inflows, &
-            &   observations, routing_states, qnetwork, qnetworkb, vnetwork, cost, &
+            &   observations, routing_states, routing_results, cost, &
             &   costb)
             
             write(*,*) "New Cost = ",cost

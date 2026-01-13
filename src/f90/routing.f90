@@ -36,7 +36,7 @@ program routing
     real :: delay
     real :: elongation_coefficient
     
-    real, dimension(:,:), allocatable :: inflows,qnetwork,vnetwork,observations
+    real, dimension(:,:), allocatable :: inflows,qnetwork,vnetwork,observations,random_serie
     real, dimension(:), allocatable :: inflow,qmesh,velocities
     real :: qcell
     real :: cost
@@ -70,7 +70,7 @@ program routing
     call system("mkdir out/")
     
     write(*,*) "manual_gradient_test..."
-    !write(*,*) ""
+    write(*,*) ""
     call manual_gradient_test()
     
     pause
@@ -81,12 +81,14 @@ program routing
     write(*,*) ""
     call routing_setup_self_initialisation(routing_setup,npdt=100,dt=900.,vmin=0.1,vmax=10.,&
     &elongation_factor=1.0,mode_discretization_step=0.1,spreading_discretization_step=0.1,ponderation_regul=10000.0&
-    &,velocity_computation="qm3",varying_spread=1)
+    &,velocity_computation="qm3",varying_spread=0)
     
     write(*,*) "routing_mesh_self_initialisation..."
     write(*,*) ""
     call routing_mesh_self_initialisation(routing_mesh,nb_nodes=10,nb_upstream_nodes=1)
-    
+    routing_mesh%controlled_nodes(1)=10
+    call mesh_update(routing_mesh)
+        
     write(*,*) "routing_parameter_self_initialisation..."
     write(*,*) ""
     call routing_parameter_self_initialisation(routing_parameter=routing_parameter,routing_setup=routing_setup,&
@@ -104,13 +106,23 @@ program routing
     call compute_gamma_parameters(routing_setup,routing_mesh,routing_states) !#todo introduire cela dans routing_gamma_run ou dans routing_state_self_initialisation ?
     
     write(*,*) "routing_states:"
-    write(*,*) "routing_states%max_scale=",routing_states%scale_coef
+    write(*,*) "routing_states%max_mode=",routing_states%max_mode
+    write(*,*) "routing_states%min_mode=",routing_states%min_mode
+    write(*,*) "routing_states%nb_mode=",routing_states%nb_mode
+    write(*,*) "routing_states%scale_coef=",routing_states%scale_coef
     write(*,*) "routing_states%window_length=",routing_states%window_length    
-    write(*,*) "routing_states%max_mode=",routing_states%max_mode    
-    write(*,*) "routing_states%nb_mode=",routing_states%nb_mode    
     write(*,*) "routing_states%nb_spreads=",routing_states%nb_spreads    
     write(*,*) "routing_states%max_spreading=",routing_states%max_spreading
     write(*,*) "routing_states%window_shift=",routing_states%window_shift 
+    write(*,*) "routing_states%param_normalisation=",routing_states%param_normalisation
+    write(*,*) "routing_states%quantile=",routing_states%quantile
+    pause
+    write(*,*) "routing_states%tabulated_delay=",routing_states%tabulated_delay
+    write(*,*) "routing_states%tabulated_spreading=",routing_states%tabulated_spreading
+    pause
+    write(*,*) "routing_states%tabulated_routing_coef=",routing_states%tabulated_routing_coef(1,1,:,1)
+    write(*,*) "routing_states%states=",routing_states%states
+    write(*,*) "routing_states%remainder=",routing_states%remainder
     write(*,*) ""
     
     filename="out/tabulated_gamma_coefficient_3D_pdf.txt"
@@ -123,12 +135,29 @@ program routing
     allocate(inflows(routing_setup%npdt,routing_mesh%nb_nodes))
     !inputs : initialisation
     inflows=0.0
-    inflows(1,1)=2.
+    inflows(1,1)=10.
+    
+    write(*,*) ""
+    write(*,*) "routing_parameter%hydraulics_coefficient=",routing_parameter%hydraulics_coefficient
+    write(*,*) "routing_parameter%spreading=",routing_parameter%spreading
+    write(*,*) ""
     
     write(*,*) "routing_gamma_run..."
     call routing_gamma_run(routing_setup,routing_mesh,routing_parameter,inflows,&
     &routing_states,routing_results)
     
+    write(*,*) "routing_gamma_cost_function..."
+    allocate(observations(routing_setup%npdt,routing_mesh%nb_nodes))
+    allocate(qnetwork(routing_setup%npdt,routing_mesh%nb_nodes))
+    allocate(random_serie(routing_setup%npdt,routing_mesh%nb_nodes))
+    call random_init(.true., .true.)
+    call random_number(random_serie)
+    
+    observations=routing_results%discharges*random_serie
+    qnetwork=routing_results%discharges
+    call routing_gamma_cost_function(routing_setup,routing_mesh,routing_parameter,observations,qnetwork,routing_results)
+    
+    write(*,*) routing_results%costs
     
     call routing_setup_clear(routing_setup)
     call routing_states_clear(routing_states)
@@ -137,6 +166,7 @@ program routing
     call routing_results_clear(routing_results)
     deallocate(inflows)
     
+    pause
     !dt=3600
     
     write(*,*) "routing_setup_self_initialisation..."
