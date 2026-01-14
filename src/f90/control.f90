@@ -43,6 +43,7 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
     use mod_gamma_routing_states
     use mod_gamma_routing_results
     use mod_gamma_routing
+    use mod_gamma_interface
     
     implicit none
     
@@ -103,16 +104,21 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
     
     
     !--------------- Normalisation des paramètres et des bornes -----------------------
-    routing_states%param_normalisation(1)=routing_setup%hydrau_coef_boundaries(2)
-    routing_states%param_normalisation(2)=routing_setup%spreading_boundaries(2)
+!~     routing_states%param_normalisation(1)=routing_setup%hydrau_coef_boundaries(2)
+!~     routing_states%param_normalisation(2)=routing_setup%spreading_boundaries(2)
     
-    routing_parameter%hydraulics_coefficient=routing_parameter%hydraulics_coefficient/routing_states%param_normalisation(1)
-    routing_parameter%spreading=routing_parameter%spreading/routing_states%param_normalisation(2)
+!~     routing_parameter%hydraulics_coefficient=routing_parameter%hydraulics_coefficient/routing_states%param_normalisation(1)
+!~     routing_parameter%spreading=routing_parameter%spreading/routing_states%param_normalisation(2)
     
-    spreading_bounds=routing_setup%spreading_boundaries/routing_setup%spreading_boundaries(2)
-    hydrau_coef_bounds=routing_setup%hydrau_coef_boundaries/routing_setup%hydrau_coef_boundaries(2)
+!~     spreading_bounds=routing_setup%spreading_boundaries/routing_setup%spreading_boundaries(2)
+!~     hydrau_coef_bounds=routing_setup%hydrau_coef_boundaries/routing_setup%hydrau_coef_boundaries(2)
     ! --------------------------------------------------------------------------------
     
+    call normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
+    hydrau_coef_bounds(1)=0.
+    hydrau_coef_bounds(2)=1.
+    spreading_bounds(1)=0.
+    spreading_bounds(2)=1.
     
     call routing_parameter_self_initialisation(routing_parameter=routing_parameter_initial,routing_setup=routing_setup,&
     &routing_mesh=routing_mesh,hydraulics_coefficient=0.,spreading=0.)
@@ -307,11 +313,12 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
     close(101)
     
     ! ---------------- Un-Normalisation des paramètres -------------------------------
-    routing_parameter%hydraulics_coefficient=routing_parameter%hydraulics_coefficient*routing_states%param_normalisation(1)
-    routing_parameter%spreading=routing_parameter%spreading*routing_states%param_normalisation(2)
-    routing_states%param_normalisation(1)=1.
-    routing_states%param_normalisation(2)=1.
+!~     routing_parameter%hydraulics_coefficient=routing_parameter%hydraulics_coefficient*routing_states%param_normalisation(1)
+!~     routing_parameter%spreading=routing_parameter%spreading*routing_states%param_normalisation(2)
+!~     routing_states%param_normalisation(1)=1.
+!~     routing_states%param_normalisation(2)=1.
     ! --------------------------------------------------------------------------------
+    call unnormalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
     
     !store final parameters
     routing_results%final_hydraulic_coef=routing_parameter%hydraulics_coefficient

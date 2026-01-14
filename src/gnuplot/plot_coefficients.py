@@ -6,7 +6,7 @@ set output "./out/qnetwork_jonction.pdf"
 set grid
 set xlabel "time"
 set ylabel "discharges"
-plot for [j=2:6] "./out/qnetwork_jonction.txt" u ($1-1):(column(j)) w lp lw 2 title "discharges at node".sprintf("%i",j-1)
+plot for [j=2:5] "./out/qnetwork_jonction.txt" u ($1-1):(column(j)) w lp lw 2 title "discharges at node".sprintf("%i",j-1)
 unset output
 unset terminal
 
@@ -16,7 +16,7 @@ set output "./out/vnetwork_jonction.pdf"
 set grid
 set xlabel "time"
 set ylabel "velocities"
-plot for [j=2:6] "./out/vnetwork_jonction.txt" u ($1-1):(column(j)) w lp lw 2 title "velocities at node".sprintf("%i",j-1)
+plot for [j=2:5] "./out/vnetwork_jonction.txt" u ($1-1):(column(j)) w lp lw 2 title "velocities at node".sprintf("%i",j-1)
 unset output
 unset terminal
 
@@ -29,7 +29,7 @@ set output "./out/qnetwork_initial.pdf"
 set grid
 set xlabel "time"
 set ylabel "discharges"
-plot for [j=2:6] "./out/qnetwork_initial.txt" u ($1-1):(column(j)) w lp lw 2 title "discharges at node".sprintf("%i",j-1)
+plot for [j=2:5] "./out/qnetwork_initial.txt" u ($1-1):(column(j)) w lp lw 2 title "discharges at node".sprintf("%i",j-1)
 unset output
 unset terminal
 
@@ -39,7 +39,7 @@ set output "./out/vnetwork_initial.pdf"
 set grid
 set xlabel "time"
 set ylabel "velocities"
-plot for [j=2:6] "./out/vnetwork_initial.txt" u ($1-1):(column(j)) w lp lw 2 title "velocities at node".sprintf("%i",j-1)
+plot for [j=2:5] "./out/vnetwork_initial.txt" u ($1-1):(column(j)) w lp lw 2 title "velocities at node".sprintf("%i",j-1)
 unset output
 unset terminal
 
@@ -52,7 +52,7 @@ set output "./out/qnetwork_evaluation.pdf"
 set grid
 set xlabel "time"
 set ylabel "discharges"
-plot for [j=2:6] "./out/qnetwork_evaluation.txt" u ($1-1):(column(j)) w lp lw 2 title "discharges at node".sprintf("%i",j-1)
+plot for [j=2:5] "./out/qnetwork_evaluation.txt" u ($1-1):(column(j)) w lp lw 2 title "discharges at node".sprintf("%i",j-1)
 unset output
 unset terminal
 
@@ -62,7 +62,7 @@ set output "./out/vnetwork_evaluation.pdf"
 set grid
 set xlabel "time"
 set ylabel "velocities"
-plot for [j=2:6] "./out/vnetwork_evaluation.txt" u ($1-1):(column(j)) w lp lw 2 title "velocities at node".sprintf("%i",j-1)
+plot for [j=2:5] "./out/vnetwork_evaluation.txt" u ($1-1):(column(j)) w lp lw 2 title "velocities at node".sprintf("%i",j-1)
 unset output
 unset terminal
 
@@ -83,7 +83,7 @@ set xrange[0:20]
 set xtics 2
 set key font "times,14"
 do for [j=1:nblock:8]{
-    set title "Diffusion=".sprintf("%2.1f",(j*1.-1.)*spreading_step)." s.m^{-1}"
+    set title "Diffusion=".sprintf("%2.1f",(j*1.-1)*spreading_step)." s.m^{-1}"
     plot for [i=2:ncol+1:20] "./out/tabulated_gamma_coefficient_3D_pdf.txt" index (j-1) using ($1-1):i w l lw 4 title "Mode = ".sprintf('%2.1f',i*0.1-0.1)
 }
 unset multiplot

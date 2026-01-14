@@ -29,8 +29,8 @@ sed -i "s/ROUTING\_HYDROGRAM\_FORWARD\_NODIFF/ROUTING\_HYDROGRAM\_FORWARD\_NODIF
 sed -i "s/COST\_FUNCTION\_NODIFF/COST\_FUNCTION\_NODIFF\_D/g" ./forward/TLM_d.f90
 sed -i "s/REGULARIZATION\_NODIFF/REGULARIZATION\_NODIFF\_D/g" ./forward/TLM_d.f90
 
-sed -i "s/.*USE.*MOD\_GAMMA\_ROUTING\_PARAMETERS\_DIFF\_D/USE MOD\_GAMMA\_ROUTING\_PARAMETERS/g" ./forward/TLM_d.f90
-sed -i "s/.*USE.*MOD\_GAMMA\_ROUTING\_PARAMETERS\_DIFF/USE  MOD\_GAMMA\_ROUTING\_PARAMETERS/g" ./backward/ADJ_b.f90
+#sed -i "s/.*USE.*MOD\_GAMMA\_ROUTING\_PARAMETERS\_DIFF\_D/USE MOD\_GAMMA\_ROUTING\_PARAMETERS/g" ./forward/TLM_d.f90
+#sed -i "s/.*USE.*MOD\_GAMMA\_ROUTING\_PARAMETERS\_DIFF/USE  MOD\_GAMMA\_ROUTING\_PARAMETERS/g" ./backward/ADJ_b.f90
 
 
 #Ajout le calul de la fonciton cout dans l adjoint : insertion d'une ligne avant l'autre (peu aussi se faire avec awk '/pattern/{print "somthing"}1' monfich)

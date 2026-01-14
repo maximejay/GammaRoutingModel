@@ -7,6 +7,7 @@ PYWRAPPERS=0
 SHAREDLIB=0
 INSTALL=0
 CLEAN=0
+EDIT=0
 
 i=1
 until [ $# = 0 ]
@@ -23,6 +24,10 @@ case $1 in
     --debug)
     shift
     DEBUG=1
+    ;;
+    --edit)
+    shift
+    EDIT=1
     ;;
     --f90build)
     shift
@@ -145,7 +150,7 @@ cp -u -r ./${wrapped_lib_name} $src_py/gamma_routing_model/.
 
 if [ $INSTALL -eq 1 ] ; then
     cd $src_dir
-    if [ DEBUG -eq 1 ] ; then
+    if [ $EDIT -eq 1 ] ; then
         #intall the module with editable mode
         pip install -e ./py
     else

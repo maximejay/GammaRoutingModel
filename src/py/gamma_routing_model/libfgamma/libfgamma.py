@@ -1056,7 +1056,7 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
     Module mod_gamma_routing_parameters
     
     
-    Defined at mod_routing_parameters.f90 lines 8-81
+    Defined at mod_routing_parameters.f90 lines 8-83
     
     """
     @f90wrap.runtime.register_class("libfgamma.type_routing_parameter")
@@ -1065,7 +1065,7 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
         Type(name=type_routing_parameter)
         
         
-        Defined at mod_routing_parameters.f90 lines 10-12
+        Defined at mod_routing_parameters.f90 lines 10-13
         
         """
         def __init__(self, handle=None):
@@ -1073,7 +1073,7 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
             self = Type_Routing_Parameter()
             
             
-            Defined at mod_routing_parameters.f90 lines 10-12
+            Defined at mod_routing_parameters.f90 lines 10-13
             
             
             Returns
@@ -1094,7 +1094,7 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
             Destructor for class Type_Routing_Parameter
             
             
-            Defined at mod_routing_parameters.f90 lines 10-12
+            Defined at mod_routing_parameters.f90 lines 10-13
             
             Parameters
             ----------
@@ -1156,12 +1156,30 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
         def spreading(self, spreading):
             self.spreading[...] = spreading
         
+        @property
+        def normalized(self):
+            """
+            Element normalized ftype=integer  pytype=int
+            
+            
+            Defined at mod_routing_parameters.f90 line 13
+            
+            """
+            return _libfgamma.f90wrap_type_routing_parameter__get__normalized(self._handle)
+        
+        @normalized.setter
+        def normalized(self, normalized):
+            _libfgamma.f90wrap_type_routing_parameter__set__normalized(self._handle, \
+                normalized)
+        
         def __str__(self):
             ret = ['<type_routing_parameter>{\n']
             ret.append('    hydraulics_coefficient : ')
             ret.append(repr(self.hydraulics_coefficient))
             ret.append(',\n    spreading : ')
             ret.append(repr(self.spreading))
+            ret.append(',\n    normalized : ')
+            ret.append(repr(self.normalized))
             ret.append('}')
             return ''.join(ret)
         
@@ -1176,7 +1194,7 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
             hydraulics_coefficient, spreading])
         
         
-        Defined at mod_routing_parameters.f90 lines 16-60
+        Defined at mod_routing_parameters.f90 lines 17-62
         
         Parameters
         ----------
@@ -1197,7 +1215,7 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
         routing_parameter_clear(self)
         
         
-        Defined at mod_routing_parameters.f90 lines 62-76
+        Defined at mod_routing_parameters.f90 lines 64-78
         
         Parameters
         ----------
@@ -1212,7 +1230,7 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
         object_copy = routing_parameter_copy(self)
         
         
-        Defined at mod_routing_parameters.f90 lines 78-81
+        Defined at mod_routing_parameters.f90 lines 80-83
         
         Parameters
         ----------
@@ -1240,7 +1258,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
     Module mod_gamma_routing_states
     
     
-    Defined at mod_routing_states.f90 lines 8-123
+    Defined at mod_routing_states.f90 lines 8-124
     
     """
     @f90wrap.runtime.register_class("libfgamma.type_routing_states")
@@ -1649,7 +1667,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
             routing_states)
         
         
-        Defined at mod_routing_states.f90 lines 30-83
+        Defined at mod_routing_states.f90 lines 30-84
         
         Parameters
         ----------
@@ -1670,7 +1688,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
         routing_states_reset(self)
         
         
-        Defined at mod_routing_states.f90 lines 85-101
+        Defined at mod_routing_states.f90 lines 86-102
         
         Parameters
         ----------
@@ -1685,7 +1703,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
         routing_states_clear(self)
         
         
-        Defined at mod_routing_states.f90 lines 103-118
+        Defined at mod_routing_states.f90 lines 104-119
         
         Parameters
         ----------
@@ -1700,7 +1718,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
         object_copy = routing_states_copy(self)
         
         
-        Defined at mod_routing_states.f90 lines 120-123
+        Defined at mod_routing_states.f90 lines 121-124
         
         Parameters
         ----------
@@ -2160,7 +2178,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
     Module mod_gamma_interface
     
     
-    Defined at mod_gamma_interface.f90 lines 8-355
+    Defined at mod_gamma_interface.f90 lines 8-391
     
     """
     @staticmethod
@@ -2230,7 +2248,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         routing_states_update(self, routing_setup, routing_mesh, routing_states)
         
         
-        Defined at mod_gamma_interface.f90 lines 150-172
+        Defined at mod_gamma_interface.f90 lines 150-171
         
         Parameters
         ----------
@@ -2245,6 +2263,44 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
             routing_states=routing_states._handle)
     
     @staticmethod
+    def normalize_routing_parameters(self, routing_mesh, routing_parameter):
+        """
+        normalize_routing_parameters(self, routing_mesh, routing_parameter)
+        
+        
+        Defined at mod_gamma_interface.f90 lines 173-185
+        
+        Parameters
+        ----------
+        routing_setup : Type_Routing_Setup
+        routing_mesh : Type_Routing_Mesh
+        routing_parameter : Type_Routing_Parameter
+        
+        """
+        _libfgamma.f90wrap_mod_gamma_interface__normalize_routing_parameters(routing_setup=self._handle, \
+            routing_mesh=routing_mesh._handle, \
+            routing_parameter=routing_parameter._handle)
+    
+    @staticmethod
+    def unnormalize_routing_parameters(self, routing_mesh, routing_parameter):
+        """
+        unnormalize_routing_parameters(self, routing_mesh, routing_parameter)
+        
+        
+        Defined at mod_gamma_interface.f90 lines 187-200
+        
+        Parameters
+        ----------
+        routing_setup : Type_Routing_Setup
+        routing_mesh : Type_Routing_Mesh
+        routing_parameter : Type_Routing_Parameter
+        
+        """
+        _libfgamma.f90wrap_mod_gamma_interface__unnormalize_routing_parameters(routing_setup=self._handle, \
+            routing_mesh=routing_mesh._handle, \
+            routing_parameter=routing_parameter._handle)
+    
+    @staticmethod
     def routing_gamma_run(self, routing_mesh, routing_parameter, inflows, \
         routing_states, routing_results):
         """
@@ -2252,7 +2308,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
             routing_states, routing_results)
         
         
-        Defined at mod_gamma_interface.f90 lines 174-202
+        Defined at mod_gamma_interface.f90 lines 202-232
         
         Parameters
         ----------
@@ -2278,7 +2334,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
             observations, routing_states, routing_results)
         
         
-        Defined at mod_gamma_interface.f90 lines 204-238
+        Defined at mod_gamma_interface.f90 lines 234-268
         
         Parameters
         ----------
@@ -2305,7 +2361,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
             observations, routing_states, routing_results, gradients)
         
         
-        Defined at mod_gamma_interface.f90 lines 240-265
+        Defined at mod_gamma_interface.f90 lines 270-297
         
         Parameters
         ----------
@@ -2333,7 +2389,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
             observations, routing_states, routing_results, gradients)
         
         
-        Defined at mod_gamma_interface.f90 lines 267-291
+        Defined at mod_gamma_interface.f90 lines 299-325
         
         Parameters
         ----------
@@ -2361,7 +2417,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
             qnetwork, routing_results)
         
         
-        Defined at mod_gamma_interface.f90 lines 293-321
+        Defined at mod_gamma_interface.f90 lines 327-357
         
         Parameters
         ----------
@@ -2386,7 +2442,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
             gamma_coefficient)
         
         
-        Defined at mod_gamma_interface.f90 lines 324-330
+        Defined at mod_gamma_interface.f90 lines 360-366
         
         Parameters
         ----------
@@ -2408,7 +2464,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
             density_function, gamma_coefficient)
         
         
-        Defined at mod_gamma_interface.f90 lines 334-342
+        Defined at mod_gamma_interface.f90 lines 370-378
         
         Parameters
         ----------
@@ -2432,7 +2488,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
             density_function, gamma_coefficient)
         
         
-        Defined at mod_gamma_interface.f90 lines 346-354
+        Defined at mod_gamma_interface.f90 lines 382-390
         
         Parameters
         ----------

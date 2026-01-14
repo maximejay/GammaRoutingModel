@@ -19,6 +19,7 @@ module mod_gamma_routing_parameters
     type type_routing_parameter
         real, dimension(:), allocatable :: hydraulics_coefficient 
         real, dimension(:), allocatable :: spreading ! damping coefficient in seconds (s/m): spreading of the Gamma law
+        integer :: normalized
     end type type_routing_parameter
     
     contains
@@ -81,6 +82,8 @@ module mod_gamma_routing_parameters
             end do
             
         end if
+        
+        routing_parameter%normalized = 0
         
         !reading parameter
         

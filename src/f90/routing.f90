@@ -69,11 +69,11 @@ program routing
     
     call system("mkdir out/")
     
-    write(*,*) "manual_gradient_test..."
-    write(*,*) ""
-    call manual_gradient_test()
+!~     write(*,*) "manual_gradient_test..."
+!~     write(*,*) ""
+!~     call manual_gradient_test()
     
-    pause
+!~     pause
     
     !simple test case
     
@@ -81,7 +81,7 @@ program routing
     write(*,*) ""
     call routing_setup_self_initialisation(routing_setup,npdt=100,dt=900.,vmin=0.1,vmax=10.,&
     &elongation_factor=1.0,mode_discretization_step=0.1,spreading_discretization_step=0.1,ponderation_regul=10000.0&
-    &,velocity_computation="qm3",varying_spread=0)
+    &,velocity_computation="qm3",varying_spread=1)
     
     write(*,*) "routing_mesh_self_initialisation..."
     write(*,*) ""
@@ -116,10 +116,7 @@ program routing
     write(*,*) "routing_states%window_shift=",routing_states%window_shift 
     write(*,*) "routing_states%param_normalisation=",routing_states%param_normalisation
     write(*,*) "routing_states%quantile=",routing_states%quantile
-    pause
     write(*,*) "routing_states%tabulated_delay=",routing_states%tabulated_delay
-    write(*,*) "routing_states%tabulated_spreading=",routing_states%tabulated_spreading
-    pause
     write(*,*) "routing_states%tabulated_routing_coef=",routing_states%tabulated_routing_coef(1,1,:,1)
     write(*,*) "routing_states%states=",routing_states%states
     write(*,*) "routing_states%remainder=",routing_states%remainder
@@ -127,7 +124,7 @@ program routing
     
     filename="out/tabulated_gamma_coefficient_3D_pdf.txt"
     call write_tabulated_coefficients_3D(routing_states%tabulated_routing_coef(:,:,:,1),routing_states%quantile,filename)
-    
+    pause
     
     write(*,*) "routing_results_self_initialisation..."
     call routing_results_self_initialisation(routing_setup,routing_mesh,routing_results)
@@ -165,6 +162,8 @@ program routing
     call routing_parameter_clear(routing_parameter)
     call routing_results_clear(routing_results)
     deallocate(inflows)
+    deallocate(qnetwork)
+    deallocate(observations)
     
     pause
     !dt=3600
@@ -634,237 +633,237 @@ program routing
     
     old_test=.false.
     if (old_test) then
-    write(*,*) ""
-    write(*,*) "---------- OLD TESTS ------------"
-    write(*,*) ""
-    !config
-    dx=1000.0
-    dt=900.0
-    vmin=0.1
-    vmax=10.0
-    spread=1800.0
-    epsilon=0.1
-    velocity=0.8
-    elongation_coefficient=1.0  !work for 1<elongation_coefficient<1.15 above value change the shape of the gamma function => for higher delay the spreading decrease. Its an artefact...
-    
-    !Test functions  compute_gamma_scale and compute_gamma_window
-    
-    call generic_compute_gamma_scale(dx=dx,dt=dt,vmax=vmax,spread=spread,epsilon=epsilon,scale=scale)
-    
-    write(*,*) ""
-    write(*,*) "scale=",scale
-    write(*,*) ""
-    
-    call generic_compute_gamma_window(dx=dx,dt=dt,vmin=vmin,vmax=vmax,scale=scale,spread=spread,window_length=window_length,&
-    &window_shift=window_shift,quantile=quantile)
-    
-    write(*,*) "window_length=",window_length
-    write(*,*) "window_shift=",window_shift
-    write(*,*) "quantile=",quantile
-    write(*,*) ""
-    
-    call generic_gamma_elongation_cells(window_length,elongation_coefficient,window_length,&
-        &adjusted_quantile)
-    
-    write(*,*) "New window_length (new window_length with elongated time)=",window_length
-    write(*,*) "adjusted_quantile=",adjusted_quantile
-    write(*,*) ""
-    
-    
-    ! test functions compute_gamma_coefficient and compute_gamma_routing_coefficient
-    deallocate(gamma_coefficient)
-    allocate(gamma_values(window_length))
-    allocate(gamma_values_cdf(window_length))
-    allocate(gamma_coefficient(window_length))
-    allocate(gamma_coefficient_cdf(window_length))
+        write(*,*) ""
+        write(*,*) "---------- OLD TESTS ------------"
+        write(*,*) ""
+        !config
+        dx=1000.0
+        dt=900.0
+        vmin=0.1
+        vmax=10.0
+        spread=1800.0
+        epsilon=0.1
+        velocity=0.8
+        elongation_coefficient=1.0  !work for 1<elongation_coefficient<1.15 above value change the shape of the gamma function => for higher delay the spreading decrease. Its an artefact...
         
-    mode=dx/(vmin*dt)
-    call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
-    call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
-    write(*,*) "gamma_values_vmin=",gamma_values
-    write(*,*) "gamma_coefficient_vmin=",gamma_coefficient
-    write(*,*) ""
-    
-    filename="out/gamma_coefficient_vmin.txt"
-    call write_coefficients(gamma_coefficient,adjusted_quantile,filename)
-    
-    mode=dx/(0.5*dt)
-    call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
-    call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
-    write(*,*) "gamma_values_vmoy=",gamma_values
-    write(*,*) "gamma_coefficient_vmoy=",gamma_coefficient
-    write(*,*) ""
-    
-    filename="out/gamma_coefficient_vmoy.txt"
-    call write_coefficients(gamma_coefficient,adjusted_quantile,filename)
-    
-    mode=dx/(5.0*dt)
-    call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
-    call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
-    write(*,*) "gamma_values_vmax=",gamma_values
-    write(*,*) "gamma_coefficient_vmax=",gamma_coefficient
-    write(*,*) ""
-    
-    filename="out/gamma_coefficient_vmax.txt"
-    call write_coefficients(gamma_coefficient,adjusted_quantile,filename)
-    
-    
-    mode=dx/(0.5*dt)
-    call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"cdf",gamma_values_cdf)
-    call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"cdf",gamma_coefficient_cdf)
-    call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
-    call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
-    write(*,*) "gamma_values_cdf=",gamma_values_cdf
-    write(*,*) "gamma_coefficient_cdf=",gamma_coefficient_cdf
-    write(*,*) "Delta_gamma_values_cdf-pdf=",gamma_values_cdf-gamma_values
-    write(*,*) "Delta_gamma_coefficient_cdf-pdf=",gamma_coefficient_cdf-gamma_coefficient
-    write(*,*) ""
-    
-    filename="out/gamma_coefficient_cdf.txt"
-    call write_coefficients(gamma_coefficient_cdf,adjusted_quantile,filename)
-    
-    
-    
-    !Test functions tabulated_routing_coefficients_2D 
-    
-    call generic_tabulated_routing_coefficients_2D(scale,adjusted_quantile,window_shift,(dx/vmin/dt),0.1,"pdf",&
-    &tabulated_gamma_coefficient)
-    filename="out/tabulated_routing_coefficient_pdf.txt"
-    call write_tabulated_coefficients(tabulated_gamma_coefficient,adjusted_quantile,filename)
-    
-    call generic_tabulated_routing_coefficients_2D(scale,adjusted_quantile,window_shift,(dx/vmin/dt),0.1,"cdf",&
-    &tabulated_gamma_coefficient)
-    filename="out/tabulated_routing_coefficient_cdf.txt"
-    call write_tabulated_coefficients(tabulated_gamma_coefficient,adjusted_quantile,filename)
-    
-    !test tabulated_delay_for_gamma computation
-    
-    call tabulated_delay_for_gamma(int((dx/vmin/dt)/0.1),0.1,tabulated_delay)
-    write(*,*) "tabulated_delay=",tabulated_delay
-    write(*,*) ""
-    
-    
-    !Test comparaison gamma_table and tabulated_gamma_function_2D cdf and pdf
-    
-    !call gamma_table(window_length,ceiling(((dx/vmin/dt)+1)/0.1),0.1,scale,&
-    !&elongation_coefficient,tabulated_delay,tabulated_gamma_coefficient(:,:,1))
-    !filename="out/tabulated_gamma_coefficient_Igor.txt"
-    !call write_tabulated_coefficients(tabulated_gamma_coefficient,adjusted_quantile,filename)
-    !write(*,*) tabulated_delay
-    
-    call generic_tabulated_gamma_function_2D(scale,adjusted_quantile,window_shift,(dx/vmin/dt),0.1,"cdf",&
-    &tabulated_gamma_coefficient)
-    filename="out/tabulated_gamma_coefficient_cdf.txt"
-    call write_tabulated_coefficients(tabulated_gamma_coefficient,adjusted_quantile,filename)
-    
-    call generic_tabulated_gamma_function_2D(scale,adjusted_quantile,window_shift,(dx/vmin/dt),0.1,"pdf",&
-    &tabulated_gamma_coefficient)
-    filename="out/tabulated_gamma_coefficient_pdf.txt"
-    call write_tabulated_coefficients(tabulated_gamma_coefficient,adjusted_quantile,filename)
-    
-    
-    
-    !Test function interpoalted_gamma_coefficients
-    
-    allocate(interpolated_gamma_coefficient(window_length))
-    
-    call generic_tabulated_routing_coefficients_2D(scale,adjusted_quantile,window_shift,(dx/vmin/dt),0.1,"pdf",&
-    &tabulated_gamma_coefficient)
-    
-    call tabulated_delay_for_gamma(int((dx/vmin/dt)/0.1),0.1,tabulated_delay)
-    
-    velocity=0.5
-    mode=(dx/velocity)/dt
-    
-    call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
-    filename="out/gamma_coefficient_true.txt"
-    call write_coefficients(gamma_coefficient,adjusted_quantile,filename)
-    
-    write(*,*) ""
-    write(*,*) "Interpolated gamma coefficient for delay=",mode
-    write(*,*) ""
-    
-    call generic_interpolated_routing_coefficients_linear(mode,1,window_length,size(tabulated_delay),1,tabulated_delay,&
-        &tabulated_gamma_coefficient,interpolated_gamma_coefficient)
-    filename="out/interpolated_gamma_coefficient.txt"
-    call write_coefficients(interpolated_gamma_coefficient,adjusted_quantile,filename)
-    write(*,*) ""
-    write(*,*) "Interpolated_gamma_coefficient=",interpolated_gamma_coefficient
-    write(*,*) ""
-    write(*,*) ""
-    write(*,*) "True_gamma_coefficient=",gamma_coefficient
-    write(*,*) ""
-    
-    
-    !test function tabulated_routing_coefficients_3D
-    
-    velocity=0.5
-    mode=dx/(velocity*dt)
-    spread=2100.
-    elongation_coefficient=1.
-    
-    deallocate(quantile,adjusted_quantile)
-    
-    call generic_compute_gamma_scale(dx=dx,dt=dt,vmax=vmax,spread=10.*dt,epsilon=epsilon,scale=scale)
-    call generic_compute_gamma_window(dx=dx,dt=dt,vmin=vmin,vmax=vmax,scale=scale,spread=10.*dt,window_length=window_length,&
-    &window_shift=window_shift,quantile=quantile)
-    call generic_gamma_elongation_cells(window_length,elongation_coefficient,window_length,adjusted_quantile)
+        !Test functions  compute_gamma_scale and compute_gamma_window
         
-    call generic_tabulated_routing_coefficients_3D(dx,dt,vmax,epsilon,adjusted_quantile,window_shift, dx/vmin/dt, 10.*dt, &
-        & 0.1,300., "pdf", tabulated_gamma_coefficient_3D)
+        call generic_compute_gamma_scale(dx=dx,dt=dt,vmax=vmax,spread=spread,epsilon=epsilon,scale=scale)
         
-    call tabulated_spreading_for_gamma(int(10.*dt/300),300.,tabulated_spreading)
-    write(*,*) "tabulated_spreading=",tabulated_spreading
-    write(*,*) ""
-    
-    filename="out/tabulated_gamma_coefficient_3D_pdf.txt"
-    call write_tabulated_coefficients_3D(tabulated_gamma_coefficient_3D,adjusted_quantile,filename)
-    
-    
-    
-    quantile=0.
-    adjusted_quantile=0.
-    deallocate(quantile,adjusted_quantile,gamma_coefficient,interpolated_gamma_coefficient)
-    
-    call generic_compute_gamma_scale(dx=dx,dt=dt,vmax=vmax,spread=10.*dt,epsilon=epsilon,scale=scale)
-    call generic_compute_gamma_window(dx=dx,dt=dt,vmin=vmin,vmax=vmax,scale=scale,spread=10.*dt,window_length=window_length,&
-    &window_shift=window_shift,quantile=quantile)
-    call generic_gamma_elongation_cells(window_length,elongation_coefficient,window_length,adjusted_quantile)
+        write(*,*) ""
+        write(*,*) "scale=",scale
+        write(*,*) ""
         
-    allocate(gamma_coefficient(window_length))
-    
-    call generic_compute_gamma_scale(dx=dx,dt=dt,vmax=vmax,spread=spread,epsilon=epsilon,scale=scale)
-    call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
-    filename="out/gamma_coefficient_3D_true.txt"
-    call write_coefficients(gamma_coefficient,adjusted_quantile,filename)
-    
-    write(*,*) ""
-    write(*,*) "Gamma_coefficient_3D_true=",gamma_coefficient !for mode 2.2222222
-    write(*,*) ""
-    
-    write(*,*) ""
-    write(*,*) "tabulated_gamma_coefficient_3D_true=",tabulated_gamma_coefficient_3D(:,23,7) !for mode 2.2
-    write(*,*) ""
-    
-    write(*,*) ""
-    write(*,*) "Interpolated gamma coefficient 3D for delay=",mode !interpolation
-    write(*,*) ""
-    
-    allocate(interpolated_gamma_coefficient(window_length))
-    call generic_interpolated_routing_coefficients_bilinear(mode,spread,1,window_length,size(tabulated_delay),&
-    &size(tabulated_spreading),1,tabulated_delay,tabulated_spreading,tabulated_gamma_coefficient_3D,&
-    &interpolated_gamma_coefficient)
-    filename="out/interpolated_routing_coefficients_bilinear.txt"
-    call write_coefficients(interpolated_gamma_coefficient,adjusted_quantile,filename)
-    write(*,*) ""
-    write(*,*) "Interpolated_gamma_coefficient_3D=",interpolated_gamma_coefficient
-    write(*,*) ""
+        call generic_compute_gamma_window(dx=dx,dt=dt,vmin=vmin,vmax=vmax,scale=scale,spread=spread,window_length=window_length,&
+        &window_shift=window_shift,quantile=quantile)
+        
+        write(*,*) "window_length=",window_length
+        write(*,*) "window_shift=",window_shift
+        write(*,*) "quantile=",quantile
+        write(*,*) ""
+        
+        call generic_gamma_elongation_cells(window_length,elongation_coefficient,window_length,&
+            &adjusted_quantile)
+        
+        write(*,*) "New window_length (new window_length with elongated time)=",window_length
+        write(*,*) "adjusted_quantile=",adjusted_quantile
+        write(*,*) ""
+        
+        
+        ! test functions compute_gamma_coefficient and compute_gamma_routing_coefficient
+        deallocate(gamma_coefficient)
+        allocate(gamma_values(window_length))
+        allocate(gamma_values_cdf(window_length))
+        allocate(gamma_coefficient(window_length))
+        allocate(gamma_coefficient_cdf(window_length))
+            
+        mode=dx/(vmin*dt)
+        call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
+        call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
+        write(*,*) "gamma_values_vmin=",gamma_values
+        write(*,*) "gamma_coefficient_vmin=",gamma_coefficient
+        write(*,*) ""
+        
+        filename="out/gamma_coefficient_vmin.txt"
+        call write_coefficients(gamma_coefficient,adjusted_quantile,filename)
+        
+        mode=dx/(0.5*dt)
+        call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
+        call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
+        write(*,*) "gamma_values_vmoy=",gamma_values
+        write(*,*) "gamma_coefficient_vmoy=",gamma_coefficient
+        write(*,*) ""
+        
+        filename="out/gamma_coefficient_vmoy.txt"
+        call write_coefficients(gamma_coefficient,adjusted_quantile,filename)
+        
+        mode=dx/(5.0*dt)
+        call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
+        call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
+        write(*,*) "gamma_values_vmax=",gamma_values
+        write(*,*) "gamma_coefficient_vmax=",gamma_coefficient
+        write(*,*) ""
+        
+        filename="out/gamma_coefficient_vmax.txt"
+        call write_coefficients(gamma_coefficient,adjusted_quantile,filename)
+        
+        
+        mode=dx/(0.5*dt)
+        call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"cdf",gamma_values_cdf)
+        call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"cdf",gamma_coefficient_cdf)
+        call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
+        call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
+        write(*,*) "gamma_values_cdf=",gamma_values_cdf
+        write(*,*) "gamma_coefficient_cdf=",gamma_coefficient_cdf
+        write(*,*) "Delta_gamma_values_cdf-pdf=",gamma_values_cdf-gamma_values
+        write(*,*) "Delta_gamma_coefficient_cdf-pdf=",gamma_coefficient_cdf-gamma_coefficient
+        write(*,*) ""
+        
+        filename="out/gamma_coefficient_cdf.txt"
+        call write_coefficients(gamma_coefficient_cdf,adjusted_quantile,filename)
+        
+        
+        
+        !Test functions tabulated_routing_coefficients_2D 
+        
+        call generic_tabulated_routing_coefficients_2D(scale,adjusted_quantile,window_shift,(dx/vmin/dt),0.1,"pdf",&
+        &tabulated_gamma_coefficient)
+        filename="out/tabulated_routing_coefficient_pdf.txt"
+        call write_tabulated_coefficients(tabulated_gamma_coefficient,adjusted_quantile,filename)
+        
+        call generic_tabulated_routing_coefficients_2D(scale,adjusted_quantile,window_shift,(dx/vmin/dt),0.1,"cdf",&
+        &tabulated_gamma_coefficient)
+        filename="out/tabulated_routing_coefficient_cdf.txt"
+        call write_tabulated_coefficients(tabulated_gamma_coefficient,adjusted_quantile,filename)
+        
+        !test tabulated_delay_for_gamma computation
+        
+        call tabulated_delay_for_gamma(int((dx/vmin/dt)/0.1),0.1,tabulated_delay)
+        write(*,*) "tabulated_delay=",tabulated_delay
+        write(*,*) ""
+        
+        
+        !Test comparaison gamma_table and tabulated_gamma_function_2D cdf and pdf
+        
+        !call gamma_table(window_length,ceiling(((dx/vmin/dt)+1)/0.1),0.1,scale,&
+        !&elongation_coefficient,tabulated_delay,tabulated_gamma_coefficient(:,:,1))
+        !filename="out/tabulated_gamma_coefficient_Igor.txt"
+        !call write_tabulated_coefficients(tabulated_gamma_coefficient,adjusted_quantile,filename)
+        !write(*,*) tabulated_delay
+        
+        call generic_tabulated_gamma_function_2D(scale,adjusted_quantile,window_shift,(dx/vmin/dt),0.1,"cdf",&
+        &tabulated_gamma_coefficient)
+        filename="out/tabulated_gamma_coefficient_cdf.txt"
+        call write_tabulated_coefficients(tabulated_gamma_coefficient,adjusted_quantile,filename)
+        
+        call generic_tabulated_gamma_function_2D(scale,adjusted_quantile,window_shift,(dx/vmin/dt),0.1,"pdf",&
+        &tabulated_gamma_coefficient)
+        filename="out/tabulated_gamma_coefficient_pdf.txt"
+        call write_tabulated_coefficients(tabulated_gamma_coefficient,adjusted_quantile,filename)
+        
+        
+        
+        !Test function interpoalted_gamma_coefficients
+        
+        allocate(interpolated_gamma_coefficient(window_length))
+        
+        call generic_tabulated_routing_coefficients_2D(scale,adjusted_quantile,window_shift,(dx/vmin/dt),0.1,"pdf",&
+        &tabulated_gamma_coefficient)
+        
+        call tabulated_delay_for_gamma(int((dx/vmin/dt)/0.1),0.1,tabulated_delay)
+        
+        velocity=0.5
+        mode=(dx/velocity)/dt
+        
+        call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
+        filename="out/gamma_coefficient_true.txt"
+        call write_coefficients(gamma_coefficient,adjusted_quantile,filename)
+        
+        write(*,*) ""
+        write(*,*) "Interpolated gamma coefficient for delay=",mode
+        write(*,*) ""
+        
+        call generic_interpolated_routing_coefficients_linear(mode,1,window_length,size(tabulated_delay),1,tabulated_delay,&
+            &tabulated_gamma_coefficient,interpolated_gamma_coefficient)
+        filename="out/interpolated_gamma_coefficient.txt"
+        call write_coefficients(interpolated_gamma_coefficient,adjusted_quantile,filename)
+        write(*,*) ""
+        write(*,*) "Interpolated_gamma_coefficient=",interpolated_gamma_coefficient
+        write(*,*) ""
+        write(*,*) ""
+        write(*,*) "True_gamma_coefficient=",gamma_coefficient
+        write(*,*) ""
+        
+        
+        !test function tabulated_routing_coefficients_3D
+        
+        velocity=0.5
+        mode=dx/(velocity*dt)
+        spread=2100.
+        elongation_coefficient=1.
+        
+        deallocate(quantile,adjusted_quantile)
+        
+        call generic_compute_gamma_scale(dx=dx,dt=dt,vmax=vmax,spread=10.*dt,epsilon=epsilon,scale=scale)
+        call generic_compute_gamma_window(dx=dx,dt=dt,vmin=vmin,vmax=vmax,scale=scale,spread=10.*dt,window_length=window_length,&
+        &window_shift=window_shift,quantile=quantile)
+        call generic_gamma_elongation_cells(window_length,elongation_coefficient,window_length,adjusted_quantile)
+            
+        call generic_tabulated_routing_coefficients_3D(dx,dt,vmax,epsilon,adjusted_quantile,window_shift, dx/vmin/dt, 10.*dt, &
+            & 0.1,300., "pdf", tabulated_gamma_coefficient_3D)
+            
+        call tabulated_spreading_for_gamma(int(10.*dt/300),300.,tabulated_spreading)
+        write(*,*) "tabulated_spreading=",tabulated_spreading
+        write(*,*) ""
+        
+        filename="out/tabulated_gamma_coefficient_3D_pdf.txt"
+        call write_tabulated_coefficients_3D(tabulated_gamma_coefficient_3D,adjusted_quantile,filename)
+        
+        
+        
+        quantile=0.
+        adjusted_quantile=0.
+        deallocate(quantile,adjusted_quantile,gamma_coefficient,interpolated_gamma_coefficient)
+        
+        call generic_compute_gamma_scale(dx=dx,dt=dt,vmax=vmax,spread=10.*dt,epsilon=epsilon,scale=scale)
+        call generic_compute_gamma_window(dx=dx,dt=dt,vmin=vmin,vmax=vmax,scale=scale,spread=10.*dt,window_length=window_length,&
+        &window_shift=window_shift,quantile=quantile)
+        call generic_gamma_elongation_cells(window_length,elongation_coefficient,window_length,adjusted_quantile)
+            
+        allocate(gamma_coefficient(window_length))
+        
+        call generic_compute_gamma_scale(dx=dx,dt=dt,vmax=vmax,spread=spread,epsilon=epsilon,scale=scale)
+        call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
+        filename="out/gamma_coefficient_3D_true.txt"
+        call write_coefficients(gamma_coefficient,adjusted_quantile,filename)
+        
+        write(*,*) ""
+        write(*,*) "Gamma_coefficient_3D_true=",gamma_coefficient !for mode 2.2222222
+        write(*,*) ""
+        
+        write(*,*) ""
+        write(*,*) "tabulated_gamma_coefficient_3D_true=",tabulated_gamma_coefficient_3D(:,23,7) !for mode 2.2
+        write(*,*) ""
+        
+        write(*,*) ""
+        write(*,*) "Interpolated gamma coefficient 3D for delay=",mode !interpolation
+        write(*,*) ""
+        
+        allocate(interpolated_gamma_coefficient(window_length))
+        call generic_interpolated_routing_coefficients_bilinear(mode,spread,1,window_length,size(tabulated_delay),&
+        &size(tabulated_spreading),1,tabulated_delay,tabulated_spreading,tabulated_gamma_coefficient_3D,&
+        &interpolated_gamma_coefficient)
+        filename="out/interpolated_routing_coefficients_bilinear.txt"
+        call write_coefficients(interpolated_gamma_coefficient,adjusted_quantile,filename)
+        write(*,*) ""
+        write(*,*) "Interpolated_gamma_coefficient_3D=",interpolated_gamma_coefficient
+        write(*,*) ""
     
     
     endif
     
     !plot validation graphics
     write(*,*) "plotting results..."
-    call system("gnuplot src/gnuplot/plot_coefficients.py")
+    call system("gnuplot ../src/gnuplot/plot_coefficients.py")
     
 end program routing

@@ -244,6 +244,50 @@ module mod_gamma_interface
     end subroutine routing_states_update
     
     
+    subroutine normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
+    
+        type(type_routing_setup), intent(in) :: routing_setup
+        type(type_routing_mesh), intent(in) :: routing_mesh
+        type(type_routing_parameter), intent(inout) :: routing_parameter
+        
+        if (routing_parameter%normalized==0) then
+        
+            routing_parameter%hydraulics_coefficient=(routing_parameter%hydraulics_coefficient -&
+            & routing_setup%hydrau_coef_boundaries(1)) /&
+            &(routing_setup%hydrau_coef_boundaries(2)-routing_setup%hydrau_coef_boundaries(1))
+            
+            routing_parameter%spreading=(routing_parameter%spreading -&
+            & routing_setup%spreading_boundaries(1)) /&
+            &(routing_setup%spreading_boundaries(2)-routing_setup%spreading_boundaries(1))
+        
+            routing_parameter%normalized=1
+            
+        end if
+        
+    end subroutine normalize_routing_parameters
+    
+    subroutine unnormalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
+        
+        type(type_routing_setup), intent(in) :: routing_setup
+        type(type_routing_mesh), intent(in) :: routing_mesh
+        type(type_routing_parameter), intent(inout) :: routing_parameter
+        
+        if (routing_parameter%normalized==1) then
+        
+            routing_parameter%hydraulics_coefficient=routing_parameter%hydraulics_coefficient*&
+            &(routing_setup%hydrau_coef_boundaries(2)-routing_setup%hydrau_coef_boundaries(1))&
+            &+routing_setup%hydrau_coef_boundaries(1)
+            
+            routing_parameter%spreading=routing_parameter%spreading*&
+            &(routing_setup%spreading_boundaries(2)-routing_setup%spreading_boundaries(1))&
+            &+routing_setup%spreading_boundaries(1)
+            
+            routing_parameter%normalized=0
+            
+        end if
+        
+    end subroutine unnormalize_routing_parameters
+
     subroutine routing_gamma_run(routing_setup,routing_mesh,routing_parameter,&
     &inflows,routing_states,routing_results)
         
@@ -268,15 +312,19 @@ module mod_gamma_interface
         
         type(type_routing_setup), intent(in) :: routing_setup
         type(type_routing_mesh), intent(in) :: routing_mesh
-        type(type_routing_parameter), intent(in) :: routing_parameter
+        type(type_routing_parameter), intent(inout) :: routing_parameter
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: inflows
         type(type_routing_states), intent(inout) :: routing_states
         type(type_routing_results), intent(inout) :: routing_results
         !real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(inout) :: qnetwork
         !real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(inout) :: vnetwork
         
+        call normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
+
         call routing_hydrogram(routing_setup,routing_mesh,routing_parameter,&
         &inflows,routing_states,routing_results)
+        
+        call unnormalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
         
     end subroutine routing_gamma_run
     
@@ -330,7 +378,7 @@ module mod_gamma_interface
         
         type(type_routing_setup), intent(in) :: routing_setup
         type(type_routing_mesh), intent(in) :: routing_mesh
-        type(type_routing_parameter), intent(in) :: routing_parameter
+        type(type_routing_parameter), intent(inout) :: routing_parameter
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: inflows
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: observations
         type(type_routing_states), intent(inout) :: routing_states
@@ -346,6 +394,8 @@ module mod_gamma_interface
         
         call routing_states_reset(routing_states)
         
+        call normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
+        
         gradients=0.
         cost=0.
         costb=1.
@@ -357,6 +407,8 @@ module mod_gamma_interface
         gradients(1,:)=routing_parameterb%hydraulics_coefficient
         gradients(2,:)=routing_parameterb%spreading
         
+        call unnormalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
+        
     end subroutine routing_gamma_forward_adjoint_b
     
     
@@ -367,7 +419,7 @@ module mod_gamma_interface
         
         type(type_routing_setup), intent(in) :: routing_setup
         type(type_routing_mesh), intent(in) :: routing_mesh
-        type(type_routing_parameter), intent(in) :: routing_parameter
+        type(type_routing_parameter), intent(inout) :: routing_parameter
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: inflows
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: observations
         type(type_routing_states), intent(inout) :: routing_states
@@ -385,6 +437,8 @@ module mod_gamma_interface
         
         call routing_states_reset(routing_states)
         
+        call normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
+        
         gradients=0.
         cost=0.
         costb=1.
@@ -394,6 +448,8 @@ module mod_gamma_interface
                 &   costb)
         
         gradients=inflowsb
+        
+        call unnormalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
         
     end subroutine routing_gamma_forward_adjoint_b0
     
@@ -420,7 +476,7 @@ module mod_gamma_interface
     
         type(type_routing_setup), intent(in) :: routing_setup
         type(type_routing_mesh), intent(in) :: routing_mesh
-        type(type_routing_parameter), intent(in) :: routing_parameter
+        type(type_routing_parameter), intent(inout) :: routing_parameter
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: observations
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: qnetwork
         type(type_routing_results), intent(inout) :: routing_results
@@ -428,12 +484,15 @@ module mod_gamma_interface
         real, dimension(3) :: tab_cost
         real :: cost
         
+        call normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
         
         cost=0.
         tab_cost=0.
         call cost_function(routing_setup,routing_mesh,routing_parameter,observations,qnetwork,tab_cost,cost)
         
         routing_results%costs=tab_cost
+        
+        call unnormalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
         
     end subroutine routing_gamma_cost_function
     

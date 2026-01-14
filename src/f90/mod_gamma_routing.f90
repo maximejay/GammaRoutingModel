@@ -31,6 +31,20 @@ module mod_gamma_routing
     
     contains
     
+    function x_unn(flag,lb,ub,x)
+        integer :: flag
+        real :: x_unn
+        real, intent(in) :: lb
+        real, intent(in) :: ub
+        real, intent(in) :: x
+        
+        if (flag == 1) then
+            x_unn=x*(ub-lb)+lb
+        else 
+            x_unn=x
+        endif
+        
+    end function x_unn
     
     subroutine routing_hydrogram(routing_setup,routing_mesh,routing_parameter,&
     &inflows,routing_states,routing_results)
@@ -92,8 +106,6 @@ module mod_gamma_routing
         
     end subroutine routing_hydrogram
     
-    
-    
     subroutine routing_flow(routing_setup,routing_mesh,routing_parameter,inflows,routing_states,routingmem,qnetwork,velocities)
         
         ! Notes
@@ -129,6 +141,7 @@ module mod_gamma_routing
         real :: velocity
         real :: qcell
         real :: mode
+        real :: hydro_param_unn, spreading_unn
         integer :: i
         integer :: current_node
         integer :: index_varying_dx
@@ -143,8 +156,12 @@ module mod_gamma_routing
             
             !qnetwork is always in m3 => output discharges
             qnetwork(current_node)=qcell
+            
             !write(*,*) i,current_node,qcell
-            call compute_velocity(routing_parameter%hydraulics_coefficient(current_node),&
+            hydro_param_unn=x_unn(routing_parameter%normalized,routing_setup%hydrau_coef_boundaries(1),&
+            &routing_setup%hydrau_coef_boundaries(2),routing_parameter%hydraulics_coefficient(current_node))
+            
+            call compute_velocity(hydro_param_unn,&
             &routing_setup,routing_mesh,routing_states,current_node,qcell,velocity)
             
             velocities(current_node)=velocity
@@ -154,8 +171,11 @@ module mod_gamma_routing
 !~             write(*,*) i,qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%dt
             
             if (routing_states%nb_spreads>1) then
-            
-                call interpolated_routing_coefficients_bilinear(mode,routing_parameter%spreading(current_node),&
+                
+                spreading_unn=x_unn(routing_parameter%normalized,routing_setup%spreading_boundaries(1),&
+                &routing_setup%spreading_boundaries(2),routing_parameter%spreading(current_node))
+                
+                call interpolated_routing_coefficients_bilinear(mode,spreading_unn,&
                 &index_varying_dx,routing_states,gamma_coefficient)
                 
             else
@@ -272,13 +292,13 @@ module mod_gamma_routing
         velocity=routing_setup%vmin
         
         if (routing_setup%velocity_computation.eq."qmm") then
-            velocity =  hydraulics_coefficient*routing_states%param_normalisation(1) * &
+            velocity =  hydraulics_coefficient * &
             &( incoming_discharges * routing_setup%dt * 1000. / &
             &(routing_mesh%cumulated_surface(current_node) * 1000.0**2.) )**0.4
         end if
         
         if (routing_setup%velocity_computation.eq."qm3") then
-            velocity =  hydraulics_coefficient*routing_states%param_normalisation(1) * incoming_discharges**0.4
+            velocity =  hydraulics_coefficient * incoming_discharges**0.4
         end if
         
         
@@ -292,8 +312,7 @@ module mod_gamma_routing
         
     endsubroutine compute_velocity
     
-    
-     subroutine interpolated_routing_coefficients_linear(delay,index_dx,routing_states,gamma_coefficient)
+    subroutine interpolated_routing_coefficients_linear(delay,index_dx,routing_states,gamma_coefficient)
         
         ! Notes
         ! -----
@@ -413,10 +432,6 @@ module mod_gamma_routing
         integer :: i
         integer :: ix1,iy1,ix2,iy2
         real :: x1,y1,x2,y2,fx,fy
-        real :: true_spreading
-        
-        !unormalise spreading
-        true_spreading=spreading*routing_states%param_normalisation(2)
         
         !index_dx=routing_mesh%index_varying_dx(current-node)
         
@@ -438,7 +453,7 @@ module mod_gamma_routing
         iy1=1
         iy2=2
         do i=2,routing_states%nb_spreads
-            if (true_spreading<routing_states%tabulated_spreading(i)) then
+            if (spreading<routing_states%tabulated_spreading(i)) then
                 iy1=i-1
                 iy2=i
                 exit
@@ -451,13 +466,13 @@ module mod_gamma_routing
         y2=routing_states%tabulated_spreading(iy2)
         
         gamma_coefficient=&
-        & ((mode-x2)/(x1-x2)) * ((true_spreading-y2)/(y1-y2)) * &
+        & ((mode-x2)/(x1-x2)) * ((spreading-y2)/(y1-y2)) * &
         &routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)&
-        &+((mode-x1)/(x2-x1)) * ((true_spreading-y2)/(y1-y2)) * &
+        &+((mode-x1)/(x2-x1)) * ((spreading-y2)/(y1-y2)) * &
         &routing_states%tabulated_routing_coef(:,ix2,iy1,index_dx)&
-        &+((mode-x2)/(x1-x2)) * ((true_spreading-y1)/(y2-y1)) * &
+        &+((mode-x2)/(x1-x2)) * ((spreading-y1)/(y2-y1)) * &
         &routing_states%tabulated_routing_coef(:,ix1,iy2,index_dx)&
-        &+((mode-x1)/(x2-x1)) * ((true_spreading-y1)/(y2-y1)) * &
+        &+((mode-x1)/(x2-x1)) * ((spreading-y1)/(y2-y1)) * &
         &routing_states%tabulated_routing_coef(:,ix2,iy2,index_dx)
         
         ! Interpolation factors

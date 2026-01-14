@@ -17,7 +17,12 @@ MODULE MOD_GAMMA_ROUTING_PARAMETERS_DIFF_D
   TYPE TYPE_ROUTING_PARAMETER
       REAL, DIMENSION(:), ALLOCATABLE :: hydraulics_coefficient
       REAL, DIMENSION(:), ALLOCATABLE :: spreading
+      INTEGER :: normalized
   END TYPE TYPE_ROUTING_PARAMETER
+  TYPE TYPE_ROUTING_PARAMETER_DIFF
+      REAL, DIMENSION(:), ALLOCATABLE :: hydraulics_coefficient
+      REAL, DIMENSION(:), ALLOCATABLE :: spreading
+  END TYPE TYPE_ROUTING_PARAMETER_DIFF
 
 CONTAINS
   SUBROUTINE ROUTING_PARAMETER_SELF_INITIALISATION(routing_parameter, &
@@ -74,6 +79,7 @@ CONTAINS
 &         dx(i)
       END DO
     END IF
+    routing_parameter%normalized = 0
   END SUBROUTINE ROUTING_PARAMETER_SELF_INITIALISATION
 
   SUBROUTINE ROUTING_PARAMETER_CLEAR(routing_parameter)
@@ -169,7 +175,7 @@ CONTAINS
 ! =============================           ===================================
     USE MOD_GAMMA_ROUTING_SETUP
     USE MOD_GAMMA_ROUTING_MESH
-USE MOD_GAMMA_ROUTING_PARAMETERS
+    USE MOD_GAMMA_ROUTING_PARAMETERS_DIFF_D
     IMPLICIT NONE
     TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
@@ -267,7 +273,7 @@ END MODULE MOD_GAMMA_ROUTING_STATES_DIFF_D
 MODULE MOD_GAMMA_ROUTING_DIFF_D
   USE MOD_GAMMA_ROUTING_SETUP
   USE MOD_GAMMA_ROUTING_MESH
-USE MOD_GAMMA_ROUTING_PARAMETERS
+  USE MOD_GAMMA_ROUTING_PARAMETERS_DIFF_D
   USE MOD_GAMMA_ROUTING_STATES_DIFF_D
   USE MOD_GAMMA_ROUTING_RESULTS
   IMPLICIT NONE
@@ -279,6 +285,41 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
   END TYPE ROUTING_MEMORY
 
 CONTAINS
+!  Differentiation of x_unn in forward (tangent) mode (with options fixinterface):
+!   variations   of useful results: x_unn
+!   with respect to varying inputs: x
+  FUNCTION X_UNN_D(flag, lb, ub, x, xd, x_unn)
+    IMPLICIT NONE
+    INTEGER :: flag
+    REAL :: x_unn
+    REAL :: x_unn_d
+    REAL, INTENT(IN) :: lb
+    REAL, INTENT(IN) :: ub
+    REAL, INTENT(IN) :: x
+    REAL, INTENT(IN) :: xd
+    IF (flag .EQ. 1) THEN
+      x_unn_d = (ub-lb)*xd
+      x_unn = x*(ub-lb) + lb
+    ELSE
+      x_unn_d = xd
+      x_unn = x
+    END IF
+  END FUNCTION X_UNN_D
+
+  FUNCTION X_UNN(flag, lb, ub, x)
+    IMPLICIT NONE
+    INTEGER :: flag
+    REAL :: x_unn
+    REAL, INTENT(IN) :: lb
+    REAL, INTENT(IN) :: ub
+    REAL, INTENT(IN) :: x
+    IF (flag .EQ. 1) THEN
+      x_unn = x*(ub-lb) + lb
+    ELSE
+      x_unn = x
+    END IF
+  END FUNCTION X_UNN
+
   SUBROUTINE ROUTING_HYDROGRAM(routing_setup, routing_mesh, &
 &   routing_parameter, inflows, routing_states, routing_results)
     IMPLICIT NONE
@@ -334,7 +375,7 @@ CONTAINS
     TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
     TYPE(TYPE_ROUTING_PARAMETER), INTENT(IN) :: routing_parameter
-    TYPE(TYPE_ROUTING_PARAMETER), INTENT(IN) :: routing_parameterd
+    TYPE(TYPE_ROUTING_PARAMETER_DIFF), INTENT(IN) :: routing_parameterd
     REAL, DIMENSION(routing_mesh%nb_nodes), INTENT(IN) :: inflows
     REAL, DIMENSION(routing_mesh%nb_nodes), INTENT(IN) :: inflowsd
     TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
@@ -354,6 +395,8 @@ CONTAINS
     REAL :: qcelld
     REAL :: mode
     REAL :: moded
+    REAL :: hydro_param_unn, spreading_unn
+    REAL :: hydro_param_unnd, spreading_unnd
     INTEGER :: i
     INTEGER :: current_node
     INTEGER :: index_varying_dx
@@ -370,9 +413,12 @@ CONTAINS
       qnetworkd(current_node) = qcelld
       qnetwork(current_node) = qcell
 !write(*,*) i,current_node,qcell
-      CALL COMPUTE_VELOCITY_D(routing_parameter%hydraulics_coefficient(&
-&                       current_node), routing_parameterd%&
-&                       hydraulics_coefficient(current_node), &
+      hydro_param_unnd = X_UNN_D(routing_parameter%normalized, &
+&       routing_setup%hydrau_coef_boundaries(1), routing_setup%&
+&       hydrau_coef_boundaries(2), routing_parameter%&
+&       hydraulics_coefficient(current_node), routing_parameterd%&
+&       hydraulics_coefficient(current_node), hydro_param_unn)
+      CALL COMPUTE_VELOCITY_D(hydro_param_unn, hydro_param_unnd, &
 &                       routing_setup, routing_mesh, routing_states, &
 &                       current_node, qcell, qcelld, velocity, velocityd&
 &                      )
@@ -383,13 +429,14 @@ CONTAINS
       index_varying_dx = routing_mesh%index_varying_dx(current_node)
 !~             write(*,*) i,qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%dt
       IF (routing_states%nb_spreads .GT. 1) THEN
+        spreading_unnd = X_UNN_D(routing_parameter%normalized, &
+&         routing_setup%spreading_boundaries(1), routing_setup%&
+&         spreading_boundaries(2), routing_parameter%spreading(&
+&         current_node), routing_parameterd%spreading(current_node), &
+&         spreading_unn)
         CALL INTERPOLATED_ROUTING_COEFFICIENTS_BILINEAR_D(mode, moded, &
-&                                                   routing_parameter%&
-&                                                   spreading(&
-&                                                   current_node), &
-&                                                   routing_parameterd%&
-&                                                   spreading(&
-&                                                   current_node), &
+&                                                   spreading_unn, &
+&                                                   spreading_unnd, &
 &                                                   index_varying_dx, &
 &                                                   routing_states, &
 &                                                   gamma_coefficient, &
@@ -430,6 +477,7 @@ CONTAINS
     REAL :: velocity
     REAL :: qcell
     REAL :: mode
+    REAL :: hydro_param_unn, spreading_unn
     INTEGER :: i
     INTEGER :: current_node
     INTEGER :: index_varying_dx
@@ -442,18 +490,24 @@ CONTAINS
 !qnetwork is always in m3 => output discharges
       qnetwork(current_node) = qcell
 !write(*,*) i,current_node,qcell
-      CALL COMPUTE_VELOCITY(routing_parameter%hydraulics_coefficient(&
-&                     current_node), routing_setup, routing_mesh, &
-&                     routing_states, current_node, qcell, velocity)
+      hydro_param_unn = X_UNN(routing_parameter%normalized, &
+&       routing_setup%hydrau_coef_boundaries(1), routing_setup%&
+&       hydrau_coef_boundaries(2), routing_parameter%&
+&       hydraulics_coefficient(current_node))
+      CALL COMPUTE_VELOCITY(hydro_param_unn, routing_setup, routing_mesh&
+&                     , routing_states, current_node, qcell, velocity)
       velocities(current_node) = velocity
       mode = routing_mesh%dx(current_node)/velocity/routing_setup%dt
       index_varying_dx = routing_mesh%index_varying_dx(current_node)
 !~             write(*,*) i,qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%dt
       IF (routing_states%nb_spreads .GT. 1) THEN
+        spreading_unn = X_UNN(routing_parameter%normalized, &
+&         routing_setup%spreading_boundaries(1), routing_setup%&
+&         spreading_boundaries(2), routing_parameter%spreading(&
+&         current_node))
         CALL INTERPOLATED_ROUTING_COEFFICIENTS_BILINEAR(mode, &
-&                                                 routing_parameter%&
-&                                                 spreading(current_node&
-&                                                 ), index_varying_dx, &
+&                                                 spreading_unn, &
+&                                                 index_varying_dx, &
 &                                                 routing_states, &
 &                                                 gamma_coefficient)
       ELSE
@@ -571,22 +625,18 @@ CONTAINS
     IF (routing_setup%velocity_computation .EQ. 'qmm') THEN
       temp = routing_mesh%cumulated_surface(current_node)*1000.0**2.
       temp0 = (1000.*routing_setup%dt*incoming_discharges/temp)**0.4
-      velocityd = routing_states%param_normalisation(1)*(temp0*&
-&       hydraulics_coefficientd+hydraulics_coefficient*0.4*(&
-&       routing_setup%dt*1000.*(incoming_discharges/temp))**(-0.6)*&
-&       routing_setup%dt*1000.*incoming_dischargesd/temp)
-      velocity = routing_states%param_normalisation(1)*(&
-&       hydraulics_coefficient*temp0)
+      velocityd = temp0*hydraulics_coefficientd + hydraulics_coefficient&
+&       *0.4*(routing_setup%dt*1000.*(incoming_discharges/temp))**(-0.6)&
+&       *routing_setup%dt*1000.*incoming_dischargesd/temp
+      velocity = hydraulics_coefficient*temp0
     ELSE
       velocityd = 0.0
     END IF
     IF (routing_setup%velocity_computation .EQ. 'qm3') THEN
       temp0 = incoming_discharges**0.4
-      velocityd = routing_states%param_normalisation(1)*(temp0*&
-&       hydraulics_coefficientd+hydraulics_coefficient*0.4*&
-&       incoming_discharges**(-0.6)*incoming_dischargesd)
-      velocity = routing_states%param_normalisation(1)*(&
-&       hydraulics_coefficient*temp0)
+      velocityd = temp0*hydraulics_coefficientd + hydraulics_coefficient&
+&       *0.4*incoming_discharges**(-0.6)*incoming_dischargesd
+      velocity = hydraulics_coefficient*temp0
     END IF
     IF (velocity .LT. routing_setup%vmin) THEN
       velocity = routing_setup%vmin
@@ -617,12 +667,11 @@ CONTAINS
 &       baseflow
     velocity = routing_setup%vmin
     IF (routing_setup%velocity_computation .EQ. 'qmm') velocity = &
-&       hydraulics_coefficient*routing_states%param_normalisation(1)*(&
-&       incoming_discharges*routing_setup%dt*1000./(routing_mesh%&
-&       cumulated_surface(current_node)*1000.0**2.))**0.4
+&       hydraulics_coefficient*(incoming_discharges*routing_setup%dt*&
+&       1000./(routing_mesh%cumulated_surface(current_node)*1000.0**2.))&
+&       **0.4
     IF (routing_setup%velocity_computation .EQ. 'qm3') velocity = &
-&       hydraulics_coefficient*routing_states%param_normalisation(1)*&
-&       incoming_discharges**0.4
+&       hydraulics_coefficient*incoming_discharges**0.4
     IF (velocity .LT. routing_setup%vmin) velocity = routing_setup%vmin
     IF (velocity .GT. routing_setup%vmax) velocity = routing_setup%vmax
   END SUBROUTINE COMPUTE_VELOCITY
@@ -765,15 +814,10 @@ CONTAINS
     INTEGER :: i
     INTEGER :: ix1, iy1, ix2, iy2
     REAL :: x1, y1, x2, y2, fx, fy
-    REAL :: true_spreading
-    REAL :: true_spreadingd
     REAL :: temp
     REAL :: temp0
     REAL :: temp1
     REAL :: temp2
-!unormalise spreading
-    true_spreadingd = routing_states%param_normalisation(2)*spreadingd
-    true_spreading = spreading*routing_states%param_normalisation(2)
 !index_dx=routing_mesh%index_varying_dx(current-node)
 !Avoid chocs by increasing the spreading with the mode: we could calibrate the exponnent instead of the spreading... This works v
 !ery well, less chocs when v is low (hydro_coef is low too)
@@ -791,8 +835,7 @@ CONTAINS
  110 iy1 = 1
     iy2 = 2
     DO i=2,routing_states%nb_spreads
-      IF (true_spreading .LT. routing_states%tabulated_spreading(i)) &
-&       GOTO 120
+      IF (spreading .LT. routing_states%tabulated_spreading(i)) GOTO 120
     END DO
     GOTO 130
  120 iy1 = i - 1
@@ -806,21 +849,20 @@ CONTAINS
     temp1 = (x1-x2)*(y2-y1)
     temp2 = (x2-x1)*(y2-y1)
     gamma_coefficientd = routing_states%tabulated_routing_coef(:, ix1, &
-&     iy1, index_dx)*((true_spreading-y2)*moded+(mode-x2)*&
-&     true_spreadingd)/temp + routing_states%tabulated_routing_coef(:, &
-&     ix2, iy1, index_dx)*((true_spreading-y1)*moded+(mode-x1)*&
-&     true_spreadingd)/temp0 + routing_states%tabulated_routing_coef(:, &
-&     ix1, iy2, index_dx)*((true_spreading-y1)*moded+(mode-x2)*&
-&     true_spreadingd)/temp1 + routing_states%tabulated_routing_coef(:, &
-&     ix2, iy2, index_dx)*((true_spreading-y1)*moded+(mode-x1)*&
-&     true_spreadingd)/temp2
-    gamma_coefficient = routing_states%tabulated_routing_coef(:, ix1, &
-&     iy1, index_dx)*((mode-x2)*(true_spreading-y2)/temp) + &
+&     iy1, index_dx)*((spreading-y2)*moded+(mode-x2)*spreadingd)/temp + &
 &     routing_states%tabulated_routing_coef(:, ix2, iy1, index_dx)*((&
-&     mode-x1)*(true_spreading-y1)/temp0) + routing_states%&
-&     tabulated_routing_coef(:, ix1, iy2, index_dx)*((mode-x2)*(&
-&     true_spreading-y1)/temp1) + routing_states%tabulated_routing_coef(&
-&     :, ix2, iy2, index_dx)*((mode-x1)*(true_spreading-y1)/temp2)
+&     spreading-y2)*moded+(mode-x1)*spreadingd)/temp0 + routing_states%&
+&     tabulated_routing_coef(:, ix1, iy2, index_dx)*((spreading-y1)*&
+&     moded+(mode-x2)*spreadingd)/temp1 + routing_states%&
+&     tabulated_routing_coef(:, ix2, iy2, index_dx)*((spreading-y1)*&
+&     moded+(mode-x1)*spreadingd)/temp2
+    gamma_coefficient = routing_states%tabulated_routing_coef(:, ix1, &
+&     iy1, index_dx)*((mode-x2)*(spreading-y2)/temp) + routing_states%&
+&     tabulated_routing_coef(:, ix2, iy1, index_dx)*((mode-x1)*(&
+&     spreading-y2)/temp0) + routing_states%tabulated_routing_coef(:, &
+&     ix1, iy2, index_dx)*((mode-x2)*(spreading-y1)/temp1) + &
+&     routing_states%tabulated_routing_coef(:, ix2, iy2, index_dx)*((&
+&     mode-x1)*(spreading-y1)/temp2)
   END SUBROUTINE INTERPOLATED_ROUTING_COEFFICIENTS_BILINEAR_D
 
   SUBROUTINE INTERPOLATED_ROUTING_COEFFICIENTS_BILINEAR(mode, spreading&
@@ -846,9 +888,6 @@ CONTAINS
     INTEGER :: i
     INTEGER :: ix1, iy1, ix2, iy2
     REAL :: x1, y1, x2, y2, fx, fy
-    REAL :: true_spreading
-!unormalise spreading
-    true_spreading = spreading*routing_states%param_normalisation(2)
 !index_dx=routing_mesh%index_varying_dx(current-node)
 !Avoid chocs by increasing the spreading with the mode: we could calibrate the exponnent instead of the spreading... This works v
 !ery well, less chocs when v is low (hydro_coef is low too)
@@ -867,8 +906,7 @@ CONTAINS
  100 iy1 = 1
     iy2 = 2
     DO i=2,routing_states%nb_spreads
-      IF (true_spreading .LT. routing_states%tabulated_spreading(i)) &
-&     THEN
+      IF (spreading .LT. routing_states%tabulated_spreading(i)) THEN
         iy1 = i - 1
         iy2 = i
         GOTO 110
@@ -878,14 +916,13 @@ CONTAINS
     x2 = routing_states%tabulated_delay(ix2)
     y1 = routing_states%tabulated_spreading(iy1)
     y2 = routing_states%tabulated_spreading(iy2)
-    gamma_coefficient = (mode-x2)/(x1-x2)*((true_spreading-y2)/(y1-y2))*&
+    gamma_coefficient = (mode-x2)/(x1-x2)*((spreading-y2)/(y1-y2))*&
 &     routing_states%tabulated_routing_coef(:, ix1, iy1, index_dx) + (&
-&     mode-x1)/(x2-x1)*((true_spreading-y1)/(y1-y2))*routing_states%&
+&     mode-x1)/(x2-x1)*((spreading-y2)/(y1-y2))*routing_states%&
 &     tabulated_routing_coef(:, ix2, iy1, index_dx) + (mode-x2)/(x1-x2)*&
-&     ((true_spreading-y1)/(y2-y1))*routing_states%&
-&     tabulated_routing_coef(:, ix1, iy2, index_dx) + (mode-x1)/(x2-x1)*&
-&     ((true_spreading-y1)/(y2-y1))*routing_states%&
-&     tabulated_routing_coef(:, ix2, iy2, index_dx)
+&     ((spreading-y1)/(y2-y1))*routing_states%tabulated_routing_coef(:, &
+&     ix1, iy2, index_dx) + (mode-x1)/(x2-x1)*((spreading-y1)/(y2-y1))*&
+&     routing_states%tabulated_routing_coef(:, ix2, iy2, index_dx)
   END SUBROUTINE INTERPOLATED_ROUTING_COEFFICIENTS_BILINEAR
 
   PURE SUBROUTINE GENERIC_INTERPOLATED_ROUTING_COEFFICIENTS_BILINEAR(&
@@ -1132,7 +1169,7 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_D0(routing_setup, routing_mesh, &
 ! =============================           ===================================
   USE MOD_GAMMA_ROUTING_SETUP
   USE MOD_GAMMA_ROUTING_MESH
-USE MOD_GAMMA_ROUTING_PARAMETERS
+  USE MOD_GAMMA_ROUTING_PARAMETERS_DIFF_D
   USE MOD_GAMMA_ROUTING_STATES_DIFF_D
   USE MOD_GAMMA_ROUTING_RESULTS
   USE MOD_GAMMA_ROUTING_DIFF_D
@@ -1140,7 +1177,7 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
   TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
   TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
   TYPE(TYPE_ROUTING_PARAMETER), INTENT(INOUT) :: routing_parameter
-  TYPE(TYPE_ROUTING_PARAMETER), INTENT(INOUT) :: routing_parameterd
+  TYPE(TYPE_ROUTING_PARAMETER_DIFF), INTENT(INOUT) :: routing_parameterd
   REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
 & :: inflows
   REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
@@ -1260,7 +1297,7 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_D(routing_setup, routing_mesh, &
 ! =============================           ===================================
   USE MOD_GAMMA_ROUTING_SETUP
   USE MOD_GAMMA_ROUTING_MESH
-USE MOD_GAMMA_ROUTING_PARAMETERS
+  USE MOD_GAMMA_ROUTING_PARAMETERS_DIFF_D
   USE MOD_GAMMA_ROUTING_STATES_DIFF_D
   USE MOD_GAMMA_ROUTING_RESULTS
   USE MOD_GAMMA_ROUTING_DIFF_D
@@ -1268,7 +1305,7 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
   TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
   TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
   TYPE(TYPE_ROUTING_PARAMETER), INTENT(INOUT) :: routing_parameter
-  TYPE(TYPE_ROUTING_PARAMETER), INTENT(INOUT) :: routing_parameterd
+  TYPE(TYPE_ROUTING_PARAMETER_DIFF), INTENT(INOUT) :: routing_parameterd
   REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
 & :: inflows
   REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes) :: inflowsd
@@ -1374,7 +1411,7 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF_D(routing_setup, routing_mesh&
 ! =============================           ===================================
   USE MOD_GAMMA_ROUTING_SETUP
   USE MOD_GAMMA_ROUTING_MESH
-USE MOD_GAMMA_ROUTING_PARAMETERS
+  USE MOD_GAMMA_ROUTING_PARAMETERS_DIFF_D
   USE MOD_GAMMA_ROUTING_STATES_DIFF_D
   USE MOD_GAMMA_ROUTING_RESULTS
   USE MOD_GAMMA_ROUTING_DIFF_D
@@ -1473,7 +1510,7 @@ SUBROUTINE COST_FUNCTION_D(routing_setup, routing_mesh, &
 ! =============================           ===================================
   USE MOD_GAMMA_ROUTING_SETUP
   USE MOD_GAMMA_ROUTING_MESH
-USE MOD_GAMMA_ROUTING_PARAMETERS
+  USE MOD_GAMMA_ROUTING_PARAMETERS_DIFF_D
   IMPLICIT NONE
 !~     write(*,*) ""
 !~     write(*,*) "-----------------------------------------------------"
@@ -1483,7 +1520,7 @@ USE MOD_GAMMA_ROUTING_PARAMETERS
   TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
   TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
   TYPE(TYPE_ROUTING_PARAMETER), INTENT(IN) :: routing_parameter
-  TYPE(TYPE_ROUTING_PARAMETER), INTENT(IN) :: routing_parameterd
+  TYPE(TYPE_ROUTING_PARAMETER_DIFF), INTENT(IN) :: routing_parameterd
   REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
 & :: observations
   REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
@@ -1599,7 +1636,7 @@ SUBROUTINE COST_FUNCTION_NODIFF_D(routing_setup, routing_mesh, &
 ! =============================           ===================================
   USE MOD_GAMMA_ROUTING_SETUP
   USE MOD_GAMMA_ROUTING_MESH
-USE MOD_GAMMA_ROUTING_PARAMETERS
+  USE MOD_GAMMA_ROUTING_PARAMETERS_DIFF_D
   IMPLICIT NONE
 !~     write(*,*) ""
 !~     write(*,*) "-----------------------------------------------------"
@@ -1677,12 +1714,12 @@ END SUBROUTINE COST_FUNCTION_NODIFF_D
 !                routing_parameter.spreading:in
 SUBROUTINE REGULARIZATION_D(routing_mesh, routing_parameter, &
 & routing_parameterd, penalty, penaltyd)
-USE MOD_GAMMA_ROUTING_PARAMETERS
+  USE MOD_GAMMA_ROUTING_PARAMETERS_DIFF_D
   USE MOD_GAMMA_ROUTING_MESH
   IMPLICIT NONE
   TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
   TYPE(TYPE_ROUTING_PARAMETER), INTENT(IN) :: routing_parameter
-  TYPE(TYPE_ROUTING_PARAMETER), INTENT(IN) :: routing_parameterd
+  TYPE(TYPE_ROUTING_PARAMETER_DIFF), INTENT(IN) :: routing_parameterd
   REAL, INTENT(INOUT) :: penalty
   REAL, INTENT(INOUT) :: penaltyd
   INTEGER :: i, current_node, next_node, previous_node
@@ -1738,7 +1775,7 @@ END SUBROUTINE REGULARIZATION_D
 
 SUBROUTINE REGULARIZATION_NODIFF_D(routing_mesh, routing_parameter, &
 & penalty)
-USE MOD_GAMMA_ROUTING_PARAMETERS
+  USE MOD_GAMMA_ROUTING_PARAMETERS_DIFF_D
   USE MOD_GAMMA_ROUTING_MESH
   IMPLICIT NONE
   TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh

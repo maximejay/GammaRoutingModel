@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Jan 14 17:15:35 2026
+
+@author: maxime
+"""
+
 import smash
 import gamma_routing_model as gamma
 import numpy as np
@@ -202,9 +210,9 @@ def ConfigureGammaWithSmash(smash_model, dt=None, **kwargs):
     # dt: time step of the gamma model
     # **kwargs: any arguments for gamma.routing_setup
 
-    if smash_model.setup.routing_module != "rm_zero":
-        print("Warnings: setting smash_model.setup.routing_module to rm_zero")
-        smash_model.setup.structure = "rm_zero"
+    if smash_model.setup.routing_module != "zero":
+        print("Warnings: setting smash_model.setup.routing_module to zero")
+        smash_model.setup.structure = "zero"
 
     # initialise the gamma model object
     model_gamma = gamma.Model()
@@ -482,7 +490,37 @@ def GetCorrespondingTimeStepRange(smash_model, model_gamma):
     return {"ts_smash": xsmash, "ts_gamma": xgamma}
 
 
-def VectorizeModelParameters(smash_model, model_gamma, control_parameters_list=list()):
+def normalize_control_vector(control_vector):
+
+    bnd_u = control_vector["boundaries"][:, 1]
+    bnd_l = control_vector["boundaries"][:, 0]
+
+    control_vector["X"] = (control_vector["Xt"] - bnd_l) / (bnd_u - bnd_l)
+
+    return control_vector
+
+
+def unormalize_control_vector(control_vector):
+
+    bnd_u = control_vector["boundaries"][:, 1]
+    bnd_l = control_vector["boundaries"][:, 0]
+
+    control_vector["Xt"] = control_vector["X"] * (bnd_u - bnd_l) + bnd_l
+
+    return control_vector
+
+
+def VectorizeModelParameters(
+    smash_model,
+    model_gamma,
+    control_parameters_list=list(),
+    bounds={
+        "cp": [0.1, 1000.0],
+        "ct": [0.1, 1000.0],
+        "hydraulics_coefficient": [0.3, 5.0],
+        "spreading": [0.5, 3.0],
+    },
+):
     # Get all controlled parameters from Smash and Gamma and vectorize them
     # Return a the control vector dictionary with component:
     #'X' : the control vector
@@ -491,6 +529,12 @@ def VectorizeModelParameters(smash_model, model_gamma, control_parameters_list=l
     # X has the following order:
     # - Gradient of Smash in the order of the control_vector
     # - Gradient of Gamma : 1st hydraulics_coefficient, 2nd spreading
+    boundaries = gamma.smashplug.get_boundaries(
+        model_gamma,
+        smash_model,
+        control_parameters_list=control_parameters_list,
+        bounds=bounds,
+    )
 
     if len(control_parameters_list) == 0:
 
@@ -572,9 +616,12 @@ def VectorizeModelParameters(smash_model, model_gamma, control_parameters_list=l
                 k = k + nb_nodes
 
     control_vector = {
-        "X": LinearizedParameters,
+        "X": None,
+        "Xt": LinearizedParameters,
         "ParamList": control_parameters_list,
         "NbNodes": nb_nodes,
+        "boundaries": boundaries,
+        "bounds": bounds,
     }
 
     return control_vector
@@ -586,8 +633,11 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
     # - Gradient of Smash in the order of the control_vector["ParamList"]
     # - Gradient of Gamma : 1st hydraulics_coefficient, 2nd spreading
 
+    control_vector = unormalize_control_vector(control_vector)
+
     if not (
         ("X" in control_vector)
+        and ("Xt" in control_vector)
         and ("ParamList" in control_vector)
         and ("NbNodes" in control_vector)
     ):
@@ -615,7 +665,7 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
 
                     if smash_model.mesh.active_cell[sub_row, sub_col] > 0:
 
-                        MatrixParameters[sub_row, sub_col] = control_vector["X"][k]
+                        MatrixParameters[sub_row, sub_col] = control_vector["Xt"][k]
 
                         k = k + 1
 
@@ -632,7 +682,7 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
 
                     if smash_model.mesh.active_cell[sub_row, sub_col] > 0:
 
-                        MatrixStates[sub_row, sub_col] = control_vector["X"][k]
+                        MatrixStates[sub_row, sub_col] = control_vector["Xt"][k]
 
                         k = k + 1
 
@@ -650,11 +700,11 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
 
                 if model_gamma.routing_setup.hydraulics_coef_uniform == 1:
                     model_gamma.routing_parameters.hydraulics_coefficient[:] = (
-                        control_vector["X"][k]
+                        control_vector["Xt"][k]
                     )
                 else:
                     model_gamma.routing_parameters.hydraulics_coefficient[:] = (
-                        control_vector["X"][k : k + nb_nodes]
+                        control_vector["Xt"][k : k + nb_nodes]
                     )
 
                 k = k + nb_nodes
@@ -662,9 +712,9 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
             if ctrl_var == "spreading":
 
                 if model_gamma.routing_setup.spreading_uniform == 1:
-                    model_gamma.routing_parameters.spreading[:] = control_vector["X"][k]
+                    model_gamma.routing_parameters.spreading[:] = control_vector["Xt"][k]
                 else:
-                    model_gamma.routing_parameters.spreading[:] = control_vector["X"][
+                    model_gamma.routing_parameters.spreading[:] = control_vector["Xt"][
                         k : k + nb_nodes
                     ]
 
@@ -730,6 +780,7 @@ def _get_smash_gradient(model, control_smash):
     _map_dict_to_fortran_derived_type(return_options, wrap_returns)
 
     parameters = model._parameters.copy()
+
     wrap_parameters_to_control(
         model.setup,
         model.mesh,
@@ -737,13 +788,16 @@ def _get_smash_gradient(model, control_smash):
         parameters,
         wrap_options,
     )
-    setattr(parameters.control, "x", parameters.control.x.copy())
+    X0 = parameters.control.x  # X est normalisé ici
+    # setattr(parameters.control, "x", parameters.control.x.copy())
 
     parameters_b0 = smash.core.simulation.optimize._tools._get_parameters_b0(
         model, parameters, wrap_options, wrap_returns
     )
 
     grad = parameters_b0.control.x.copy()
+
+    # return parameters.control.x
 
     return grad
 
@@ -997,6 +1051,7 @@ def ComputeCostAndGradients(
     # Get the new control vector
     print("Updating the control vector")
     control_vector["X"] = X
+
     # Set the new control vector to the Smash and Gamma Model
     SetVectorizedModelParameters(control_vector, smash_model, model_gamma)
 
@@ -1040,6 +1095,112 @@ def ComputeCostAndGradients(
     return cost, gradient
 
 
+def get_boundaries(
+    model_gamma,
+    model_smash,
+    control_parameters_list=["cp", "hydraulics_coefficient", "spreading"],
+    bounds={
+        "cp": [0.1, 1000.0],
+        "hydraulics_coefficient": [0.5, 10],
+        "spreading": [1.0, 3.0],
+    },
+):
+
+    nnodes = model_gamma.routing_mesh.nb_nodes
+    ncontrol = len(control_parameters_list) * model_gamma.routing_mesh.nb_nodes
+    boundaries = np.zeros(shape=(ncontrol, 2))
+
+    # define the boundaris
+    if len(control_parameters_list) != len(bounds):
+        raise ValueError(
+            "Error: The number of boundaries is different than the number of controls"
+        )
+
+    position = 0
+    for control in control_parameters_list:
+
+        # set only smash boundaries first
+        if control in model_smash.rr_parameters.keys:
+
+            if not control in bounds:
+                raise ValueError(
+                    f"Error: The controlled variable {control} is not in the boundaries definition"
+                )
+
+            boundaries[position : position + nnodes, 0] = bounds[control][0]
+            boundaries[position : position + nnodes, 1] = bounds[control][1]
+            position = position + nnodes
+
+        if control in model_smash.rr_initial_states.keys:
+
+            if not control in bounds:
+                raise ValueError(
+                    f"Error: The controlled variable {control} is not in the boundaries definition"
+                )
+
+            boundaries[position : position + nnodes, 0] = bounds[control][0]
+            boundaries[position : position + nnodes, 1] = bounds[control][1]
+            position = position + nnodes
+
+    for control in control_parameters_list:
+
+        # set only gamma boundaries
+        if hasattr(model_gamma.routing_parameters, control):
+
+            if control == "hydraulics_coefficient":
+
+                if not "hydraulics_coefficient" in bounds:
+                    raise ValueError(
+                        f"Error: The controlled variable hydraulics_coefficient is not in the boundaries definition"
+                    )
+
+                model_gamma.routing_states.param_normalisation[0] = bounds[
+                    "hydraulics_coefficient"
+                ][1]
+
+                # bounds["hydraulics_coefficient"] = (
+                #     np.array(bounds["hydraulics_coefficient"])
+                #     / bounds["hydraulics_coefficient"][1]
+                # )
+
+                boundaries[position : position + nnodes, 0] = bounds[
+                    "hydraulics_coefficient"
+                ][0]
+                boundaries[position : position + nnodes, 1] = bounds[
+                    "hydraulics_coefficient"
+                ][1]
+
+                model_gamma.routing_parameters.hydraulics_coefficient = (
+                    model_gamma.routing_parameters.hydraulics_coefficient
+                )
+
+                position = position + nnodes
+
+            if control == "spreading":
+
+                if not "spreading" in bounds:
+                    raise ValueError(
+                        f"Error: The controlled variable spreading is not in the boundaries definition"
+                    )
+
+                model_gamma.routing_states.param_normalisation[1] = bounds["spreading"][1]
+
+                # bounds["spreading"] = (
+                #     np.array(bounds["spreading"]) / bounds["spreading"][1]
+                # )
+
+                boundaries[position : position + nnodes, 0] = bounds["spreading"][0]
+                boundaries[position : position + nnodes, 1] = bounds["spreading"][1]
+
+                model_gamma.routing_parameters.spreading = (
+                    model_gamma.routing_parameters.spreading
+                )
+
+                position = position + nnodes
+
+    return boundaries
+
+
 def OptimizeCoupledModel(
     smash_model,
     model_gamma,
@@ -1067,91 +1228,19 @@ def OptimizeCoupledModel(
             f"Observations vectors has not the same shape ({observations.shape}) than the outputs discharges of Gamma ({optimized_gamma.routing_results.discharges.shape})"
         )
 
-    # define the control vector
+    # define the new control vector with scaled parameters
     ControlVector = gamma.smashplug.VectorizeModelParameters(
-        optimized_smash, optimized_gamma, control_parameters_list=control_parameters_list
+        optimized_smash,
+        optimized_gamma,
+        control_parameters_list=control_parameters_list,
+        bounds=bounds,
     )
 
-    boundaries = np.zeros(shape=(len(ControlVector["X"]), 2))
+    ControlVector = normalize_control_vector(ControlVector)
 
-    # define the boundaris
-    if len(control_parameters_list) != len(bounds):
-        raise ValueError(
-            "Error: The number of boundaries is different than the number of controls"
-        )
-
-    position = 0
-    for control in control_parameters_list:
-
-        # set only smash boundaries first
-        if control in optimized_smash.rr_parameters.keys:
-
-            if not control in bounds:
-                raise ValueError(
-                    f"Error: The controlled variable {control} is not in the boundaries definition"
-                )
-
-            boundaries[position : position + ControlVector["NbNodes"], 0] = bounds[
-                control
-            ][0]
-            boundaries[position : position + ControlVector["NbNodes"], 1] = bounds[
-                control
-            ][1]
-            position = position + ControlVector["NbNodes"]
-
-        if control in optimized_smash.rr_initial_states.keys:
-
-            if not control in bounds:
-                raise ValueError(
-                    f"Error: The controlled variable {control} is not in the boundaries definition"
-                )
-
-            boundaries[position : position + ControlVector["NbNodes"], 0] = bounds[
-                control
-            ][0]
-            boundaries[position : position + ControlVector["NbNodes"], 1] = bounds[
-                control
-            ][1]
-            position = position + ControlVector["NbNodes"]
-
-    for control in control_parameters_list:
-
-        # set only gamma boundaries
-        if hasattr(optimized_gamma.routing_parameters, control):
-
-            if control == "hydraulics_coefficient":
-
-                if not "hydraulics_coefficient" in bounds:
-                    raise ValueError(
-                        f"Error: The controlled variable hydraulics_coefficient is not in the boundaries definition"
-                    )
-
-                boundaries[position : position + ControlVector["NbNodes"], 0] = bounds[
-                    "hydraulics_coefficient"
-                ][0]
-                boundaries[position : position + ControlVector["NbNodes"], 1] = bounds[
-                    "hydraulics_coefficient"
-                ][1]
-                position = position + ControlVector["NbNodes"]
-
-            if control == "spreading":
-
-                if not "spreading" in bounds:
-                    raise ValueError(
-                        f"Error: The controlled variable spreading is not in the boundaries definition"
-                    )
-
-                boundaries[position : position + ControlVector["NbNodes"], 0] = bounds[
-                    "spreading"
-                ][0]
-                boundaries[position : position + ControlVector["NbNodes"], 1] = bounds[
-                    "spreading"
-                ][1]
-                position = position + ControlVector["NbNodes"]
-
-    # update the control vector with bounds
-    # if ScaleGradientsByBounds:
-    ControlVector.update({"bounds": bounds})
+    bounds = np.zeros(shape=ControlVector["boundaries"].shape)
+    bounds[:, 0] = 0.0
+    bounds[:, 1] = 1.0
 
     cost, grad = gamma.smashplug.ComputeCostAndGradients(
         ControlVector["X"],
@@ -1177,7 +1266,7 @@ def OptimizeCoupledModel(
         method="L-BFGS-B",
         # method="Newton-CG",
         jac=True,
-        bounds=boundaries,
+        bounds=bounds,
         tol=tol,
         options={"disp": True, "iprint": 101, "maxiter": maxiter},
         # options={"disp": True, "maxiter": maxiter},
