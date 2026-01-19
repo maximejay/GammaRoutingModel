@@ -844,39 +844,6 @@ CONTAINS
 &     delay_sup-delay_inf)
   END SUBROUTINE INTERPOLATED_ROUTING_COEFFICIENTS_LINEAR
 
-  PURE SUBROUTINE GENERIC_INTERPOLATED_ROUTING_COEFFICIENTS_LINEAR(delay&
-&   , index_dx, window_length, nb_mode, nb_varying_dx, tabulated_delay, &
-&   tabulated_gamma_coefficient, gamma_coefficient)
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: delay
-    INTEGER, INTENT(IN) :: index_dx
-    INTEGER, INTENT(IN) :: window_length
-    INTEGER, INTENT(IN) :: nb_mode
-    INTEGER, INTENT(IN) :: nb_varying_dx
-    REAL, DIMENSION(nb_mode), INTENT(IN) :: tabulated_delay
-    REAL, DIMENSION(window_length, nb_mode, nb_varying_dx), INTENT(IN) &
-&   :: tabulated_gamma_coefficient
-    REAL, DIMENSION(window_length), INTENT(OUT) :: gamma_coefficient
-    INTEGER :: i, lim_sup_ind_mu, lim_inf_ind_mu
-    REAL :: delay_inf, delay_sup
-    lim_inf_ind_mu = 0
-    lim_sup_ind_mu = 1
-!search indices
-    DO i=1,nb_mode
-      IF (delay .LT. tabulated_delay(i)) THEN
-        lim_inf_ind_mu = i - 1
-        lim_sup_ind_mu = i
-        GOTO 100
-      END IF
-    END DO
- 100 delay_inf = tabulated_delay(lim_inf_ind_mu)
-    delay_sup = tabulated_delay(lim_sup_ind_mu)
-    gamma_coefficient = tabulated_gamma_coefficient(:, lim_inf_ind_mu, &
-&     index_dx) + (delay-delay_inf)*(tabulated_gamma_coefficient(:, &
-&     lim_sup_ind_mu, index_dx)-tabulated_gamma_coefficient(:, &
-&     lim_inf_ind_mu, index_dx))/(delay_sup-delay_inf)
-  END SUBROUTINE GENERIC_INTERPOLATED_ROUTING_COEFFICIENTS_LINEAR
-
 !  Differentiation of interpolated_routing_coefficients_bilinear in reverse (adjoint) mode (with options fixinterface):
 !   gradient     of useful results: gamma_coefficient
 !   with respect to varying inputs: mode spreading
@@ -1040,59 +1007,6 @@ CONTAINS
 &     ix1, iy2, index_dx) + (mode-x1)/(x2-x1)*((spreading-y1)/(y2-y1))*&
 &     routing_states%tabulated_routing_coef(:, ix2, iy2, index_dx)
   END SUBROUTINE INTERPOLATED_ROUTING_COEFFICIENTS_BILINEAR
-
-  PURE SUBROUTINE GENERIC_INTERPOLATED_ROUTING_COEFFICIENTS_BILINEAR(&
-&   mode, spreading, index_dx, window_length, nb_mode, nb_spreads, &
-&   nb_varying_dx, tabulated_delay, tabulated_spreading, &
-&   tabulated_routing_coef, gamma_coefficient)
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: mode
-    REAL, INTENT(IN) :: spreading
-    INTEGER, INTENT(IN) :: index_dx
-    INTEGER, INTENT(IN) :: window_length
-    INTEGER, INTENT(IN) :: nb_mode
-    INTEGER, INTENT(IN) :: nb_spreads
-    INTEGER, INTENT(IN) :: nb_varying_dx
-    REAL, DIMENSION(nb_mode), INTENT(IN) :: tabulated_delay
-    REAL, DIMENSION(nb_spreads), INTENT(IN) :: tabulated_spreading
-    REAL, DIMENSION(window_length, nb_mode, nb_spreads, nb_varying_dx), &
-&   INTENT(IN) :: tabulated_routing_coef
-    REAL, DIMENSION(window_length), INTENT(OUT) :: gamma_coefficient
-    INTEGER :: i
-    INTEGER :: ix1, iy1, ix2, iy2
-    REAL :: x1, y1, x2, y2
-!search indices for delay x
-    ix1 = 0
-    ix2 = 1
-    DO i=1,nb_mode
-      IF (mode .LT. tabulated_delay(i)) THEN
-        ix1 = i - 1
-        ix2 = i
-        GOTO 100
-      END IF
-    END DO
-!search indices for spreading y
- 100 iy1 = 1
-    iy2 = 2
-    DO i=2,nb_spreads
-      IF (spreading .LT. tabulated_spreading(i)) THEN
-        iy1 = i - 1
-        iy2 = i
-        GOTO 110
-      END IF
-    END DO
- 110 x1 = tabulated_delay(ix1)
-    x2 = tabulated_delay(ix2)
-    y1 = tabulated_spreading(iy1)
-    y2 = tabulated_spreading(iy2)
-    gamma_coefficient = (mode-x2)/(x1-x2)*((spreading-y2)/(y1-y2))*&
-&     tabulated_routing_coef(:, ix1, iy1, index_dx) + (mode-x1)/(x2-x1)*&
-&     ((spreading-y2)/(y1-y2))*tabulated_routing_coef(:, ix2, iy1, &
-&     index_dx) + (mode-x2)/(x1-x2)*((spreading-y1)/(y2-y1))*&
-&     tabulated_routing_coef(:, ix1, iy2, index_dx) + (mode-x1)/(x2-x1)*&
-&     ((spreading-y1)/(y2-y1))*tabulated_routing_coef(:, ix2, iy2, &
-&     index_dx)
-  END SUBROUTINE GENERIC_INTERPOLATED_ROUTING_COEFFICIENTS_BILINEAR
 
 !  Differentiation of localmemstorage in reverse (adjoint) mode (with options fixinterface):
 !   gradient     of useful results: routingmem.states

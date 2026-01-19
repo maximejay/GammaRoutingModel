@@ -1258,7 +1258,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
     Module mod_gamma_routing_states
     
     
-    Defined at mod_routing_states.f90 lines 8-124
+    Defined at mod_routing_states.f90 lines 8-126
     
     """
     @f90wrap.runtime.register_class("libfgamma.type_routing_states")
@@ -1667,7 +1667,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
             routing_states)
         
         
-        Defined at mod_routing_states.f90 lines 30-84
+        Defined at mod_routing_states.f90 lines 30-86
         
         Parameters
         ----------
@@ -1688,7 +1688,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
         routing_states_reset(self)
         
         
-        Defined at mod_routing_states.f90 lines 86-102
+        Defined at mod_routing_states.f90 lines 88-104
         
         Parameters
         ----------
@@ -1703,7 +1703,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
         routing_states_clear(self)
         
         
-        Defined at mod_routing_states.f90 lines 104-119
+        Defined at mod_routing_states.f90 lines 106-121
         
         Parameters
         ----------
@@ -1718,7 +1718,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
         object_copy = routing_states_copy(self)
         
         
-        Defined at mod_routing_states.f90 lines 121-124
+        Defined at mod_routing_states.f90 lines 123-126
         
         Parameters
         ----------
@@ -2455,30 +2455,6 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         _libfgamma.f90wrap_mod_gamma_interface__routing_gamma_linear_interpolation(delay=delay, \
             index_varying_dx=index_varying_dx, routing_states=routing_states._handle, \
             gamma_coefficient=gamma_coefficient)
-    
-    @staticmethod
-    def interface_compute_gamma_coefficient(scale, mode, quantile, window_shift, \
-        density_function, gamma_coefficient):
-        """
-        interface_compute_gamma_coefficient(scale, mode, quantile, window_shift, \
-            density_function, gamma_coefficient)
-        
-        
-        Defined at mod_gamma_interface.f90 lines 370-378
-        
-        Parameters
-        ----------
-        scale : float
-        mode : float
-        quantile : float array
-        window_shift : float
-        density_function : str
-        gamma_coefficient : float array
-        
-        """
-        _libfgamma.f90wrap_mod_gamma_interface__interface_compute_gamma_coeffiac06(scale=scale, \
-            mode=mode, quantile=quantile, window_shift=window_shift, \
-            density_function=density_function, gamma_coefficient=gamma_coefficient)
     
     @staticmethod
     def interface_compute_routing_coefficient(scale, mode, quantile, window_shift, \

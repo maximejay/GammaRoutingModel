@@ -70,81 +70,8 @@ module mod_gamma_function
         
     end subroutine compute_gamma_parameters
     
-    
-    subroutine compute_gamma_scale(routing_setup,routing_mesh,routing_states)
-        
-        ! Notes
-        ! -----
-        ! **compute_gamma_scale(routing_setup,routing_mesh,routing_states)** :
-        !
-        ! - Compute the scale coefficient of the Gamma PDF
-        !        
-        ! =============================           ===================================
-        ! Parameters                              Description
-        ! =============================           ===================================
-        ! ``routing_setup``                       routing_setup Derived Type (in)
-        ! ``routing_mesh``                        Routing_mesh Derived Type (in)
-        ! ``routing_states``                      Routing_mesh Derived Type (inout)
-        ! =============================           ==================================
-        
-        implicit none
-        
-        type(type_routing_setup), intent(in) :: routing_setup
-        type(type_routing_mesh), intent(in) :: routing_mesh
-        type(type_routing_states), intent(inout) :: routing_states
-                
-        !should be array of nbnodes
-        real :: mu_min
-        real :: mu_min_gamma
-        real :: rate
-        real :: delta_x
-        integer :: i
-        
-        
-        !étalement du rapport : Gamma(x+delta_x)/Gamma(x), deltat_x est en pas de temps, spread en  seconds/m et dt en seconds
-        !valid for varying dx
-        do i=1,size(routing_mesh%varying_dx)
-        
-            delta_x=routing_states%max_spreading*routing_mesh%varying_dx(i)/routing_setup%dt
-            
-            mu_min=routing_mesh%varying_dx(i)/(routing_setup%vmax*routing_setup%dt)
-            
-            mu_min_gamma=mu_min+1.0 !On caclul Gamma sur l'interval MU E [1:L+1]  et on calcul les coefficients sur Tau E [0:L]
-            
-            rate=(log(routing_setup%spreading_gamma_threshold)/(mu_min_gamma*log((mu_min_gamma+delta_x)/mu_min_gamma)-delta_x)) !Attention scale=1/Rate Rate=Beta
-            
-            if (1./rate < 0.1) then
-                !this condition is reached for spreading <= dt
-                write(*,*) "warnings : scale<0.1, scale=",1./rate
-                write(*,*) "This could produce to calibration issues, such as a null value of the gradient."
-            endif
-        
-            routing_states%scale_coef(i)=1./rate
-        end do
-        
-        !valid for spreading cst and dx cst only
-!~         delta_x=routing_states%max_spreading*minval(routing_mesh%dx)/routing_setup%dt
-!~         !delta_x=routing_states%max_spreading*minval(routing_mesh%dx)**0.9/routing_setup%dt
-        
-!~         mu_min=minval(routing_mesh%dx)/(routing_setup%vmax*routing_setup%dt)
-!~         mu_min_gamma=mu_min+1.0 !On caclul Gamma sur l'interval MU E [1:L+1]  et on calcul les coefficients sur Tau E [0:L]
-!~         rate=(log(routing_setup%spreading_gamma_threshold)/(mu_min_gamma*log((mu_min_gamma+delta_x)/mu_min_gamma)-delta_x)) !Attention scale=1/Rate Rate=Beta
-!~         !routing_states%scale=max(0.1,1./rate)
-        
-!~         if (1./rate < 0.1) then
-!~             !this condition is reached for spreading <= dt
-!~             write(*,*) "warnings : scale<0.1, scale=",1./rate
-!~             write(*,*) "This could produce to calibration issues, such as a null value of the gradient."
-!~         endif
-        
-!~         routing_states%max_scale=1./rate
-        
-    end subroutine compute_gamma_scale
-    
-    
-    
-    !computation of the scale coefficient
-    subroutine generic_compute_gamma_scale(dx,dt,vmax,spread,epsilon,scale)
+        !computation of the scale coefficient
+    subroutine compute_gamma_scale_coef(dx,dt,vmax,spread_coef,epsilon_coef,scale_coef)
         
         ! Notes
         ! -----
@@ -168,10 +95,10 @@ module mod_gamma_function
         real,intent(in) :: dx !discretization-space in meter (m)
         real,intent(in) :: dt !time-step en seconds (s)
         real,intent(in) :: vmax !maximum velocity (m/s)
-        real,intent(in) :: spread !damping coefficient in seconds (s): spreading of the Gamma law
-        real,intent(in) :: epsilon !objective value for the ratio Gamma(x+delta)/Gamma(x) where delta=spread/dt and x the time-step position: epsilon=0.1 is a good choice since that respect the differentiability condition and make the damping parameter the accurate for the modeller
+        real,intent(in) :: spread_coef !damping coefficient in seconds (s): spreading of the Gamma law
+        real,intent(in) :: epsilon_coef !objective value for the ratio Gamma(x+delta)/Gamma(x) where delta=spread/dt and x the time-step position: epsilon=0.1 is a good choice since that respect the differentiability condition and make the damping parameter the accurate for the modeller
         
-        real,intent(out) :: scale
+        real,intent(out) :: scale_coef
         
         real :: mu_min
         real :: mu_min_gamma
@@ -179,13 +106,80 @@ module mod_gamma_function
         real :: delta_x
         
         !étalement du rapport : Gamma(x+delta_x)/Gamma(x), deltat_x est en pas de temps, spread en  seconds/m et dt en seconds
-        delta_x=spread*dx/dt
-        !delta_x=spread*dx**0.9/dt ! correction
-        
+        delta_x=spread_coef*dx/dt
+                
         mu_min=dx/(vmax*dt)
         
         mu_min_gamma=mu_min+1.0 !On caclul Gamma sur l'interval MU E [1:L+1]  et on calcul les coefficients sur Tau E [0:L]
-        rate=(log(epsilon)/(mu_min_gamma*log((mu_min_gamma+delta_x)/mu_min_gamma)-delta_x)) !Attention scale=1/Rate Rate=Beta
+        rate=(log(epsilon_coef)/(mu_min_gamma*log((mu_min_gamma+delta_x)/mu_min_gamma)-delta_x)) !Attention scale=1/Rate Rate=Beta
+        
+        scale_coef=1./rate
+    
+    end subroutine compute_gamma_scale_coef
+    
+    subroutine compute_gamma_scale(routing_setup,routing_mesh,routing_states)
+        
+        ! Notes
+        ! -----
+        ! **compute_gamma_scale(routing_setup,routing_mesh,routing_states)** :
+        !
+        ! - Compute the scale coefficient of the Gamma PDF
+        !        
+        ! =============================           ===================================
+        ! Parameters                              Description
+        ! =============================           ===================================
+        ! ``routing_setup``                       routing_setup Derived Type (in)
+        ! ``routing_mesh``                        Routing_mesh Derived Type (in)
+        ! ``routing_states``                      Routing_mesh Derived Type (inout)
+        ! =============================           ==================================
+        
+        implicit none
+        
+        type(type_routing_setup), intent(in) :: routing_setup
+        type(type_routing_mesh), intent(in) :: routing_mesh
+        type(type_routing_states), intent(inout) :: routing_states
+        
+        real :: scale_coef
+        !should be array of nbnodes
+        real :: mu_min
+        real :: mu_min_gamma
+        real :: rate
+        real :: delta_x
+        integer :: i
+        
+        
+        !étalement du rapport : Gamma(x+delta_x)/Gamma(x), deltat_x est en pas de temps, spread en  seconds/m et dt en seconds
+        !valid for varying dx
+        do i=1,size(routing_mesh%varying_dx)
+        
+            call compute_gamma_scale_coef(dx=routing_mesh%varying_dx(i),dt=routing_setup%dt,vmax=routing_setup%vmax,&
+            &spread_coef=routing_states%max_spreading,epsilon_coef=routing_setup%spreading_gamma_threshold,scale_coef=scale_coef)
+            
+!~             delta_x=routing_states%max_spreading*routing_mesh%varying_dx(i)/routing_setup%dt
+            
+!~             mu_min=routing_mesh%varying_dx(i)/(routing_setup%vmax*routing_setup%dt)
+            
+!~             mu_min_gamma=mu_min+1.0 !On caclul Gamma sur l'interval MU E [1:L+1]  et on calcul les coefficients sur Tau E [0:L]
+            
+!~             rate=(log(routing_setup%spreading_gamma_threshold)/(mu_min_gamma*log((mu_min_gamma+delta_x)/mu_min_gamma)-delta_x)) !Attention scale=1/Rate Rate=Beta
+            
+            if (scale_coef < 0.1) then
+                !this condition is reached for spreading <= dt
+                write(*,*) "warnings : scale<0.1, scale=",scale_coef
+                write(*,*) "This could produce to calibration issues, such as a null value of the gradient."
+            endif
+        
+            routing_states%scale_coef(i)=scale_coef
+        end do
+        
+        !valid for spreading cst and dx cst only
+!~         delta_x=routing_states%max_spreading*minval(routing_mesh%dx)/routing_setup%dt
+!~         !delta_x=routing_states%max_spreading*minval(routing_mesh%dx)**0.9/routing_setup%dt
+        
+!~         mu_min=minval(routing_mesh%dx)/(routing_setup%vmax*routing_setup%dt)
+!~         mu_min_gamma=mu_min+1.0 !On caclul Gamma sur l'interval MU E [1:L+1]  et on calcul les coefficients sur Tau E [0:L]
+!~         rate=(log(routing_setup%spreading_gamma_threshold)/(mu_min_gamma*log((mu_min_gamma+delta_x)/mu_min_gamma)-delta_x)) !Attention scale=1/Rate Rate=Beta
+!~         !routing_states%scale=max(0.1,1./rate)
         
 !~         if (1./rate < 0.1) then
 !~             !this condition is reached for spreading <= dt
@@ -193,10 +187,13 @@ module mod_gamma_function
 !~             write(*,*) "This could produce to calibration issues, such as a null value of the gradient."
 !~         endif
         
-!~         scale=max(0.1,1./rate)
-        scale=1./rate
+!~         routing_states%max_scale=1./rate
+        
+    end subroutine compute_gamma_scale
     
-    end subroutine generic_compute_gamma_scale
+    
+    
+    
     
     
     !computation of the window length to compute the gamma coefficient
@@ -250,7 +247,7 @@ module mod_gamma_function
             
             
             routing_states%window_length(j)=ceiling( routing_mesh%dx(j)/(routing_setup%vmin*routing_setup%dt) &
-            & + 2/skweness_gamma( (routing_mesh%dx(j)/(routing_setup%vmin*routing_setup%dt))+1.0,&
+            & + 2.0/skweness_gamma( (routing_mesh%dx(j)/(routing_setup%vmin*routing_setup%dt))+1.0,&
             &routing_states%scale_coef(index_scale_coef) )&
             & * max(spreading, 1.0) )  !Longueur de la fenetre d'itnertie du modèle en nb pdt
             
@@ -276,57 +273,7 @@ module mod_gamma_function
     
     
     
-    !computation of the window length to compute the gamma coefficient
-    subroutine generic_compute_gamma_window(dx,dt,vmin,vmax,scale,spread,window_length,window_shift,quantile)
-        
-        ! Notes
-        ! -----
-        ! **generic_compute_gamma_window(dx,dt,vmax,spread,epsilon,scale)** :
-        !
-        ! - Generic version of compute_gamma_window : Compute the windows lenght, i.e the number of quantile where to compute the Gamma PDF/CDF
-        !        
-        ! =============================           ===================================
-        ! Parameters                              Description
-        ! =============================           ===================================
-        ! ``dx``                                  Maximum distance between 2 nodes, real (in)
-        ! ``dt``                                  Time-step, real (in)
-        ! ``vmin``                                Minimum velocity, real (in)
-        ! ``vmax``                                Maximum velocity, real (in)
-        ! ``scale``                               Scale coefficient of the Gamma pdf, real (in)
-        ! ``spread``                              Maximum spreading coefficient, real (in)
-        ! ``window_length``                       Window length equal to the number of the quantile, integer (out)
-        ! ``window_shift``                        Window shift, shift the quantile so that the minimum quantile is equal to the minimum mode, real (out)
-        ! ``quantile``                            The computed quantile, array(window_length), real (out)
-        ! =============================           ==================================
-        
-        implicit none
-        
-        real,intent(in) :: dx !discretization-space in meter (m)
-        real,intent(in) :: dt !time-step en seconds (s)
-        real,intent(in) :: vmin !minimum velocity (m/s)
-        real,intent(in) :: vmax !maximum velocity (m/s)
-        real,intent(in) :: scale !scale parameter of the Gamma law: scale has to be computed according the spread coefficient
-        real,intent(in) :: spread !damping coefficient in seconds (s/m): spreading of the Gamma law, used to compute the scale coefficient
-        integer,intent(out) :: window_length !window lenght in time-step for the computation of the Gamma pdf
-        !real,intent(out) :: shift !shift the 
-        real,intent(out) :: window_shift !shift the window so that the 1st quantile correspond to the peak of the pdf when vmax is reached 
-        real,dimension(:),allocatable,intent(out) :: quantile !quantile for the computation of the gamma function
-        
-        real :: spreading
-        integer :: i
-        
-        spreading=spread/dt !spread is the spreading of the gamma law in seconds/m
-        window_length=ceiling(dx/(vmin*dt) + 2/skweness_gamma((dx/(vmin*dt))+1,scale) * max(spreading,1.0) )  !Longueur de la fenetre d'itnertie du modèle en nb pdt
-        
-        !window_shift=dx/(vmax*dt)-floor(dx/(vmax*dt))
-        window_shift=dx/(vmax*dt)
-        
-        allocate(quantile(window_length))
-        do i=1,window_length
-            quantile(i)=i
-        end do
-        
-    end subroutine generic_compute_gamma_window
+    
     
     
     !computation of the new_window_length, the number of memory cells and the adjusted_quantile according the elongation_coefficient
@@ -393,52 +340,7 @@ module mod_gamma_function
     end subroutine gamma_elongation_cells
     
     
-    !computation of the new_window_length, the number of memory cells and the adjusted_quantile according the elongation_coefficient
-    subroutine generic_gamma_elongation_cells(initial_window_length,elongation_coefficient,new_windows_length,&
-    &adjusted_quantile)
-        
-        ! Notes
-        ! -----
-        ! **generic_gamma_elongation_cells(initial_window_length,elongation_coefficient,new_windows_length,adjusted_quantile)** :
-        !
-        ! - Generic version of gamma_elongation_cells : recompute window length and update routing_states if the elongation coefficient > 1
-        !        
-        ! =============================           ===================================
-        ! Parameters                              Description
-        ! =============================           ===================================
-        ! ``initial_window_length``               initial_window_length, integer (in)
-        ! ``elongation_coefficient``              elongation_coefficient, real (in)
-        ! ``new_windows_length``                  new_windows_length, integer (in)
-        ! ``adjusted_quantile``                   New quantile where to compute the Gamma pdf/cdf, array(new_windows_length), real (in)
-        ! =============================           ==================================
-        
-        implicit none
-        integer,intent(in) :: initial_window_length
-        real,intent(in) :: elongation_coefficient
-        integer,intent(out) :: new_windows_length
-        real,dimension(:),allocatable,intent(out) :: adjusted_quantile
-        
-        integer ::i
-        real :: window_length
-        real :: quantile
-        
-        window_length=0
-        do i=1,initial_window_length
-            window_length=window_length+elongation_coefficient**(i-1)
-            if (window_length>=initial_window_length) then
-                new_windows_length=i
-                exit
-            end if
-        end do
-        
-        allocate(adjusted_quantile(new_windows_length))
-        
-        quantile=0
-        do i=1,new_windows_length
-            quantile=quantile+elongation_coefficient**(i-1)
-            adjusted_quantile(i)=quantile
-        end do
-    end subroutine generic_gamma_elongation_cells
+    
     
     
     !computation of the skweness of the gamma function
@@ -448,84 +350,84 @@ module mod_gamma_function
     !scale: scale coefficient of the gamma pdf
     !return:
     !skweness_gamma, a real
-    function skweness_gamma(mode,scale)
+    function skweness_gamma(mode,scale_coef)
         real :: skweness_gamma
         real :: mode
-        real :: scale
+        real :: scale_coef
         
-        skweness_gamma=(2/sqrt(mode/scale + 1))
+        skweness_gamma=(2.0/sqrt(mode/scale_coef + 1.0))
     end function skweness_gamma
     
     
-    !computation of the gamma coefficient
-    subroutine compute_gamma_coefficient(scale,mode,quantile,window_shift,density_function,gamma_coefficient)
+!~     !computation of the gamma coefficient
+!~     subroutine compute_gamma_coefficient(scale_coef,mode,quantile,window_shift,density_function,gamma_coefficient)
         
-        ! Notes
-        ! -----
-        ! **compute_gamma_coefficient(scale,mode,quantile,window_shift,density_function,gamma_coefficient)** :
-        !
-        ! - compute the gamma coefficient for each quantile
-        !        
-        ! =============================           ===================================
-        ! Parameters                              Description
-        ! =============================           ===================================
-        ! ``scale``                               Scale coefficient of the Gamma pdf/cdf, real (in)
-        ! ``mode``                                mode of the Gamma pdf/cdf, real (in)
-        ! ``quatile``                             The quantile where to compute the gamma pdf/cdf, array(window_lenght), real (in)
-        ! ``windows_shift``                       The shift value to shift the quantile so that the minimum mode equal to the minimum quantile
-        ! ``density_function``                    use the 'pdf' or the 'cdf', string, prefer the cdf (numerical issues with the pdf)
-        ! ``gamma_coefficient``                   The value of the Gamma pdf/cdf for each quantile, array(windows_length), real (in)
-        ! =============================           ==================================
+!~         ! Notes
+!~         ! -----
+!~         ! **compute_gamma_coefficient(scale,mode,quantile,window_shift,density_function,gamma_coefficient)** :
+!~         !
+!~         ! - compute the gamma coefficient for each quantile
+!~         !        
+!~         ! =============================           ===================================
+!~         ! Parameters                              Description
+!~         ! =============================           ===================================
+!~         ! ``scale_coef``                          Scale coefficient of the Gamma pdf/cdf, real (in)
+!~         ! ``mode``                                mode of the Gamma pdf/cdf, real (in)
+!~         ! ``quatile``                             The quantile where to compute the gamma pdf/cdf, array(window_lenght), real (in)
+!~         ! ``windows_shift``                       The shift value to shift the quantile so that the minimum mode equal to the minimum quantile
+!~         ! ``density_function``                    use the 'pdf' or the 'cdf', string, prefer the cdf (numerical issues with the pdf)
+!~         ! ``gamma_coefficient``                   The value of the Gamma pdf/cdf for each quantile, array(windows_length), real (in)
+!~         ! =============================           ==================================
         
-        implicit none
-        real,intent(in) :: scale
-        real,intent(in) :: mode
-        real,dimension(:),intent(in) :: quantile
-        real,intent(in) :: window_shift
-        character(3),intent(in) :: density_function
-        real,dimension(size(quantile)),intent(out) :: gamma_coefficient
+!~         implicit none
+!~         real,intent(in) :: scale_coef
+!~         real,intent(in) :: mode
+!~         real,dimension(:),intent(in) :: quantile
+!~         real,intent(in) :: window_shift
+!~         character(3),intent(in) :: density_function
+!~         real,dimension(size(quantile)),intent(out) :: gamma_coefficient
         
         
-        integer :: window_length
-        integer :: i
+!~         integer :: window_length
+!~         integer :: i
         
-        real*8 :: alpha,beta
-        real :: center_left,center_right
+!~         real*8 :: alpha,beta
+!~         real :: center_left,center_right
         
-        window_length=size(quantile)
+!~         window_length=size(quantile)
         
-        alpha=dble(1.0+(mode+1.0)/scale) !position parameter ot the pdf, here the pdf is centered on its mode. The mode is shifted +1
-        beta=dble(1./scale) !rate coefficient of the gamma pdf, rate=1/scale
+!~         alpha=dble(1.0+(mode+1.0)/scale_coef) !position parameter ot the pdf, here the pdf is centered on its mode. The mode is shifted +1
+!~         beta=dble(1./scale_coef) !rate coefficient of the gamma pdf, rate=1/scale
         
-        gamma_coefficient=0.0
-        do i=1,window_length
-            if (density_function=="pdf") then
-                gamma_coefficient(i)=GammaPDF(dble(quantile(i)+window_shift), alpha, beta) !here the quantile are shifted +shift to be sure that the  1st quantile correspond to the peak of the ditribution if vmax is reached
-            end if
+!~         gamma_coefficient=0.0
+!~         do i=1,window_length
+!~             if (density_function=="pdf") then
+!~                 gamma_coefficient(i)=GammaPDF(dble(quantile(i)+window_shift), alpha, beta) !here the quantile are shifted +shift to be sure that the  1st quantile correspond to the peak of the ditribution if vmax is reached
+!~             end if
             
-            if (density_function=="cdf") then
-                if (i==1) then
-                    center_left=1.0*(quantile(i))
-                    center_right=0.5*(quantile(i+1)-quantile(i))
-                end if
-                if (i>1 .and. i<window_length) then
-                    center_left=0.5*(quantile(i)-quantile(i-1))
-                    center_right=0.5*(quantile(i+1)-quantile(i))
-                endif
-                if (i==window_length) then
-                    center_left=0.5*(quantile(i)-quantile(i-1))
-                    center_right=0.5*(1.5*(quantile(i)-quantile(i-1)))
-                end if
-                gamma_coefficient(i)=GammaCDF(dble(quantile(i)+window_shift+center_right), alpha, beta)-&
-                &GammaCDF(dble(quantile(i)+window_shift-center_left), alpha, beta) !here the quantile are shifted +shift to be sure that the  1st quantile correspond to the peak of the ditribution if vmax is reached
-            end if
-        end do
+!~             if (density_function=="cdf") then
+!~                 if (i==1) then
+!~                     center_left=1.0*(quantile(i))
+!~                     center_right=0.5*(quantile(i+1)-quantile(i))
+!~                 end if
+!~                 if (i>1 .and. i<window_length) then
+!~                     center_left=0.5*(quantile(i)-quantile(i-1))
+!~                     center_right=0.5*(quantile(i+1)-quantile(i))
+!~                 endif
+!~                 if (i==window_length) then
+!~                     center_left=0.5*(quantile(i)-quantile(i-1))
+!~                     center_right=0.5*(1.5*(quantile(i)-quantile(i-1)))
+!~                 end if
+!~                 gamma_coefficient(i)=GammaCDF(dble(quantile(i)+window_shift+center_right), alpha, beta)-&
+!~                 &GammaCDF(dble(quantile(i)+window_shift-center_left), alpha, beta) !here the quantile are shifted +shift to be sure that the  1st quantile correspond to the peak of the ditribution if vmax is reached
+!~             end if
+!~         end do
         
-    end subroutine compute_gamma_coefficient
+!~     end subroutine compute_gamma_coefficient
     
     
     !computation of the routing coefficient
-    subroutine compute_gamma_routing_coefficient(scale,mode,quantile,window_shift,density_function,gamma_coefficient)
+    subroutine compute_gamma_routing_coefficient(scale_coef,mode,quantile,window_shift,density_function,gamma_coefficient)
         
         ! Notes
         ! -----
@@ -536,7 +438,7 @@ module mod_gamma_function
         ! =============================           ===================================
         ! Parameters                              Description
         ! =============================           ===================================
-        ! ``scale``                               Scale coefficient of the Gamma pdf/cdf, real (in)
+        ! ``scale_coef``                          Scale coefficient of the Gamma pdf/cdf, real (in)
         ! ``mode``                                mode of the Gamma pdf/cdf, real (in)
         ! ``quantile``                            The quantile where to compute the gamma pdf/cdf, array(window_lenght), real (in)
         ! ``windows_shift``                       The shift value to shift the quantile so that the minimum mode equal to the minimum quantile
@@ -544,9 +446,8 @@ module mod_gamma_function
         ! ``gamma_coefficient``                   The value of the routing coefficient based on the Gamma pdf/cdf for each quantile, array(windows_length), real (in)
         ! =============================           ==================================
         
-        
         implicit none
-        real,intent(in) :: scale
+        real,intent(in) :: scale_coef
         real,intent(in) :: mode
         real,dimension(:),intent(in) :: quantile
         real,intent(in) :: window_shift
@@ -562,8 +463,8 @@ module mod_gamma_function
         
         window_length=size(quantile)
         
-        alpha=dble(1.0+(mode+1.0)/scale) !position parameter ot the pdf, here the pdf is centered on its mode. The mode is shifted +1
-        beta=dble(1./scale) !rate coefficient of the gamma pdf, rate=1/scale
+        alpha=dble(1.0+(mode+1.0)/scale_coef) !position parameter ot the pdf, here the pdf is centered on its mode. The mode is shifted +1
+        beta=dble(1./scale_coef) !rate coefficient of the gamma pdf, rate=1/scale
         
     
         gamma_values=0.0
@@ -649,7 +550,7 @@ module mod_gamma_function
         routing_states%tabulated_routing_coef=0.0
         
         gamma_coefficient=0.
-        mode=0
+        mode=0.0
         
         do j=1,size(routing_mesh%varying_dx)
         
@@ -666,63 +567,12 @@ module mod_gamma_function
         end do
         
         
-!~         if (allocated(routing_states%tabulated_routing_coef)) then
-!~             deallocate(routing_states%tabulated_routing_coef)
-!~         end if
-!~         allocate(routing_states%tabulated_routing_coef(size(routing_states%quantile),routing_states%nb_mode,1))
-!~         routing_states%tabulated_routing_coef=0.0
-        
-!~         gamma_coefficient=0.
-!~         mode=0
-!~         do i=1,routing_states%nb_mode
-            
-!~             call compute_gamma_routing_coefficient(routing_states%max_scale,mode,routing_states%quantile,&
-!~             &routing_states%window_shift,density_function,gamma_coefficient)
-            
-!~             routing_states%tabulated_routing_coef(:,i,1)=gamma_coefficient
-!~             mode=mode+routing_setup%mode_discretization_step
-            
-!~         end do
-        
         call tabulated_delay_for_gamma(routing_states%nb_mode,&
         &routing_setup%mode_discretization_step,routing_states%tabulated_delay)
         
     end subroutine tabulated_routing_coefficients_2D
     
     
-    subroutine generic_tabulated_routing_coefficients_2D(scale,quantile,window_shift,max_mode,frequency,&
-    &density_function,tabulated_gamma_coefficient)
-        real, intent(in) :: scale
-        real,dimension(:), intent(in) :: quantile
-        real, intent(in) :: window_shift
-        real, intent(in) :: max_mode
-        real, intent(in) :: frequency
-        character(3),intent(in) :: density_function
-        real, dimension(:,:,:), allocatable, intent(out) :: tabulated_gamma_coefficient
-        
-        integer :: nb_mode
-        integer :: i
-        real :: mode
-        real, dimension(size(quantile)) :: gamma_coefficient
-        
-        nb_mode=ceiling((max_mode+1.0)/frequency)
-        
-        if (allocated(tabulated_gamma_coefficient)) then
-            deallocate(tabulated_gamma_coefficient)
-        end if
-        allocate(tabulated_gamma_coefficient(size(quantile),nb_mode,1))
-        tabulated_gamma_coefficient=0.0
-        
-        mode=0
-        do i=1,nb_mode
-            
-            call compute_gamma_routing_coefficient(scale,mode,quantile,window_shift,density_function,gamma_coefficient)
-            tabulated_gamma_coefficient(:,i,1)=gamma_coefficient
-            mode=mode+frequency
-            
-        end do
-        
-    end subroutine generic_tabulated_routing_coefficients_2D
     
     
     subroutine tabulated_gamma_function_2D(routing_setup,routing_mesh,routing_states,&
@@ -761,14 +611,14 @@ module mod_gamma_function
         &routing_states%nb_mode,1,size(routing_mesh%varying_dx)))
         routing_states%tabulated_routing_coef=0.0
         
-        gamma_coefficient=0.
-        mode=0
+        gamma_coefficient=0.0
+        mode=0.0
         
         do j=1,size(routing_mesh%varying_dx)
         
             do i=1,routing_states%nb_mode
                 
-                call compute_gamma_coefficient(routing_states%scale_coef(j),mode,routing_states%quantile,&
+                call compute_gamma_routing_coefficient(routing_states%scale_coef(j),mode,routing_states%quantile,&
                 &routing_states%window_shift,density_function,gamma_coefficient)
                 
                 routing_states%tabulated_routing_coef(:,i,1,j)=gamma_coefficient
@@ -783,43 +633,6 @@ module mod_gamma_function
         &,routing_setup%mode_discretization_step,routing_states%tabulated_delay)
         
     end subroutine tabulated_gamma_function_2D
-    
-    
-    subroutine generic_tabulated_gamma_function_2D(scale,quantile,window_shift,max_mode,frequency,&
-    &density_function,tabulated_gamma_coefficient)
-        
-        real, intent(in) :: scale
-        real,dimension(:), intent(in) :: quantile
-        real, intent(in) :: window_shift
-        real, intent(in) :: max_mode
-        real, intent(in) :: frequency
-        character(3),intent(in) :: density_function
-        real, dimension(:,:,:), allocatable, intent(out) :: tabulated_gamma_coefficient
-        
-        integer :: nb_mode
-        integer :: i
-        real :: mode
-        real, dimension(size(quantile)) :: gamma_coefficient
-        
-        nb_mode=ceiling((max_mode+1.0)/frequency)
-        
-        
-        if (allocated(tabulated_gamma_coefficient)) then
-            deallocate(tabulated_gamma_coefficient)
-        end if
-        allocate(tabulated_gamma_coefficient(size(quantile),nb_mode,1))
-        tabulated_gamma_coefficient=0.0
-        
-        mode=0
-        do i=1,nb_mode
-            
-            call compute_gamma_coefficient(scale,mode,quantile,window_shift,density_function,gamma_coefficient)
-            tabulated_gamma_coefficient(:,i,1)=gamma_coefficient
-            mode=mode+frequency
-            
-        end do
-        
-    end subroutine generic_tabulated_gamma_function_2D
     
     
     subroutine tabulated_delay_for_gamma(nb_mode,frequency,tabulated_delay)
@@ -908,7 +721,7 @@ module mod_gamma_function
         character(3),intent(in) :: density_function
         
         integer :: i,j,k
-        real :: mode,spread,scale
+        real :: mode,spread_coef,scale_coef
         real :: spreading_step
         real, dimension(size(routing_states%quantile)) :: gamma_coefficient
         
@@ -921,8 +734,8 @@ module mod_gamma_function
         
         routing_states%tabulated_routing_coef=0.0
         
-        scale=1.0
-        spread=0.
+        scale_coef=1.0
+        spread_coef=0.0
         
         if (routing_setup%varying_spread==0) then
             spreading_step=routing_states%max_spreading
@@ -940,11 +753,14 @@ module mod_gamma_function
             
             do j=1,routing_states%nb_spreads
             
-                spread=real(j)*spreading_step
+                spread_coef=real(j)*spreading_step
                 
-                call generic_compute_gamma_scale(routing_mesh%varying_dx(k),routing_setup%dt,routing_setup%vmax,&
-                &spread,routing_setup%spreading_gamma_threshold,scale)
-                            
+!~                 call generic_compute_gamma_scale(routing_mesh%varying_dx(k),routing_setup%dt,routing_setup%vmax,&
+!~                 &spread_coef,routing_setup%spreading_gamma_threshold,scale_coef)
+                
+                call compute_gamma_scale_coef(routing_mesh%varying_dx(k),routing_setup%dt,routing_setup%vmax,&
+                &spread_coef,routing_setup%spreading_gamma_threshold,scale_coef)
+                
                 mode=0
                 do i=1,routing_states%nb_mode
                     
@@ -955,7 +771,7 @@ module mod_gamma_function
                     ! nb_mode = max_mode - min_mode
                     mode=real(i-1)*routing_setup%mode_discretization_step
                     
-                    call compute_gamma_routing_coefficient(scale,mode,routing_states%quantile,&
+                    call compute_gamma_routing_coefficient(scale_coef,mode,routing_states%quantile,&
                     routing_states%window_shift,density_function,gamma_coefficient)
                     
                     routing_states%tabulated_routing_coef(:,i,j,k)=gamma_coefficient
@@ -975,112 +791,6 @@ module mod_gamma_function
         
         
     end subroutine tabulated_routing_coefficients_3D
-    
-    
-    subroutine generic_tabulated_routing_coefficients_3D(dx,dt,vmax,epsilon,quantile,window_shift, max_mode, max_spreading, &
-    &frequency_mode,frequency_spreading, density_function, tabulated_gamma_coefficient)
-        real,intent(in) :: dx
-        real,intent(in) :: dt
-        real,intent(in) :: vmax
-        real,intent(in) :: epsilon
-        real,dimension(:), intent(in) :: quantile
-        real, intent(in) :: window_shift
-        real, intent(in) :: max_mode
-        real, intent(in) :: max_spreading
-        real, intent(in) :: frequency_mode
-        real, intent(in) :: frequency_spreading
-        character(3),intent(in) :: density_function
-        real, dimension(:,:,:), allocatable, intent(out) :: tabulated_gamma_coefficient
-        
-        integer :: nb_mode,nb_spreads
-        integer :: i,j
-        real :: mode,spread,scale
-        real, dimension(size(quantile)) :: gamma_coefficient
-                    
-        nb_mode=ceiling((max_mode+1.0)/frequency_mode)
-        nb_spreads=ceiling(max_spreading/frequency_spreading)
-        
-        
-        if (allocated(tabulated_gamma_coefficient)) then
-            deallocate(tabulated_gamma_coefficient)
-        end if
-        allocate(tabulated_gamma_coefficient(size(quantile),nb_mode,nb_spreads))
-        tabulated_gamma_coefficient=0.0
-                    
-        scale=1.0
-        spread=0.
-        
-        do j=1,nb_spreads
-        
-            spread=real(j)*frequency_spreading
-            call generic_compute_gamma_scale(dx=dx,dt=dt,vmax=vmax,spread=spread,epsilon=epsilon,scale=scale)
-            
-            mode=0
-            do i=1,nb_mode
-            
-                mode=real(i-1)*frequency_mode
-                call compute_gamma_routing_coefficient(scale,mode,quantile,window_shift,density_function,gamma_coefficient)
-                tabulated_gamma_coefficient(:,i,j)=gamma_coefficient
-                
-            end do
-            
-        end do
-    
-    end subroutine generic_tabulated_routing_coefficients_3D
-    
-    
-    
-    subroutine generic_tabulated_gamma_function_3D(dx,dt,vmax,epsilon,quantile,window_shift, max_mode, max_spreading, &
-    &frequency_mode,frequency_spreading, density_function, tabulated_gamma_coefficient)
-        real,intent(in) :: dx
-        real,intent(in) :: dt
-        real,intent(in) :: vmax
-        real,intent(in) :: epsilon
-        real,dimension(:), intent(in) :: quantile
-        real, intent(in) :: window_shift
-        real, intent(in) :: max_mode
-        real, intent(in) :: max_spreading
-        real, intent(in) :: frequency_mode
-        real, intent(in) :: frequency_spreading
-        character(3),intent(in) :: density_function
-        real, dimension(:,:,:), allocatable, intent(out) :: tabulated_gamma_coefficient
-        
-        integer :: nb_mode,nb_spreads
-        integer :: i,j
-        real :: mode,spread,scale
-        real, dimension(size(quantile)) :: gamma_coefficient
-                    
-        nb_mode=ceiling((max_mode+1.0)/frequency_mode)
-        nb_spreads=ceiling(max_spreading/frequency_spreading)
-        
-        
-        if (allocated(tabulated_gamma_coefficient)) then
-            deallocate(tabulated_gamma_coefficient)
-        end if
-        allocate(tabulated_gamma_coefficient(size(quantile),nb_mode,nb_spreads))
-        tabulated_gamma_coefficient=0.0
-                    
-        scale=1.0
-        spread=0.
-        
-        do j=1,nb_spreads
-        
-            spread=(j)*frequency_spreading
-            call generic_compute_gamma_scale(dx=dx,dt=dt,vmax=vmax,spread=spread,epsilon=epsilon,scale=scale)
-            
-            mode=0
-            do i=1,nb_mode
-            
-                mode=real(i-1)*frequency_mode
-                call compute_gamma_coefficient(scale,mode,quantile,window_shift,density_function,gamma_coefficient)
-                tabulated_gamma_coefficient(:,i,j)=gamma_coefficient
-                
-            end do
-            
-        end do
-    
-    end subroutine generic_tabulated_gamma_function_3D
-    
     
     
     
@@ -1740,379 +1450,6 @@ module mod_gamma_function
         stop
     
     end subroutine error
-    
-    
-    
-    !Compute the tabulated IncompleteGamma function
-    !With nonuniform memory cells
-    !>@kmax - maximum delay step
-    !>@kdl - number of delay nodes (depend on beta)
-    !>@dlstep  - Computation step of the incompletegamma function
-    !>@sp - Spreading Coefficient of the incompletegamma function
-    !>beta - Memory elongation coeficient (beta>=1., no elongation for beta=1.)
-    !>@dltable () - tabulated delays
-    !>@gmtable () - incomplete gamma tabulated
-!~     subroutine gamma_table(kmax,kdl,dlstep,sp,beta,dltable,coeftable)
-!~         integer :: kmax
-!~         integer :: kdl
-!~         real, dimension(kdl) :: dltable
-!~         real, dimension(kmax,kdl) :: coeftable
-!~         real :: dlstep
-!~         real :: sp
-!~         real :: beta
-        
-!~         real :: x
-!~         real :: x1
-!~         real :: dl
-!~         integer :: i,j
-!~         real, dimension(kmax,kdl) :: gmtable
-        
-        
-!~         do i=1,kdl
-        
-!~           if(i.eq.1) then
-!~             dl=1.0
-!~           else
-!~             dl=dl+dlstep
-!~           end if
-          
-!~           dltable(i)=dl
-          
-!~           do j=1,kmax
-          
-!~             if(j.eq.1) then 
-!~               x=0.0
-!~             else
-!~               x=x+beta**real(j-2)
-!~             end if
-!~                 !write(*,*) x
-!~             x1=x/sp
-!~             gmtable(j,i)=gammp(dl,x1)
-            
-!~           end do
-!~         end do
-        
-!~         !added by max 
-!~         coeftable=0.
-!~         do i=1,kdl
-!~             do j=2,kmax
-!~                 coeftable(j-1,i)=gmtable(j,i)-gmtable(j-1,i)
-!~             end do
-!~             coeftable(:,i)=coeftable(:,i)/sum(coeftable(:,i))
-!~         end do
-        
-!~         return    
-!~     end subroutine gamma_table
-
-
-!
-!  Some functions/subroutines to do with gamma functions. AN asterisk
-!  means it is user callable, else its an internal subroutine.
-!  These are coded from the Numerical Recipes algorithms.
-!
-! *  Errfun -  Find error function Erf(x)
-! *  GammLn -  Find natural log of Gamma function gamma(x)
-! *  GammP  -  Find incomplete Gamma function P(a,x)
-! *  GammQ  -  Find incomplete Gamma function Q(a,x) = 1 - P(a,x)
-!    GSer   -  Find P with series approximation
-!    GCF    -  Find Q with continued fraction approximation
-!
-!
-!  History:
-!    nebk 03nov92 Original version.
-!    nebk 27apr93 Rename erf to errfun
-!    nebk 12nov93 Prevent some underflow messages on exponentials
-!    nebk 06jan94 Call new ExpUN for underflow messages
-!
-!************************************************************************
-!* GammP -- Find incomplete Gamma function P(a,x)
-!& nebk
-!: gamma function, utilities
-!+
-!~ real function gammp (a, x)
-!~ !
-!~       real a, x
-!~ !
-!~ ! Find the incomplete Gamma function P(a,x)
-!~ ! Algorithm from Numerical Recipes p 161
-!~ !
-!~ !  Input
-!~ !    a,x     r     Arguments
-!~ !--
-!~ !
-!~ !-----------------------------------------------------------------------
-!~       real gamser, gln, gammcf
-!~ !-----------------------------------------------------------------------
-!~       if (x.lt.0.0 .or. a.le.0.0) then
-!~         write(*,*)'f','Argument out of range in GammP'
-!~         stop 1
-!~       end if    
-!~ !
-!~       if (x.lt.a+1.0) then
-!~ !
-!~ ! Use series representation
-!~ !
-!~         call gser (a, x, gamser, gln)
-!~         gammp = gamser
-!~       else
-!~ !
-!~ ! Use continued fraction representation
-!~ !
-!~         call gcf (a, x, gammcf, gln)
-!~         gammp = 1.0 - gammcf
-!~       end if
-!~ !
-!~ end function gammp
-!~ !
-!~ !************************************************************************
-!~ !* GammQ -- Find incomplete Gamma function Q(a,x) = 1 - P(a,x)
-!~ !& nebk
-!~ !: gamma function, utilities
-!~ !+
-!~ real function gammq (a, x)
-!~ !
-!~       real a, x
-!~ !
-!~ ! Find the incomplete Gamma function Q(a,x) = 1 - P(a,x)
-!~ ! Algorithm from Numerical Recipes p 162
-!~ !
-!~ !  Input
-!~ !    a,x     r     Arguments
-!~ !--
-!~ !
-!~ !-----------------------------------------------------------------------
-!~       real gamser, gln, gammcf
-!~ !-----------------------------------------------------------------------
-!~       if (x.lt.0.0 .or. a.le.0.0) then
-!~         write(*,*)'f','Argument out of range in GammQ'
-!~         stop 1
-!~       end if    
-!~ !
-!~       if (x.lt.a+1.0) then
-!~ !
-!~ ! Use series representation
-!~ !
-!~         call gser (a, x, gamser, gln)
-!~         gammq = 1.0 - gamser
-!~       else
-!~ !
-!~ ! Use continued fraction representation
-!~ !
-!~         call gcf (a, x, gammcf, gln)
-!~         gammq = gammcf
-!~       end if
-!~ !
-!~ end function gammq
-!~ !
-
-!~  !************************************************************************
-!~ !* GammLn -- Find ln(Gamma(x))
-!~ !& nebk
-!~ !: gamma function, utilities
-!~ !+
-!~ function gammln(xx) result(gln)
-!~ !     
-!~       !real :: gammln
-!~       real :: gln
-!~       real :: xx
-!~ !
-!~ ! Find ln(Gamma(x)) where Gamma is the Gamma function
-!~ ! Algorithm from Numerical Recipes p 157
-!~ !
-!~ !  Input
-!~ !    xx     r     Argument
-!~ !--
-!~ !
-!~ !-----------------------------------------------------------------------
-!~       double precision,dimension(6) :: cof
-!~       double precision :: stp, fpf, x, tmp, ser
-!~       integer :: j
-!~ !
-!~       !save cof, stp
-!~       cof(1)=76.18009173d0
-!~       cof(2)=-86.50532033d0
-!~       cof(3)=24.01409822d0
-!~       cof(4)=-1.231739516d0
-!~       cof(5)=0.120858003d-2
-!~       cof(6)=-0.536382d-5
-!~       !cof=[76.18009173d0, -86.50532033d0, 24.01409822d0,&
-!~       !         &-1.231739516d0, 0.120858003d-2, -0.536382d-5]
-!~       stp=2.50662827465d0
-!~       fpf=5.5d0
-!~       !data cof /76.18009173d0, -86.50532033d0,   24.01409822d0,&
-!~       !         &-1.231739516d0,  0.120858003d-2, -0.536382d-5/
-!~       !data stp /2.50662827465d0/
-!~       !data fpf / 5.5d0/
-!~ !-----------------------------------------------------------------------
-!~       x = xx - 1.0
-!~       tmp = x + fpf
-!~       tmp = (x + 0.5)*log(tmp) - tmp
-!~       ser = 1.0
-!~       do j = 1, 6
-!~         x = x + 1.0
-!~         ser = ser + cof(j)/x
-!~       end do
-      
-!~       gln = tmp + log(stp*ser)
-!~       !gammln = real(tmp + log(stp*ser),kind(gammln))
-!~ !
-!~ end function gammln
-!~ !
-
-
-!~ !************************************************************************
-!~ !
-!~       subroutine gser (a, x, gamser, gln)
-!~ !
-!~       real a, x, gamser, gln
-!~ !
-!~ ! Find the incomplete Gamma function P(a,x) with its series
-!~ ! represenation. Algorithm from Numerical Recipes p 162
-!~ !
-!~ !  Input
-!~ !    a,x     r     Arguments
-!~ !  Output
-!~ !    gamser  r     P
-!~ !    gln     r     ln(Gamma(a))
-!~ !
-!~ !-----------------------------------------------------------------------
-!~       integer itmax
-!~       real eps
-!~       parameter (itmax = 100, eps = 3.0e-7)
-!~ !
-!~       real ap, sum, del
-!~       integer i
-!~ !
-!~ !      real gammln, arg, expun
-!~       real arg!, exp
-!~ !-----------------------------------------------------------------------
-!~       gln = gammln(a)
-!~ !
-!~       if (x.lt.0.0) then
-!~         write(*,*)'f', 'Argument out of range in GSer'
-!~         stop 1
-!~       else if (x.eq.0.0) then
-!~         gamser = 0.0
-!~       else
-!~         ap = a
-!~         sum = 1.0 / a
-!~         del = sum
-!~         do i = 1, itmax
-!~           ap = ap + 1.0
-!~           del = del * x / ap
-!~           sum = sum + del
-!~           if (abs(del).lt.abs(sum)*eps) then 
-!~             exit
-!~           endif
-!~         end do
-        
-!~         if (i>=itmax) then
-!~             write(*,*)'f', 'No convergence in GSer'
-!~             stop 1
-!~         endif
-        
-!~         arg = -x + a*log(x) - gln
-!~         gamser = sum*exp(arg)
-        
-!~       end if
-!~ !
-!~       end subroutine gser
-!~ !
-!~ !************************************************************************
-!~ !
-!~ subroutine gcf (a, x, gammcf, gln)
-!~ !
-!~       real a, x, gammcf, gln
-!~ !
-!~ ! Find the incomplete Gamma function Q(a,x) = 1 - P(a,x) with its
-!~ ! continued fraction represenation. Algorithm from Numerical
-!~ ! Recipes p 162
-!~ !
-!~ !  Input
-!~ !    a,x     r     Arguments
-!~ !  Output
-!~ !    gammcf  r     Q(a,x)
-!~ !    gln     r     ln(Gamma(a))
-!~ !
-!~ !-----------------------------------------------------------------------
-!~       integer itmax
-!~       real eps
-!~       parameter (itmax = 100, eps = 3.0e-7)
-!~ !
-!~       real gold, a0, a1, b0, b1, fac, an, ana, anf, g
-!~       integer i
-!~ !
-!~ !     real gammln, arg, expun
-!~       real arg!, exp
-!~ !-----------------------------------------------------------------------
-!~       gln = gammln(a)
-!~ !
-!~       gold = 0.0
-!~       a0 = 1.0
-!~       a1 = x
-!~       b0 = 0.0
-!~       b1 = 1.0
-!~       fac = 1.0
-!~ !
-!~       do i = 1, itmax
-!~         an = real(i)
-!~         ana = an - a
-!~         a0 = (a1 + a0*ana) * fac
-!~         b0 = (b1 + b0*ana) * fac
-!~         anf = an * fac
-!~         a1 = x*a0 + anf*a1
-!~         b1 = x*b0 + anf*b1
-!~         if (a1.ne.0.0) then
-!~           fac = 1.0 / a1
-!~           g = b1 * fac
-!~           if (abs((g-gold)/g).lt.eps) then
-!~             exit
-!~           endif
-!~           gold = g
-!~         end if
-!~       end do
-      
-!~       if (i>=itmax) then
-!~         write(*,*)'f', 'No convergence in GCF', x
-!~         stop 1
-!~       endif
-!~ !
-!~       arg = -x + a*log(x) - gln
-!~       gammcf = exp(arg) * g
-!~ !
-!~ end subroutine gcf
-!~ !
-
-!~ !
-!~ !************************************************************************
-!~ !* Errfun -- Find Erf(x)
-!~ !& nebk
-!~ !: error function, gamma function, utilities
-!~ !+
-!~       real function errfun (x)
-!~ !
-!~       real x
-!~ !
-!~ ! Find Erf(x) from Gamma function
-!~ ! Algorithm from Numerical Recipes p 164
-!~ !
-!~ !  Input
-!~ !    x     r     Argument
-!~ !--
-!~ !
-!~ !-----------------------------------------------------------------------
-!~ !-----------------------------------------------------------------------
-!~       if (x.lt.0.0) then
-!~         errfun = -gammp(0.5,x**2)
-!~       else
-!~         errfun =  gammp(0.5,x**2)
-!~       end if
-!~ !
-!~       end function errfun
-
-
-
-    
     
     
 end module mod_gamma_function

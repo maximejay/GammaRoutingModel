@@ -22,6 +22,9 @@ program routing
     use mod_gamma_interface
     use mod_gamma_routing
     
+    use module_generic_gamma_function
+    use module_generic_gamma_routing
+    
     implicit none
     
     !config
@@ -69,11 +72,11 @@ program routing
     
     call system("mkdir out/")
     
-!~     write(*,*) "manual_gradient_test..."
-!~     write(*,*) ""
-!~     call manual_gradient_test()
+    write(*,*) "manual_gradient_test..."
+    write(*,*) ""
+    call manual_gradient_test()
     
-!~     pause
+    pause
     
     !simple test case
     
@@ -333,7 +336,7 @@ program routing
     write(*,*) ""
     call routing_parameter_self_initialisation(routing_parameter=routing_parameter,routing_setup=routing_setup,&
     &routing_mesh=routing_mesh,&
-    &hydraulics_coefficient=0.5,spreading=1.)
+    &hydraulics_coefficient=1.0,spreading=1.)
     
     
     write(*,*) "routing_state_self_initialisation..."
@@ -386,7 +389,7 @@ program routing
     write(*,*) "routing_gamma_change_parameters..."
     write(*,*) ""
     call routing_gamma_change_parameters(routing_parameter,routing_states,routing_setup,&
-    &routing_mesh,hydraulics_coefficient=0.7,spreading=1.4)
+    &routing_mesh,hydraulics_coefficient=0.5,spreading=1.4)
     
     
     write(*,*) "routing_hydrogram_forward..."
@@ -394,6 +397,9 @@ program routing
     call routing_states_reset(routing_states)
     call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,&
     &routing_states,routing_results,cost)
+    
+!~     write(*,*) cost
+!~     pause
     
     filename="out/qnetwork_initial.txt"
     call write_matrix(routing_setup%npdt,routing_mesh%nb_nodes,routing_results%discharges,filename)
@@ -648,7 +654,7 @@ program routing
         
         !Test functions  compute_gamma_scale and compute_gamma_window
         
-        call generic_compute_gamma_scale(dx=dx,dt=dt,vmax=vmax,spread=spread,epsilon=epsilon,scale=scale)
+!~         call generic_compute_gamma_scale(dx=dx,dt=dt,vmax=vmax,spread=spread,epsilon=epsilon,scale=scale)
         
         write(*,*) ""
         write(*,*) "scale=",scale
@@ -678,7 +684,7 @@ program routing
         allocate(gamma_coefficient_cdf(window_length))
             
         mode=dx/(vmin*dt)
-        call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
+!~         call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
         call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
         write(*,*) "gamma_values_vmin=",gamma_values
         write(*,*) "gamma_coefficient_vmin=",gamma_coefficient
@@ -688,7 +694,7 @@ program routing
         call write_coefficients(gamma_coefficient,adjusted_quantile,filename)
         
         mode=dx/(0.5*dt)
-        call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
+!~         call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
         call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
         write(*,*) "gamma_values_vmoy=",gamma_values
         write(*,*) "gamma_coefficient_vmoy=",gamma_coefficient
@@ -698,7 +704,7 @@ program routing
         call write_coefficients(gamma_coefficient,adjusted_quantile,filename)
         
         mode=dx/(5.0*dt)
-        call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
+!~         call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
         call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
         write(*,*) "gamma_values_vmax=",gamma_values
         write(*,*) "gamma_coefficient_vmax=",gamma_coefficient
@@ -709,9 +715,9 @@ program routing
         
         
         mode=dx/(0.5*dt)
-        call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"cdf",gamma_values_cdf)
+!~         call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"cdf",gamma_values_cdf)
         call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"cdf",gamma_coefficient_cdf)
-        call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
+!~         call compute_gamma_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_values)
         call compute_gamma_routing_coefficient(scale,mode,adjusted_quantile,window_shift,"pdf",gamma_coefficient)
         write(*,*) "gamma_values_cdf=",gamma_values_cdf
         write(*,*) "gamma_coefficient_cdf=",gamma_coefficient_cdf

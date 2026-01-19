@@ -91,7 +91,7 @@ cp $src_f90wrap/kind_map .
 #all source files being compiled: order matters
 cfiles="adStack.c"
 f77files="lbfgsb.f adBuffer.f"
-f90files="mod_routing_setup.f90 mod_routing_mesh.f90 mod_routing_parameters.f90 mod_routing_states.f90 mod_routing_results.f90 mod_gamma_function.f90 mod_gamma_routing.f90 mod_gamma_sorting.f90 mod_gamma_interface.f90  run_forward.f90 AADJ_b.f90 ATLM_d.f90 control.f90 cost_function.f90 gradient_test.f90"
+f90files="mod_routing_setup.f90 mod_routing_mesh.f90 mod_routing_parameters.f90 mod_routing_states.f90 mod_routing_results.f90 mod_gamma_function.f90 mod_gamma_routing.f90 mod_gamma_sorting.f90 mod_gamma_interface.f90 generic_subroutine_gamma_routing.f90 generic_subroutine_gamma_function.f90 run_forward.f90 AADJ_b.f90 ATLM_d.f90 control.f90 cost_function.f90 gradient_test.f90"
 f90mainprog="routing.f90"
 
 #module fortran file that going to be wrapped with python: order matters

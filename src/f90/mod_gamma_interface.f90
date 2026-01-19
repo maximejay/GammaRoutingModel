@@ -176,9 +176,10 @@ module mod_gamma_interface
             else
                 routing_states%nb_spreads=1
                 routing_states%max_spreading=maxval(routing_parameter%spreading)
-                !recompute and reallocate some variables in routing states
-                call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
             end if
+            
+            !recompute and reallocate some variables in routing states
+            call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
             
         end if
         
@@ -509,21 +510,21 @@ module mod_gamma_interface
     end subroutine routing_gamma_linear_interpolation
     
     
-    !interface to compute_gamma_coefficient
-    subroutine interface_compute_gamma_coefficient(scale,mode,quantile,window_shift,&
-    &density_function,gamma_coefficient)
-        implicit none
+!~     !interface to compute_gamma_coefficient
+!~     subroutine interface_compute_gamma_coefficient(scale,mode,quantile,window_shift,&
+!~     &density_function,gamma_coefficient)
+!~         implicit none
         
-        real,intent(in) :: scale
-        real,intent(in) :: mode
-        real,dimension(:),intent(in) :: quantile
-        real,intent(in) :: window_shift
-        character(3),intent(in) :: density_function
-        real,dimension(size(quantile)),intent(out) :: gamma_coefficient
+!~         real,intent(in) :: scale
+!~         real,intent(in) :: mode
+!~         real,dimension(:),intent(in) :: quantile
+!~         real,intent(in) :: window_shift
+!~         character(3),intent(in) :: density_function
+!~         real,dimension(size(quantile)),intent(out) :: gamma_coefficient
         
-        call compute_gamma_coefficient(scale,mode,quantile,window_shift,density_function,gamma_coefficient)
+!~         call compute_gamma_coefficient(scale,mode,quantile,window_shift,density_function,gamma_coefficient)
         
-    end subroutine interface_compute_gamma_coefficient
+!~     end subroutine interface_compute_gamma_coefficient
     
     
     !interface to compute_gamma_routing_coefficient

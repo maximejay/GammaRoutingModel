@@ -258,9 +258,9 @@ def GetGammaInflowFromSmash(smash_model, dt=None):
         dt = smash_model.setup.dt
 
     npdt = int(smash_model.setup.ntime_step * smash_model.setup.dt / dt)
-    nb_nodes = np.sum(smash_model.mesh.active_cell)
-    ncol = smash_model.mesh.ncol
-    nrow = smash_model.mesh.nrow
+    # nb_nodes = np.sum(smash_model.mesh.active_cell)
+    # ncol = smash_model.mesh.ncol
+    # nrow = smash_model.mesh.nrow
 
     # interface inflows
     # inflows_smash = smash_model.output.qsim_domain.copy()
@@ -268,10 +268,12 @@ def GetGammaInflowFromSmash(smash_model, dt=None):
     # inflows_domain = np.zeros(shape=(smash_model.setup.ntime_step, nb_nodes))
     inflows_domain = inflows_smash.transpose()
 
+    frac_dt = int(smash_model.setup.dt / dt)
+
     # interpolation si pdt gamma inférieur
     if dt < smash_model.setup.dt:
+        # print("desagrégation ...")
 
-        frac_dt = int(smash_model.setup.dt / dt)
         interpolated_inflows = np.zeros(shape=(npdt, inflows_domain.shape[1]))
 
         # Le pdt entre 0 à 1 pour gamma correspond au premier pdt de smash
@@ -297,8 +299,11 @@ def GetGammaInflowFromSmash(smash_model, dt=None):
     return interpolated_inflows
 
 
-def InterpolatedObservationsAtGauge(smash_model, dt):
+def InterpolatedObservationsAtGauge(smash_model, dt=None):
     # Interpolate the observations of the smash model at every gauge for a new time-step
+
+    if dt is None:
+        dt = smash_model.setup.dt
 
     npdt = int(smash_model.setup._ntime_step * smash_model.setup.dt / dt)
     # interface observations
@@ -669,7 +674,6 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
 
                         k = k + 1
 
-            # setattr(smash_model.parameters, ctrl_var, MatrixParameters)
             smash_model.set_rr_parameters(ctrl_var, MatrixParameters)
 
         if ctrl_var in smash_model.rr_initial_states.keys:
@@ -686,7 +690,6 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
 
                         k = k + 1
 
-            # setattr(smash_model.states, ctrl_var, MatrixStates)
             smash_model.set_rr_initial_states(ctrl_var, MatrixStates)
 
     # Upgrade for Gamma only
@@ -730,6 +733,9 @@ def _get_smash_gradient(model, control_smash):
     from smash.fcore._mwd_parameters_manipulation import (
         parameters_to_control as wrap_parameters_to_control,
     )
+    from smash.core.simulation.optimize._tools import (
+        _handle_bayesian_optimize_control_prior,
+    )
 
     (
         mapping,
@@ -771,13 +777,20 @@ def _get_smash_gradient(model, control_smash):
     _map_dict_to_fortran_derived_type(optimize_options, wrap_options.optimize)
 
     # % Map cost_options dict to derived type
-    _map_dict_to_fortran_derived_type(cost_options, wrap_options.cost)
+    _map_dict_to_fortran_derived_type(
+        cost_options, wrap_options.cost, skip=["control_prior"]
+    )
 
     # % Map common_options dict to derived type
     _map_dict_to_fortran_derived_type(common_options, wrap_options.comm)
 
     # % Map return_options dict to derived type
     _map_dict_to_fortran_derived_type(return_options, wrap_returns)
+
+    # % Control prior check
+    # _handle_bayesian_optimize_control_prior(
+    #     model, cost_options["control_prior"], wrap_options
+    # )
 
     parameters = model._parameters.copy()
 
@@ -788,7 +801,7 @@ def _get_smash_gradient(model, control_smash):
         parameters,
         wrap_options,
     )
-    X0 = parameters.control.x  # X est normalisé ici
+    # X0 = parameters.control.x  # X est normalisé ici
     # setattr(parameters.control, "x", parameters.control.x.copy())
 
     parameters_b0 = smash.core.simulation.optimize._tools._get_parameters_b0(
@@ -797,7 +810,23 @@ def _get_smash_gradient(model, control_smash):
 
     grad = parameters_b0.control.x.copy()
 
-    # return parameters.control.x
+    # keys = list(parameters_b0.rr_parameters.keys)
+    # LinearizedGrad = np.zeros(control_smash["NbNodes"] * len(control_smash["ParamList"]))
+
+    # k = 0
+    # for param in control_smash["ParamList"]:
+    #     matrix = parameters_b0.rr_parameters.values[:, :, keys.index(param)].copy()
+
+    #     for row in range(model.mesh.nrow):
+
+    #         for col in range(model.mesh.ncol):
+
+    #             if model.mesh.active_cell[row, col] > 0:
+
+    #                 LinearizedGrad[k] = matrix[row, col]
+    #                 k = k + 1
+
+    # # return parameters.control.x
 
     return grad
 
@@ -901,6 +930,18 @@ def ComputeModelGradients(
                     del control_smash[key][p]
 
     SmashGradients = _get_smash_gradient(smash_model, control_smash)
+
+    # vec = gamma.smashplug.SmashGridToGammaVectors(
+    #     grad_matrix[:, :, 0], smash_model, model_gamma
+    # )
+
+    # gamma.smashplug.functions_smash_plot.plot_image(
+    #     grad_matrix[:, :, 0],
+    #     figname="grad_cp.pdf",
+    #     mask=smash_model.mesh.active_cell,
+    #     title="grad_cp",
+    #     title_font_size=14,
+    # )
 
     nb_param_smash = len(control_smash["ParamList"])
     LinearizedGradientsForSmash = np.zeros(

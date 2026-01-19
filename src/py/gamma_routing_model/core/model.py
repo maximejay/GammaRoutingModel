@@ -231,6 +231,31 @@ class Model(object):
 
     def run(self, inflows, states_init=True, states_reset=True):
 
+        # first check if we need to force states_init
+        if self.routing_setup.varying_spread == 1:
+
+            max_spreading = self.routing_setup.spreading_boundaries[1]
+
+            nb_spreads = (
+                int(max_spreading / self.routing_setup.spreading_discretization_step) + 1
+            )
+
+        else:
+            max_spreading = np.max(self.routing_parameters.spreading)
+            nb_spreads = 1
+
+        if max_spreading != self.routing_states.max_spreading:
+            print(
+                "Force states_init, reason change of max_spreading {max_spreading} != {self.routing_states.max_spreading}"
+            )
+            states_init = True
+
+        if nb_spreads != self.routing_states.nb_spreads:
+            print(
+                f"Force states_init, reason change of nb_spreads {nb_spreads} != {self.routing_states.nb_spreads}"
+            )
+            states_init = True
+
         # first initialise states
         # initialise states
         if states_init:

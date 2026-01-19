@@ -86,11 +86,13 @@ module mod_gamma_routing_states
             routing_states%nb_spreads=int(routing_states%max_spreading/routing_setup%spreading_discretization_step)+1
         else
             routing_states%nb_spreads=1
-            max_spreading=0.0
-            do i=1,routing_mesh%nb_nodes
-                max_spreading=max(max_spreading,routing_parameter%spreading(i))
-            end do
-            routing_states%max_spreading=max_spreading
+!~             max_spreading=0.0
+!~             max_spreading=maxval(routing_parameter%spreading)
+!~             do i=1,routing_mesh%nb_nodes
+!~                 max_spreading=max(max_spreading,routing_parameter%spreading(i))
+!~             end do
+!~             routing_states%max_spreading=max_spreading
+            routing_states%max_spreading=maxval(routing_parameter%spreading)
 !~             routing_states%max_spreading=routing_setup%spreading_boundaries(2)
         end if
         

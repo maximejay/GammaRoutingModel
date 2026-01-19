@@ -6,6 +6,7 @@ set output "./out/qnetwork_jonction.pdf"
 set grid
 set xlabel "time"
 set ylabel "discharges"
+set xrange [0:20]
 plot for [j=2:5] "./out/qnetwork_jonction.txt" u ($1-1):(column(j)) w lp lw 2 title "discharges at node".sprintf("%i",j-1)
 unset output
 unset terminal
