@@ -47,8 +47,9 @@ def VectorIndexesOfActiveSmashCells(smash_model):
 
     # Index des pixels actifs des matrices Smash stockés dans un vecteur
     k = 0
-    for row in range(nrow):
-        for col in range(ncol):
+    for col in range(smash_model.mesh.ncol):
+
+        for row in range(smash_model.mesh.nrow):
 
             if smash_model.mesh.active_cell[row, col] > 0:
 
@@ -99,9 +100,9 @@ def SmashMesh2DToVector(smash_model):
     dx = np.zeros(nb_active_cell)
 
     k = 0
-    for row in range(nrow):
+    for col in range(smash_model.mesh.ncol):
 
-        for col in range(ncol):
+        for row in range(smash_model.mesh.nrow):
 
             if smash_model.mesh.active_cell[row, col] > 0:
 
@@ -140,9 +141,9 @@ def ComputeNodeLinker(smash_model):
     nodes_linker = np.zeros(shape=(nb_upstream_nodes, nb_active_cell))
 
     k = 0
-    for row in range(nrow):
+    for col in range(smash_model.mesh.ncol):
 
-        for col in range(ncol):
+        for row in range(smash_model.mesh.nrow):
 
             if smash_model.mesh.active_cell[row, col] > 0:
 
@@ -395,9 +396,9 @@ def GammaVectorsToSmashGrid(vector, smash_model, model_gamma):
     grid = np.zeros(shape=(smash_model.mesh.nrow, smash_model.mesh.ncol))
 
     k = 0
-    for row in range(smash_model.mesh.nrow):
+    for col in range(smash_model.mesh.ncol):
 
-        for col in range(smash_model.mesh.ncol):
+        for row in range(smash_model.mesh.nrow):
 
             if smash_model.mesh.active_cell[row, col] > 0:
 
@@ -416,9 +417,9 @@ def SmashGridToGammaVectors(grid, smash_model, model_gamma):
     vector = np.zeros(shape=(model_gamma.routing_mesh.nb_nodes))
 
     k = 0
-    for row in range(smash_model.mesh.nrow):
+    for col in range(smash_model.mesh.ncol):
 
-        for col in range(smash_model.mesh.ncol):
+        for row in range(smash_model.mesh.nrow):
 
             if smash_model.mesh.active_cell[row, col] > 0:
 
@@ -577,9 +578,9 @@ def VectorizeModelParameters(
             index_param = list(smash_model.rr_parameters.keys).index(ctrl_var)
             param_smash = smash_model.rr_parameters.values[:, :, index_param]
 
-            for row in range(smash_model.mesh.nrow):
+            for col in range(smash_model.mesh.ncol):
 
-                for col in range(smash_model.mesh.ncol):
+                for row in range(smash_model.mesh.nrow):
 
                     if smash_model.mesh.active_cell[row, col] > 0:
 
@@ -591,9 +592,9 @@ def VectorizeModelParameters(
             index_state = list(smash_model.rr_initial_states).keys.index(ctrl_var)
             states_smash = smash_model.rr_initial_states.values[:, :, index_state]
 
-            for row in range(smash_model.mesh.nrow):
+            for col in range(smash_model.mesh.ncol):
 
-                for col in range(smash_model.mesh.ncol):
+                for row in range(smash_model.mesh.nrow):
 
                     if smash_model.mesh.active_cell[row, col] > 0:
 
@@ -664,13 +665,13 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
 
             MatrixParameters = smash_model.get_rr_parameters(ctrl_var)
 
-            for sub_row in range(smash_model.mesh.nrow):
+            for col in range(smash_model.mesh.ncol):
 
-                for sub_col in range(smash_model.mesh.ncol):
+                for row in range(smash_model.mesh.nrow):
 
-                    if smash_model.mesh.active_cell[sub_row, sub_col] > 0:
+                    if smash_model.mesh.active_cell[row, col] > 0:
 
-                        MatrixParameters[sub_row, sub_col] = control_vector["Xt"][k]
+                        MatrixParameters[row, col] = control_vector["Xt"][k]
 
                         k = k + 1
 
@@ -680,13 +681,13 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
 
             MatrixStates = smash_model.get_rr_initial_states(ctrl_var)
 
-            for sub_row in range(smash_model.mesh.nrow):
+            for col in range(smash_model.mesh.ncol):
 
-                for sub_col in range(smash_model.mesh.ncol):
+                for row in range(smash_model.mesh.nrow):
 
-                    if smash_model.mesh.active_cell[sub_row, sub_col] > 0:
+                    if smash_model.mesh.active_cell[row, col] > 0:
 
-                        MatrixStates[sub_row, sub_col] = control_vector["Xt"][k]
+                        MatrixStates[row, col] = control_vector["Xt"][k]
 
                         k = k + 1
 

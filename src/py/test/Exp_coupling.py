@@ -15,15 +15,16 @@ setup_cance["routing_module"] = "zero"
 smash_model = smash.Model(setup_cance, mesh_cance)
 smash_model.forward_run()
 
+
 smash_model.response.qt.shape
 setup_cance, mesh_cance = smash.factory.load_dataset("Cance")
 smash_optimize = smash.Model(setup_cance, mesh_cance)
 optimize_options = {
-    "parameters": ["cp", "ct"],
-    "bounds": {"cp": (1, 1000), "ct": (1, 1000)},
-    # "bounds": {"cp": (1, 1000), "ct": (1, 1000), "llr": (1, 1000)},
+    "parameters": ["cp", "ct", "llr"],
+    # "bounds": {"cp": (1, 1000), "ct": (1, 1000)},
+    "bounds": {"cp": (1, 1000), "ct": (1, 1000), "llr": (1, 1000)},
     "termination_crit": {
-        "maxiter": 1,
+        "maxiter": 30,
         "factr": 1e6,
     },
 }
@@ -40,7 +41,7 @@ smash_optimize.optimize(
 
 gamma.smashplug.functions_smash_plot.plot_image(
     smash_optimize.get_rr_parameters("cp"),
-    figname="SMASH_CP.pdf",
+    figname="SMASH_CP_only.pdf",
     mask=smash_optimize.mesh.active_cell,
     title="Capacities of the production reservoir",
     title_font_size=14,
@@ -48,19 +49,11 @@ gamma.smashplug.functions_smash_plot.plot_image(
 
 gamma.smashplug.functions_smash_plot.plot_image(
     smash_optimize.get_rr_parameters("ct"),
-    figname="SMASH_CT.pdf",
+    figname="SMASH_CT_only.pdf",
     mask=smash_optimize.mesh.active_cell,
     title="Capacities of the transfert reservoir",
     title_font_size=14,
 )
-
-
-# gamma.smashplug.functions_smash_plot.plot_image(
-#     smash_optimize.get_rr_parameters("ct"),
-#     mask=smash_model.mesh.active_cell,
-#     title="grad_cp_smash",
-#     title_font_size=14,
-# )
 
 
 # smash compilé avec les options de debuggage
@@ -134,52 +127,6 @@ control_vector = gamma.smashplug.normalize_control_vector(ControlVector)
 GammaInflows = gamma.smashplug.GetGammaInflowFromSmash(smash_model, dt=900)
 
 
-# import copy
-
-# control_smash = copy.deepcopy(control_vector)
-# param_gamma = ["hydraulics_coefficient", "spreading"]
-
-# for key, value in control_vector.items():
-#     for p in param_gamma:
-
-#         if key in param_gamma:
-#             del control_smash["key"]
-
-#         if isinstance(value, (list, tuple)):
-#             if p in value:
-#                 control_smash[key].remove(p)
-
-#         if isinstance(value, dict):
-#             if p in value.keys():
-#                 del control_smash[key][p]
-
-# SmashGradients_old, SmashGradients = gamma.smashplug.coupling._get_smash_gradient(
-#     smash_model, control_smash
-# )
-
-
-# grad_control_smash = gamma.smashplug.GammaVectorsToSmashGrid(
-#     SmashGradients_old[0:383],
-#     smash_model,
-#     model_gamma,
-# )
-
-# gamma.smashplug.functions_smash_plot.plot_image(
-#     grad_control_smash,
-#     mask=smash_model.mesh.active_cell,
-#     title="grad_cp_smash",
-#     title_font_size=14,
-# )
-
-# a=grad_matrix[:, :, 0]
-# gamma.smashplug.functions_smash_plot.plot_image(
-#     a,
-#     figname="grad_cp.pdf",
-#     mask=smash_model.mesh.active_cell,
-#     title="grad_cp",
-#     title_font_size=14,
-# )
-
 cost, grad = gamma.smashplug.ComputeCostAndGradients(
     ControlVector["X"],
     ControlVector,
@@ -198,8 +145,10 @@ gradient = gamma.smashplug.ComputeModelGradients(
 # optimize parameters
 # Here smash parameter are not normalized. That cause slow convergence. We try some gradient normalisation technics : ScaleGradientsByBounds and ScaleGammaGradients
 # the spreading coefficient will uniformly calibrated => the gradient of this variable is scaled by the nb of nodes !
+
+# control_parameters_list = ["cp", "ct"]
 control_parameters_list = ["cp", "ct", "hydraulics_coefficient", "spreading"]
-control_parameters_list = ["cp", "ct"]
+
 BestControlVector, optimized_smash_model, optimized_gamma_model = (
     gamma.smashplug.OptimizeCoupledModel(
         smash_model,
@@ -209,10 +158,10 @@ BestControlVector, optimized_smash_model, optimized_gamma_model = (
         bounds={
             "cp": [1.0, 1000.0],
             "ct": [1.0, 1000.0],
-            # "hydraulics_coefficient": [0.3, 5.0],
-            # "spreading": [0.5, 5.0],
+            "hydraulics_coefficient": [0.3, 5.0],
+            "spreading": [0.5, 5.0],
         },
-        maxiter=5,
+        maxiter=30,
         tol=0.0001,
         ScaleGradientsByBounds=False,
         ScaleGammaGradients=True,
@@ -238,7 +187,7 @@ Spreading = gamma.smashplug.GammaVectorsToSmashGrid(
 
 gamma.smashplug.functions_smash_plot.plot_image(
     Grid_Hydraulic_Coef,
-    figname="CoefHydraulics_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.spreading_uniform}_CAL{ctrl}.pdf",
+    figname=f"CoefHydraulics_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.spreading_uniform}_CAL{ctrl}.pdf",
     mask=optimized_smash_model.mesh.active_cell,
     title="Hydraulic coefficients",
     title_font_size=14,
@@ -246,7 +195,7 @@ gamma.smashplug.functions_smash_plot.plot_image(
 
 gamma.smashplug.functions_smash_plot.plot_image(
     Spreading,
-    figname="ExpCalValRoutage_Spreading_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.spreading_uniform}_CAL{ctrl}.pdf",
+    figname=f"ExpCalValRoutage_Spreading_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.spreading_uniform}_CAL{ctrl}.pdf",
     mask=optimized_smash_model.mesh.active_cell,
     title="Spreading coefficients",
     title_font_size=14,
@@ -254,7 +203,7 @@ gamma.smashplug.functions_smash_plot.plot_image(
 
 gamma.smashplug.functions_smash_plot.plot_image(
     optimized_smash_model.get_rr_parameters("cp"),
-    figname="ExpCalValRoutage_Cp_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.spreading_uniform}_CAL{ctrl}.pdf",
+    figname=f"ExpCalValRoutage_Cp_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.spreading_uniform}_CAL{ctrl}.pdf",
     mask=optimized_smash_model.mesh.active_cell,
     title="Capacities of the production reservoir",
     title_font_size=14,
@@ -262,7 +211,7 @@ gamma.smashplug.functions_smash_plot.plot_image(
 
 gamma.smashplug.functions_smash_plot.plot_image(
     optimized_smash_model.get_rr_parameters("ct"),
-    figname="ExpCalValRoutage_Ct_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.spreading_uniform}_CAL{ctrl}.pdf",
+    figname=f"ExpCalValRoutage_Ct_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.spreading_uniform}_CAL{ctrl}.pdf",
     mask=optimized_smash_model.mesh.active_cell,
     title="Capacities of the transfert reservoir",
     title_font_size=14,
@@ -307,10 +256,8 @@ def save_figure(
 
 
 fig, ax = plt.subplots()
-ax.plot(
-    optimized_smash_model.response_data.q.transpose()[:, 0], label="Qobs", color="0", lw=2
-)
-ax.plot(optimized_smash_model.response.q.transpose()[:, 0], label="Qsmash", lw=2)
+ax.plot(smash_optimize.response_data.q.transpose()[:, 0], label="Qobs", color="0", lw=2)
+ax.plot(smash_optimize.response.q.transpose()[:, 0], label="Qsmash", lw=2)
 x = np.arange(0, 1440, 0.25)
 ax.plot(
     x,
