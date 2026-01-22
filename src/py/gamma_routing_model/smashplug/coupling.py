@@ -811,24 +811,6 @@ def _get_smash_gradient(model, control_smash):
 
     grad = parameters_b0.control.x.copy()
 
-    # keys = list(parameters_b0.rr_parameters.keys)
-    # LinearizedGrad = np.zeros(control_smash["NbNodes"] * len(control_smash["ParamList"]))
-
-    # k = 0
-    # for param in control_smash["ParamList"]:
-    #     matrix = parameters_b0.rr_parameters.values[:, :, keys.index(param)].copy()
-
-    #     for row in range(model.mesh.nrow):
-
-    #         for col in range(model.mesh.ncol):
-
-    #             if model.mesh.active_cell[row, col] > 0:
-
-    #                 LinearizedGrad[k] = matrix[row, col]
-    #                 k = k + 1
-
-    # # return parameters.control.x
-
     return grad
 
 
@@ -1284,15 +1266,15 @@ def OptimizeCoupledModel(
     bounds[:, 0] = 0.0
     bounds[:, 1] = 1.0
 
-    cost, grad = gamma.smashplug.ComputeCostAndGradients(
-        ControlVector["X"],
-        ControlVector,
-        optimized_smash,
-        optimized_gamma,
-        observations,
-        ScaleGammaGradients,
-        ScaleGradientsByBounds,
-    )
+    # cost, grad = gamma.smashplug.ComputeCostAndGradients(
+    #     ControlVector["X"],
+    #     ControlVector,
+    #     optimized_smash,
+    #     optimized_gamma,
+    #     observations,
+    #     ScaleGammaGradients,
+    #     ScaleGradientsByBounds,
+    # )
 
     res = scipy.optimize.minimize(
         gamma.smashplug.ComputeCostAndGradients,

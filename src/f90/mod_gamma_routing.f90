@@ -170,11 +170,11 @@ module mod_gamma_routing
             
 !~             write(*,*) i,qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%dt
             
-            if (routing_states%nb_spreads>1) then
+            if (routing_setup%varying_spread==1) then
                 
                 spreading_unn=x_unn(routing_parameter%normalized,routing_setup%spreading_boundaries(1),&
                 &routing_setup%spreading_boundaries(2),routing_parameter%spreading(current_node))
-                
+!~                 spreading_unn=1.0
                 call interpolated_routing_coefficients_bilinear(mode,spreading_unn,&
                 &index_varying_dx,routing_states,gamma_coefficient)
                 
@@ -289,7 +289,7 @@ module mod_gamma_routing
             incoming_discharges=baseflow
         endif
         
-        velocity=routing_setup%vmin
+        velocity=routing_setup%vmax
         
         if (routing_setup%velocity_computation.eq."qmm") then
             velocity =  hydraulics_coefficient * &
@@ -395,7 +395,8 @@ module mod_gamma_routing
         integer :: i
         integer :: ix1,iy1,ix2,iy2
         real :: x1,y1,x2,y2,fx,fy
-        
+!~         real, dimension(size(routing_states%quantile)) :: diffcoefXY1, diffcoefXY2, diffcoefYX
+!~         real, dimension(size(routing_states%quantile)) :: coefXY2,coefXY1,coefYX
         !index_dx=routing_mesh%index_varying_dx(current-node)
         
         !Avoid chocs by increasing the spreading with the mode: we could calibrate the exponnent instead of the spreading... This works very well, less chocs when v is low (hydro_coef is low too)
@@ -428,6 +429,28 @@ module mod_gamma_routing
         y1=routing_states%tabulated_spreading(iy1)
         y2=routing_states%tabulated_spreading(iy2)
         
+        
+        
+        !trick for differentiation
+!~         diffcoefXY1=routing_states%tabulated_routing_coef(:,ix2,iy1,index_dx)-&
+!~         &routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)
+        
+!~         diffcoefXY2=routing_states%tabulated_routing_coef(:,ix2,iy2,index_dx)-&
+!~         &routing_states%tabulated_routing_coef(:,ix1,iy2,index_dx)
+        
+!~         coefXY1=routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)+&
+!~         &(mode-x1)*(diffcoefXY1) / (x2-x1)
+        
+!~         coefXY2=routing_states%tabulated_routing_coef(:,ix1,iy2,index_dx)+&
+!~         &(mode-x1)*(diffcoefXY2) / (x2-x1)
+        
+!~         diffcoefYX=coefXY2-coefXY1
+        
+!~         gamma_coefficient=coefXY2+&
+!~         &(spreading-y1)*(diffcoefXY2) / (y2-y1)
+        
+!~         write(*,*) mode,spreading,gamma_coefficient
+        
         gamma_coefficient=&
         & ((mode-x2)/(x1-x2)) * ((spreading-y2)/(y1-y2)) * &
         &routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)&
@@ -438,17 +461,7 @@ module mod_gamma_routing
         &+((mode-x1)/(x2-x1)) * ((spreading-y1)/(y2-y1)) * &
         &routing_states%tabulated_routing_coef(:,ix2,iy2,index_dx)
         
-        ! Interpolation factors
-!~         fx = (mode - routing_states%tabulated_delay(ix1))/(routing_states%tabulated_delay(ix2)&
-!~         & - routing_states%tabulated_delay(ix1))
-!~         fy = (true_spreading - routing_states%tabulated_spreading(iy1))/(routing_states%tabulated_spreading(iy2)&
-!~         & - routing_states%tabulated_spreading(iy1))
-
-!~         ! Bilinear interpolation
-!~         gamma_coefficient = routing_states%tabulated_routing_coef(:,iy1, iy1,index_dx)*(1.0 - fx)*(1.0 - fy) + &
-!~                  routing_states%tabulated_routing_coef(:,iy2, iy1,index_dx)*fx*(1.0 - fy) + &
-!~                  routing_states%tabulated_routing_coef(:,iy1, iy2,index_dx)*(1.0 - fx)*fy + &
-!~                  routing_states%tabulated_routing_coef(:,iy2, iy2,index_dx)*fx*fy
+!~         write(*,*) spreading,y1,y2, routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)
     
     end subroutine interpolated_routing_coefficients_bilinear
     

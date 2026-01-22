@@ -80,10 +80,10 @@ subroutine manual_gradient_test()
         ni=1 ! Numero du paramètre perturbe
 
         if (ni.eq.1) then
-            dx_tab=dx_tab1*0.001
+            dx_tab=dx_tab1*0.1
             var_spread=0
         elseif(ni.eq.2)then
-            dx_tab=dx_tab2
+            dx_tab=dx_tab2*0.1
             var_spread=1
         endif
 
@@ -93,7 +93,7 @@ subroutine manual_gradient_test()
         write(*,*) ""
         call routing_setup_self_initialisation(routing_setup,npdt=30,dt=900.,vmin=0.1,vmax=10.,&
         &elongation_factor=1.0,mode_discretization_step=0.1,spreading_discretization_step=0.1&
-        &,velocity_computation="qm3",varying_spread=1)
+        &,velocity_computation="qmm",varying_spread=1)
         
         
         write(*,*) "routing_mesh_self_initialisation..."
@@ -103,11 +103,11 @@ subroutine manual_gradient_test()
         routing_mesh%controlled_nodes(1)=5
         call mesh_update(routing_mesh)
         
-        write(*,*) routing_mesh%upstream_to_downstream_nodes
-        write(*,*) routing_mesh%nodes_linker
-        write(*,*) routing_mesh%surface
-        write(*,*) routing_mesh%dx
-        write(*,*) routing_mesh%controlled_nodes
+!~         write(*,*) routing_mesh%upstream_to_downstream_nodes
+!~         write(*,*) routing_mesh%nodes_linker
+!~         write(*,*) routing_mesh%surface
+!~         write(*,*) routing_mesh%dx
+!~         write(*,*) routing_mesh%controlled_nodes
         
         
         
@@ -137,9 +137,9 @@ subroutine manual_gradient_test()
             &hydraulics_coefficient=0.5,spreading=1.5)
         endif
         
-        write(*,*) routing_parameter%hydraulics_coefficient
-        write(*,*) routing_parameter%spreading
-        pause
+!~         write(*,*) routing_parameter%hydraulics_coefficient
+!~         write(*,*) routing_parameter%spreading
+!~         pause
         
         
         write(*,*) "routing_state_self_initialisation..."
@@ -151,21 +151,21 @@ subroutine manual_gradient_test()
         call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
         
         
-        write(*,*) "routing_states:"
-        write(*,*) "routing_states%max_mode=",routing_states%max_mode
-        write(*,*) "routing_states%min_mode=",routing_states%min_mode
-        write(*,*) "routing_states%nb_mode=",routing_states%nb_mode
-        write(*,*) "routing_states%scale_coef=",routing_states%scale_coef
-        write(*,*) "routing_states%window_length=",routing_states%window_length    
-        write(*,*) "routing_states%nb_spreads=",routing_states%nb_spreads    
-        write(*,*) "routing_states%max_spreading=",routing_states%max_spreading
-        write(*,*) "routing_states%window_shift=",routing_states%window_shift 
-        write(*,*) "routing_states%param_normalisation=",routing_states%param_normalisation
-        write(*,*) "routing_states%quantile=",routing_states%quantile
-        pause
-        write(*,*) "routing_states%tabulated_delay=",routing_states%tabulated_delay
-        write(*,*) "routing_states%tabulated_spreading=",routing_states%tabulated_spreading
-        pause
+!~         write(*,*) "routing_states:"
+!~         write(*,*) "routing_states%max_mode=",routing_states%max_mode
+!~         write(*,*) "routing_states%min_mode=",routing_states%min_mode
+!~         write(*,*) "routing_states%nb_mode=",routing_states%nb_mode
+!~         write(*,*) "routing_states%scale_coef=",routing_states%scale_coef
+!~         write(*,*) "routing_states%window_length=",routing_states%window_length    
+!~         write(*,*) "routing_states%nb_spreads=",routing_states%nb_spreads    
+!~         write(*,*) "routing_states%max_spreading=",routing_states%max_spreading
+!~         write(*,*) "routing_states%window_shift=",routing_states%window_shift 
+!~         write(*,*) "routing_states%param_normalisation=",routing_states%param_normalisation
+!~         write(*,*) "routing_states%quantile=",routing_states%quantile
+!~         pause
+!~         write(*,*) "routing_states%tabulated_delay=",routing_states%tabulated_delay
+!~         write(*,*) "routing_states%tabulated_spreading=",routing_states%tabulated_spreading
+!~         pause
         
         write(*,*) "routing_results_self_initialisation..."
         call routing_results_self_initialisation(routing_setup,routing_mesh,routing_results)
@@ -182,10 +182,10 @@ subroutine manual_gradient_test()
         write(*,*) cost
         observations=routing_results%discharges
         
-        pause
+!~         pause
         
         
-        do iter=1,size(dx_tab)
+        do iter=1,2 !size(dx_tab)
         
             pdx=dx_tab(iter)
 

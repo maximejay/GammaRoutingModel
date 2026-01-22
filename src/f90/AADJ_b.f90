@@ -186,7 +186,6 @@ CONTAINS
     INTRINSIC ALLOCATED
     INTRINSIC SIZE
     INTRINSIC INT
-    INTRINSIC MAX
     INTRINSIC MAXVAL
     INTRINSIC MINVAL
     REAL :: result1
@@ -205,15 +204,13 @@ CONTAINS
 &       routing_setup%spreading_discretization_step) + 1
     ELSE
       routing_states%nb_spreads = 1
-      max_spreading = 0.0
-      DO i=1,routing_mesh%nb_nodes
-        IF (max_spreading .LT. routing_parameter%spreading(i)) THEN
-          max_spreading = routing_parameter%spreading(i)
-        ELSE
-          max_spreading = max_spreading
-        END IF
-      END DO
-      routing_states%max_spreading = max_spreading
+!~             max_spreading=0.0
+!~             max_spreading=maxval(routing_parameter%spreading)
+!~             do i=1,routing_mesh%nb_nodes
+!~                 max_spreading=max(max_spreading,routing_parameter%spreading(i))
+!~             end do
+!~             routing_states%max_spreading=max_spreading
+      routing_states%max_spreading = MAXVAL(routing_parameter%spreading)
 !~             routing_states%max_spreading=routing_setup%spreading_boundaries(2)
     END IF
     result1 = MAXVAL(routing_mesh%dx)
@@ -421,12 +418,13 @@ CONTAINS
       mode = routing_mesh%dx(current_node)/velocity/routing_setup%dt
       index_varying_dx = routing_mesh%index_varying_dx(current_node)
 !~             write(*,*) i,qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%dt
-      IF (routing_states%nb_spreads .GT. 1) THEN
+      IF (routing_setup%varying_spread .EQ. 1) THEN
         CALL PUSHREAL4(spreading_unn)
         spreading_unn = X_UNN(routing_parameter%normalized, &
 &         routing_setup%spreading_boundaries(1), routing_setup%&
 &         spreading_boundaries(2), routing_parameter%spreading(&
 &         current_node))
+!~                 spreading_unn=1.0
         CALL PUSHREAL4ARRAY(gamma_coefficient, SIZE(routing_states%&
 &                     quantile))
         CALL INTERPOLATED_ROUTING_COEFFICIENTS_BILINEAR(mode, &
@@ -554,11 +552,12 @@ CONTAINS
       mode = routing_mesh%dx(current_node)/velocity/routing_setup%dt
       index_varying_dx = routing_mesh%index_varying_dx(current_node)
 !~             write(*,*) i,qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%dt
-      IF (routing_states%nb_spreads .GT. 1) THEN
+      IF (routing_setup%varying_spread .EQ. 1) THEN
         spreading_unn = X_UNN(routing_parameter%normalized, &
 &         routing_setup%spreading_boundaries(1), routing_setup%&
 &         spreading_boundaries(2), routing_parameter%spreading(&
 &         current_node))
+!~                 spreading_unn=1.0
         CALL INTERPOLATED_ROUTING_COEFFICIENTS_BILINEAR(mode, &
 &                                                 spreading_unn, &
 &                                                 index_varying_dx, &
@@ -684,7 +683,7 @@ CONTAINS
       CALL PUSHCONTROL1B(1)
     END IF
     CALL PUSHREAL4(velocity)
-    velocity = routing_setup%vmin
+    velocity = routing_setup%vmax
     IF (routing_setup%velocity_computation .EQ. 'qmm') THEN
       velocity = hydraulics_coefficient*(incoming_discharges*&
 &       routing_setup%dt*1000./(routing_mesh%cumulated_surface(&
@@ -748,7 +747,7 @@ CONTAINS
     baseflow = 0.0000001
     IF (incoming_discharges .LT. baseflow) incoming_discharges = &
 &       baseflow
-    velocity = routing_setup%vmin
+    velocity = routing_setup%vmax
     IF (routing_setup%velocity_computation .EQ. 'qmm') velocity = &
 &       hydraulics_coefficient*(incoming_discharges*routing_setup%dt*&
 &       1000./(routing_mesh%cumulated_surface(current_node)*1000.0**2.))&
@@ -851,16 +850,7 @@ CONTAINS
 &   spreading, spreadingb, index_dx, routing_states, gamma_coefficient, &
 &   gamma_coefficientb)
     IMPLICIT NONE
-! Interpolation factors
-!~         fx = (mode - routing_states%tabulated_delay(ix1))/(routing_states%tabulated_delay(ix2)&
-!~         & - routing_states%tabulated_delay(ix1))
-!~         fy = (true_spreading - routing_states%tabulated_spreading(iy1))/(routing_states%tabulated_spreading(iy2)&
-!~         & - routing_states%tabulated_spreading(iy1))
-!~         ! Bilinear interpolation
-!~         gamma_coefficient = routing_states%tabulated_routing_coef(:,iy1, iy1,index_dx)*(1.0 - fx)*(1.0 - fy) + &
-!~                  routing_states%tabulated_routing_coef(:,iy2, iy1,index_dx)*fx*(1.0 - fy) + &
-!~                  routing_states%tabulated_routing_coef(:,iy1, iy2,index_dx)*(1.0 - fx)*fy + &
-!~                  routing_states%tabulated_routing_coef(:,iy2, iy2,index_dx)*fx*fy
+!~         write(*,*) spreading,y1,y2, routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)
     REAL, INTENT(IN) :: mode
     REAL :: modeb
     REAL, INTENT(IN) :: spreading
@@ -882,6 +872,8 @@ CONTAINS
     INTEGER :: branch
     INTEGER :: ad_count0
     INTEGER :: i1
+!~         real, dimension(size(routing_states%quantile)) :: diffcoefXY1, diffcoefXY2, diffcoefYX
+!~         real, dimension(size(routing_states%quantile)) :: coefXY2,coefXY1,coefYX
 !index_dx=routing_mesh%index_varying_dx(current-node)
 !Avoid chocs by increasing the spreading with the mode: we could calibrate the exponnent instead of the spreading... This works v
 !ery well, less chocs when v is low (hydro_coef is low too)
@@ -926,6 +918,19 @@ CONTAINS
     x2 = routing_states%tabulated_delay(ix2)
     y1 = routing_states%tabulated_spreading(iy1)
     y2 = routing_states%tabulated_spreading(iy2)
+!trick for differentiation
+!~         diffcoefXY1=routing_states%tabulated_routing_coef(:,ix2,iy1,index_dx)-&
+!~         &routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)
+!~         diffcoefXY2=routing_states%tabulated_routing_coef(:,ix2,iy2,index_dx)-&
+!~         &routing_states%tabulated_routing_coef(:,ix1,iy2,index_dx)
+!~         coefXY1=routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)+&
+!~         &(mode-x1)*(diffcoefXY1) / (x2-x1)
+!~         coefXY2=routing_states%tabulated_routing_coef(:,ix1,iy2,index_dx)+&
+!~         &(mode-x1)*(diffcoefXY2) / (x2-x1)
+!~         diffcoefYX=coefXY2-coefXY1
+!~         gamma_coefficient=coefXY2+&
+!~         &(spreading-y1)*(diffcoefXY2) / (y2-y1)
+!~         write(*,*) mode,spreading,gamma_coefficient
     tempb = SUM(routing_states%tabulated_routing_coef(:, ix1, iy1, &
 &     index_dx)*gamma_coefficientb)/((x1-x2)*(y1-y2))
     tempb0 = SUM(routing_states%tabulated_routing_coef(:, ix2, iy1, &
@@ -951,16 +956,7 @@ CONTAINS
   SUBROUTINE INTERPOLATED_ROUTING_COEFFICIENTS_BILINEAR(mode, spreading&
 &   , index_dx, routing_states, gamma_coefficient)
     IMPLICIT NONE
-! Interpolation factors
-!~         fx = (mode - routing_states%tabulated_delay(ix1))/(routing_states%tabulated_delay(ix2)&
-!~         & - routing_states%tabulated_delay(ix1))
-!~         fy = (true_spreading - routing_states%tabulated_spreading(iy1))/(routing_states%tabulated_spreading(iy2)&
-!~         & - routing_states%tabulated_spreading(iy1))
-!~         ! Bilinear interpolation
-!~         gamma_coefficient = routing_states%tabulated_routing_coef(:,iy1, iy1,index_dx)*(1.0 - fx)*(1.0 - fy) + &
-!~                  routing_states%tabulated_routing_coef(:,iy2, iy1,index_dx)*fx*(1.0 - fy) + &
-!~                  routing_states%tabulated_routing_coef(:,iy1, iy2,index_dx)*(1.0 - fx)*fy + &
-!~                  routing_states%tabulated_routing_coef(:,iy2, iy2,index_dx)*fx*fy
+!~         write(*,*) spreading,y1,y2, routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)
     REAL, INTENT(IN) :: mode
     REAL, INTENT(IN) :: spreading
     INTEGER, INTENT(IN) :: index_dx
@@ -971,6 +967,8 @@ CONTAINS
     INTEGER :: i
     INTEGER :: ix1, iy1, ix2, iy2
     REAL :: x1, y1, x2, y2, fx, fy
+!~         real, dimension(size(routing_states%quantile)) :: diffcoefXY1, diffcoefXY2, diffcoefYX
+!~         real, dimension(size(routing_states%quantile)) :: coefXY2,coefXY1,coefYX
 !index_dx=routing_mesh%index_varying_dx(current-node)
 !Avoid chocs by increasing the spreading with the mode: we could calibrate the exponnent instead of the spreading... This works v
 !ery well, less chocs when v is low (hydro_coef is low too)
@@ -999,6 +997,19 @@ CONTAINS
     x2 = routing_states%tabulated_delay(ix2)
     y1 = routing_states%tabulated_spreading(iy1)
     y2 = routing_states%tabulated_spreading(iy2)
+!trick for differentiation
+!~         diffcoefXY1=routing_states%tabulated_routing_coef(:,ix2,iy1,index_dx)-&
+!~         &routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)
+!~         diffcoefXY2=routing_states%tabulated_routing_coef(:,ix2,iy2,index_dx)-&
+!~         &routing_states%tabulated_routing_coef(:,ix1,iy2,index_dx)
+!~         coefXY1=routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)+&
+!~         &(mode-x1)*(diffcoefXY1) / (x2-x1)
+!~         coefXY2=routing_states%tabulated_routing_coef(:,ix1,iy2,index_dx)+&
+!~         &(mode-x1)*(diffcoefXY2) / (x2-x1)
+!~         diffcoefYX=coefXY2-coefXY1
+!~         gamma_coefficient=coefXY2+&
+!~         &(spreading-y1)*(diffcoefXY2) / (y2-y1)
+!~         write(*,*) mode,spreading,gamma_coefficient
     gamma_coefficient = (mode-x2)/(x1-x2)*((spreading-y2)/(y1-y2))*&
 &     routing_states%tabulated_routing_coef(:, ix1, iy1, index_dx) + (&
 &     mode-x1)/(x2-x1)*((spreading-y2)/(y1-y2))*routing_states%&
