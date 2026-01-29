@@ -1,0 +1,8 @@
+# required dependencies 
+meson
+meson-python
+ninja
+numpy
+f90wrap
+scipy
+matplotlib
