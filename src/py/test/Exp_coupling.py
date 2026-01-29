@@ -146,8 +146,8 @@ gradient = gamma.smashplug.ComputeModelGradients(
 # Here smash parameter are not normalized. That cause slow convergence. We try some gradient normalisation technics : ScaleGradientsByBounds and ScaleGammaGradients
 # the spreading coefficient will uniformly calibrated => the gradient of this variable is scaled by the nb of nodes !
 
-control_parameters_list = ["cp", "ct", "hydraulics_coefficient"]
-# control_parameters_list = ["cp", "ct", "hydraulics_coefficient", "spreading"]
+# control_parameters_list = ["cp", "ct", "hydraulics_coefficient"]
+control_parameters_list = ["cp", "ct", "hydraulics_coefficient", "spreading"]
 
 BestControlVector, optimized_smash_model, optimized_gamma_model = (
     gamma.smashplug.OptimizeCoupledModel(
@@ -159,12 +159,12 @@ BestControlVector, optimized_smash_model, optimized_gamma_model = (
             "cp": [1.0, 1000.0],
             "ct": [1.0, 1000.0],
             "hydraulics_coefficient": [0.3, 5.0],
-            # "spreading": [0.5, 5.0],
+            "spreading": [0.5, 5.0],
         },
         maxiter=30,
         tol=0.0001,
         ScaleGradientsByBounds=False,
-        ScaleGammaGradients=True,
+        ScaleGammaGradients=False,
     )
 )
 

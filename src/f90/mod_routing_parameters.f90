@@ -65,14 +65,14 @@ module mod_gamma_routing_parameters
             allocate(routing_parameter%spreading(routing_mesh%nb_nodes))
         end if
         
-        if (present(hydraulics_coefficient) .AND. hydraulics_coefficient>0) then
+        if (present(hydraulics_coefficient) .AND. hydraulics_coefficient>0.0) then
             
             routing_parameter%hydraulics_coefficient=hydraulics_coefficient
         else
             routing_parameter%hydraulics_coefficient=1.0 !default value
         end if
         
-        if (present(spreading) .AND. spreading>0) then
+        if (present(spreading) .AND. spreading>0.0) then
             
             routing_parameter%spreading=spreading ! given in s/m 
         else

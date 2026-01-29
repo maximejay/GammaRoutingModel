@@ -174,9 +174,10 @@ module mod_gamma_routing
                 
                 spreading_unn=x_unn(routing_parameter%normalized,routing_setup%spreading_boundaries(1),&
                 &routing_setup%spreading_boundaries(2),routing_parameter%spreading(current_node))
-!~                 spreading_unn=1.0
                 call interpolated_routing_coefficients_bilinear(mode,spreading_unn,&
                 &index_varying_dx,routing_states,gamma_coefficient)
+!~                 call interpolated_routing_coefficients_bicubic(mode,spreading_unn,&
+!~                 &index_varying_dx,routing_states,gamma_coefficient)
                 
             else
                 
@@ -394,78 +395,177 @@ module mod_gamma_routing
         
         integer :: i
         integer :: ix1,iy1,ix2,iy2
-        real :: x1,y1,x2,y2,fx,fy
-!~         real, dimension(size(routing_states%quantile)) :: diffcoefXY1, diffcoefXY2, diffcoefYX
-!~         real, dimension(size(routing_states%quantile)) :: coefXY2,coefXY1,coefYX
-        !index_dx=routing_mesh%index_varying_dx(current-node)
+        real :: x1,y1,x2,y2
+        real :: wx1, wx2,wy1, wy2
+        real :: x,y
+        !real :: spreading
         
         !Avoid chocs by increasing the spreading with the mode: we could calibrate the exponnent instead of the spreading... This works very well, less chocs when v is low (hydro_coef is low too)
-        !true_spreading=spreading*routing_states%param_normalisation(2)+spreading*routing_states%param_normalisation(2)*mode**0.5
+        !spreading=spreading_origin+spreading_origin*mode**0.5
+        
+        x = max(routing_states%tabulated_delay(1), min(mode, routing_states%tabulated_delay(routing_states%nb_mode)))
+        y = max(routing_states%tabulated_spreading(1), &
+        &min(spreading, routing_states%tabulated_spreading(routing_states%nb_spreads)))
         
         !search indices for delay x
         ix1=1
-        ix2=2
-        do i=2,routing_states%nb_mode
-            if (mode<routing_states%tabulated_delay(i)) then
-                ix1=i-1
-                ix2=i
+        do i=1,routing_states%nb_mode-1
+            if (x<routing_states%tabulated_delay(i+1)) then
+                ix1=i
                 exit
             endif
         end do
+        ix1 = max(1, min(ix1, routing_states%nb_mode-1))
+        ix2 = min(ix1 + 1, routing_states%nb_mode)
         
         !search indices for spreading y
         iy1=1
-        iy2=2
-        do i=2,routing_states%nb_spreads
-            if (spreading<routing_states%tabulated_spreading(i)) then
-                iy1=i-1
-                iy2=i
+        do i=1,routing_states%nb_spreads-1
+            if (y<routing_states%tabulated_spreading(i+1)) then
+                iy1=i
                 exit
             endif
         end do
+        iy1 = max(1, min(iy1, routing_states%nb_spreads-1))
+        iy2 = min(iy1 + 1, routing_states%nb_spreads)
         
         x1=routing_states%tabulated_delay(ix1)
         x2=routing_states%tabulated_delay(ix2)
         y1=routing_states%tabulated_spreading(iy1)
         y2=routing_states%tabulated_spreading(iy2)
         
+!~         gamma_coefficient=&
+!~         & ((mode-x2)/(x1-x2)) * ((spreading-y2)/(y1-y2)) * &
+!~         &routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)&
+!~         &+((mode-x1)/(x2-x1)) * ((spreading-y2)/(y1-y2)) * &
+!~         &routing_states%tabulated_routing_coef(:,ix2,iy1,index_dx)&
+!~         &+((mode-x2)/(x1-x2)) * ((spreading-y1)/(y2-y1)) * &
+!~         &routing_states%tabulated_routing_coef(:,ix1,iy2,index_dx)&
+!~         &+((mode-x1)/(x2-x1)) * ((spreading-y1)/(y2-y1)) * &
+!~         &routing_states%tabulated_routing_coef(:,ix2,iy2,index_dx)
         
+        wx1 = (x2 - x)/(x2 - x1)
+        wx2 = (x - x1)/(x2 - x1)
+        wy1 = (y2 - y)/(y2 - y1)
+        wy2 = (y - y1)/(y2 - y1)
         
-        !trick for differentiation
-!~         diffcoefXY1=routing_states%tabulated_routing_coef(:,ix2,iy1,index_dx)-&
-!~         &routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)
-        
-!~         diffcoefXY2=routing_states%tabulated_routing_coef(:,ix2,iy2,index_dx)-&
-!~         &routing_states%tabulated_routing_coef(:,ix1,iy2,index_dx)
-        
-!~         coefXY1=routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)+&
-!~         &(mode-x1)*(diffcoefXY1) / (x2-x1)
-        
-!~         coefXY2=routing_states%tabulated_routing_coef(:,ix1,iy2,index_dx)+&
-!~         &(mode-x1)*(diffcoefXY2) / (x2-x1)
-        
-!~         diffcoefYX=coefXY2-coefXY1
-        
-!~         gamma_coefficient=coefXY2+&
-!~         &(spreading-y1)*(diffcoefXY2) / (y2-y1)
-        
-!~         write(*,*) mode,spreading,gamma_coefficient
-        
-        gamma_coefficient=&
-        & ((mode-x2)/(x1-x2)) * ((spreading-y2)/(y1-y2)) * &
-        &routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)&
-        &+((mode-x1)/(x2-x1)) * ((spreading-y2)/(y1-y2)) * &
-        &routing_states%tabulated_routing_coef(:,ix2,iy1,index_dx)&
-        &+((mode-x2)/(x1-x2)) * ((spreading-y1)/(y2-y1)) * &
-        &routing_states%tabulated_routing_coef(:,ix1,iy2,index_dx)&
-        &+((mode-x1)/(x2-x1)) * ((spreading-y1)/(y2-y1)) * &
-        &routing_states%tabulated_routing_coef(:,ix2,iy2,index_dx)
-        
-!~         write(*,*) spreading,y1,y2, routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)
+        gamma_coefficient = &
+            wx1*wy1 * routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx) &
+          + wx2*wy1 * routing_states%tabulated_routing_coef(:,ix2,iy1,index_dx) &
+          + wx1*wy2 * routing_states%tabulated_routing_coef(:,ix1,iy2,index_dx) &
+          + wx2*wy2 * routing_states%tabulated_routing_coef(:,ix2,iy2,index_dx)
     
     end subroutine interpolated_routing_coefficients_bilinear
     
     
+    subroutine interpolated_routing_coefficients_bicubic(mode,spreading,index_dx,routing_states,gamma_coefficient)
+        implicit none
+        real, intent(in) :: mode, spreading
+        integer, intent(in) :: index_dx
+        type(type_routing_states), intent(in) :: routing_states
+        real, dimension(size(routing_states%quantile)), intent(out) :: gamma_coefficient
+
+        integer :: i, j, ix, iy
+        real :: x, y
+        real :: x1, x2, x0, x3
+        real :: y1, y2, y0, y3
+        real :: t, u
+        real, dimension(4) :: px, py
+        real, dimension(4,4) :: f
+        real :: cubic_interp
+
+        !-------------------------------
+        ! Clip mode and spreading to bounds
+        !-------------------------------
+        x = max(routing_states%tabulated_delay(1), min(mode, routing_states%tabulated_delay(routing_states%nb_mode)))
+        y = max(routing_states%tabulated_spreading(1), &
+        &min(spreading, routing_states%tabulated_spreading(routing_states%nb_spreads)))
+
+        !-------------------------------
+        ! Find lower index for mode (x)
+        !-------------------------------
+        ix = 2
+        do i = 2,routing_states%nb_mode
+            if (x < routing_states%tabulated_delay(i)) then
+                ix = i - 1
+                exit
+            end if
+        end do
+        ix = max(2, min(ix, routing_states%nb_mode-2)) ! Ensure we have 4 points for bicubic
+        x0 = routing_states%tabulated_delay(ix-1)
+        x1 = routing_states%tabulated_delay(ix)
+        x2 = routing_states%tabulated_delay(ix+1)
+        x3 = routing_states%tabulated_delay(ix+2)
+
+        t = (x - x1) / (x2 - x1)
+
+        !-------------------------------
+        ! Find lower index for spreading (y)
+        !-------------------------------
+        iy = 2
+        do i = 2,routing_states%nb_spreads
+            if (y < routing_states%tabulated_spreading(i)) then
+                iy = i - 1
+                exit
+            end if
+        end do
+        iy = max(2, min(iy, routing_states%nb_spreads-2))
+        y0 = routing_states%tabulated_spreading(iy-1)
+        y1 = routing_states%tabulated_spreading(iy)
+        y2 = routing_states%tabulated_spreading(iy+1)
+        y3 = routing_states%tabulated_spreading(iy+2)
+
+        u = (y - y1) / (y2 - y1)
+
+        !-------------------------------
+        ! Extract 4x4 neighborhood
+        !-------------------------------
+        do i = 1, size(gamma_coefficient)
+            f(1,1) = routing_states%tabulated_routing_coef(i, ix-1, iy-1, index_dx)
+            f(2,1) = routing_states%tabulated_routing_coef(i, ix,   iy-1, index_dx)
+            f(3,1) = routing_states%tabulated_routing_coef(i, ix+1, iy-1, index_dx)
+            f(4,1) = routing_states%tabulated_routing_coef(i, ix+2, iy-1, index_dx)
+
+            f(1,2) = routing_states%tabulated_routing_coef(i, ix-1, iy, index_dx)
+            f(2,2) = routing_states%tabulated_routing_coef(i, ix,   iy, index_dx)
+            f(3,2) = routing_states%tabulated_routing_coef(i, ix+1, iy, index_dx)
+            f(4,2) = routing_states%tabulated_routing_coef(i, ix+2, iy, index_dx)
+
+            f(1,3) = routing_states%tabulated_routing_coef(i, ix-1, iy+1, index_dx)
+            f(2,3) = routing_states%tabulated_routing_coef(i, ix,   iy+1, index_dx)
+            f(3,3) = routing_states%tabulated_routing_coef(i, ix+1, iy+1, index_dx)
+            f(4,3) = routing_states%tabulated_routing_coef(i, ix+2, iy+1, index_dx)
+
+            f(1,4) = routing_states%tabulated_routing_coef(i, ix-1, iy+2, index_dx)
+            f(2,4) = routing_states%tabulated_routing_coef(i, ix,   iy+2, index_dx)
+            f(3,4) = routing_states%tabulated_routing_coef(i, ix+1, iy+2, index_dx)
+            f(4,4) = routing_states%tabulated_routing_coef(i, ix+2, iy+2, index_dx)
+
+            !-------------------------------
+            ! Bicubic interpolation in x then y
+            !-------------------------------
+            do j = 1,4
+                px(j) = cubic_hermite(f(1,j), f(2,j), f(3,j), f(4,j), t)
+            end do
+
+            gamma_coefficient(i) = cubic_hermite(px(1), px(2), px(3), px(4), u)
+        end do
+
+    end subroutine interpolated_routing_coefficients_bicubic
+    
+    !-------------------------------------------------
+    ! Cubic Hermite interpolation (C1 continuous)
+    !-------------------------------------------------
+    real function cubic_hermite(f0,f1,f2,f3,s)
+        implicit none
+        real, intent(in) :: f0,f1,f2,f3,s
+        real :: a0,a1,a2,a3
+        a0 = f1
+        a1 = 0.5*(f2 - f0)
+        a2 = f0 - 2.5*f1 + 2.0*f2 - 0.5*f3
+        a3 = -0.5*f0 + 1.5*f1 - 1.5*f2 + 0.5*f3
+        cubic_hermite = a0 + a1*s + a2*s*s + a3*s*s*s
+    end function cubic_hermite
     
     
     !>Store and spread in memory the delayed discharge

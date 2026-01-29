@@ -280,7 +280,8 @@ subroutine manual_gradient_test()
                 
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameterd,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=pdx,spreading=0.0)
+                &hydraulics_coefficient=pdx*1.0,spreading=0.0)
+                routing_parameterd%spreading=0.0 !!! Attention routing_parameter_self_initialisation n'accepte pas des valeurs de 0.0
                 
             elseif(ni.eq.2)then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
@@ -289,20 +290,21 @@ subroutine manual_gradient_test()
                 
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameterd,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=0.0,spreading=pdx)
+                &hydraulics_coefficient=0.0,spreading=pdx*1.0)
+                routing_parameterd%hydraulics_coefficient=0.0 !!! Attention routing_parameter_self_initialisation n'accepte pas des valeurs de 0.0
             endif
             
             ! run gamma accoring spatial parameters  param and spatial time-varying states 
             cost=0.
             !call tangeant
-            costd=1.
+            costd=1.0
             call ROUTING_HYDROGRAM_FORWARD_D( routing_setup, &
             &   routing_mesh, routing_parameter, routing_parameterd, inflows, &
             &   observations, routing_states, routing_results, cost, &
             &   costd)
             write(*,*) "New Cost = ",cost
             
-            WRITE(*,*) "Lineaire Tangent Cost_D = ", costd/pdx ! Ecriture de la variation du cout par le lineaire tangent :
+            WRITE(*,*) "Lineaire Tangent Cost_D = ", costd/pdx !/(pdx*1.0), costd*(pdx*1.0), costd ! Ecriture de la variation du cout par le lineaire tangent :
 
 
             WRITE(*,*) ""
@@ -360,7 +362,7 @@ subroutine manual_gradient_test()
                     write(*,*) "Delta COST - Cost_d = ", abs((COST_F(2)-COST_F(3))/2.0/pdx-costd/pdx)
                 endif
                  if (abs(costd/pdx-grad(ni)).gt.THRESHOLD_GRAD_VALIDATION) then
-                    write(*,*) "Cost_d - Adjoint_Gradient = ", abs(costd/pdx-grad(ni))
+                    write(*,*) "Cost_d - Adjoint_Gradient = ", abs(costd-grad(ni))
                 endif
                  if (abs((COST_F(2)-COST_F(3))/2.0/pdx-grad(ni)).gt.THRESHOLD_GRAD_VALIDATION) then
                     write(*,*) "Delta COST - Adjoint_Gradient = ", abs((COST_F(2)-COST_F(3))/2.0/pdx-grad(ni))
