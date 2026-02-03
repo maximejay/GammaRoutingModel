@@ -12,11 +12,13 @@ import scipy
 # Smash reference model structure gr-a
 setup_cance, mesh_cance = smash.factory.load_dataset("Cance")
 setup_cance["routing_module"] = "zero"
+setup_cance["return_opt_grad"] = "qe"
 smash_model = smash.Model(setup_cance, mesh_cance)
 smash_model.forward_run()
 
 
-smash_model.response.qt.shape
+smash_model.response.qac.shape
+
 setup_cance, mesh_cance = smash.factory.load_dataset("Cance")
 smash_optimize = smash.Model(setup_cance, mesh_cance)
 optimize_options = {
@@ -69,7 +71,7 @@ model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
     spreading_discretization_step=0.1,
     ponderation_regul=0.0,
     velocity_computation="mm",
-    varying_spread=0,
+    varying_spread=1,
     spreading_uniform=1,
     criteria="nse",
     ponderation_cost=10000.0,

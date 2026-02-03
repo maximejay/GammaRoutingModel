@@ -212,8 +212,12 @@ def ConfigureGammaWithSmash(smash_model, dt=None, **kwargs):
     # **kwargs: any arguments for gamma.routing_setup
 
     if smash_model.setup.routing_module != "zero":
-        print("Warnings: setting smash_model.setup.routing_module to zero")
+        print("Warnings: you must set smash_model.setup.routing_module to zero")
         smash_model.setup.structure = "zero"
+
+    if smash_model.setup.return_opt_grad == "none":
+        print("Warnings: you must set smash_model.setup.return_opt_grad to qe")
+        smash_model.setup.return_opt_grad = "qe"
 
     # initialise the gamma model object
     model_gamma = gamma.Model()
@@ -265,7 +269,7 @@ def GetGammaInflowFromSmash(smash_model, dt=None):
 
     # interface inflows
     # inflows_smash = smash_model.output.qsim_domain.copy()
-    inflows_smash = smash_model.response.qt.copy()
+    inflows_smash = smash_model.response.qac.copy()
     # inflows_domain = np.zeros(shape=(smash_model.setup.ntime_step, nb_nodes))
     inflows_domain = inflows_smash.transpose()
 
@@ -805,11 +809,11 @@ def _get_smash_gradient(model, control_smash):
     # X0 = parameters.control.x  # X est normalisé ici
     # setattr(parameters.control, "x", parameters.control.x.copy())
 
-    parameters_b0 = smash.core.simulation.optimize._tools._get_parameters_b0(
+    parameters_q_b = smash.core.simulation.optimize._tools._get_parameters_q_b(
         model, parameters, wrap_options, wrap_returns
     )
 
-    grad = parameters_b0.control.x.copy()
+    grad = parameters_q_b.control.x.copy()
 
     return grad
 
@@ -892,7 +896,7 @@ def ComputeModelGradients(
         )
 
     # print(
-    #     "</> call _get_smash_gradient: Gradients of output.response.qt with respect to varying inputs PARAMETERS and STATES"
+    #     "</> call _get_smash_gradient: Gradients of output.response.qac with respect to varying inputs PARAMETERS and STATES"
     # )
 
     control_smash = copy.deepcopy(control_vector)
