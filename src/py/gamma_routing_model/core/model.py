@@ -23,6 +23,7 @@ from gamma_routing_model.libfgamma import (
     Mod_Gamma_Routing_Mesh,
     Mod_Gamma_Routing_Parameters,
     Mod_Gamma_Routing_States,
+    Mod_Gamma_Routing_Memory,
     Mod_Gamma_Routing_Results,
     Mod_Gamma_Interface,
 )
@@ -75,6 +76,7 @@ class Model(object):
         self._routing_mesh = Mod_Gamma_Routing_Mesh.type_routing_mesh()
         self._routing_parameters = Mod_Gamma_Routing_Parameters.type_routing_parameter()
         self._routing_states = Mod_Gamma_Routing_States.type_routing_states()
+        self._routing_memory = Mod_Gamma_Routing_Memory.type_routing_memory()
         self._routing_results = Mod_Gamma_Routing_Results.type_routing_results()
 
         # ~ except:
@@ -118,8 +120,16 @@ class Model(object):
         self._routing_states = value
 
     @property
-    def routing_parameters(self):
+    def routing_memory(self):
 
+        return self._routing_memory
+
+    @routing_memory.setter
+    def routing_memory(self, value):
+        self._routing_memory = value
+
+    @property
+    def routing_parameters(self):
         return self._routing_parameters
 
     @routing_parameters.setter
@@ -205,6 +215,7 @@ class Model(object):
     def routing_states_init(self):
 
         self.routing_states = Mod_Gamma_Routing_States.type_routing_states()
+        self.routing_memory = Mod_Gamma_Routing_Memory.type_routing_memory()
 
         Mod_Gamma_Routing_States.routing_state_self_initialisation(
             self.routing_setup,
@@ -214,12 +225,15 @@ class Model(object):
         )
 
         Mod_Gamma_Interface.routing_gamma_precomputation(
-            self.routing_setup, self.routing_mesh, self.routing_states
+            self.routing_setup,
+            self.routing_mesh,
+            self.routing_states,
+            self.routing_memory,
         )
 
-    def routing_states_reset(self):
+    def routing_memory_reset(self):
 
-        Mod_Gamma_Routing_States.routing_states_reset(self.routing_states)
+        Mod_Gamma_Routing_Memory.routing_memory_reset(self.routing_memory)
 
     def routing_results_init(self):
 
@@ -229,7 +243,7 @@ class Model(object):
             self.routing_setup, self.routing_mesh, self.routing_results
         )
 
-    def run(self, inflows, states_init=True, states_reset=True):
+    def run(self, inflows, states_init=True, memory_reset=True):
 
         # first check if we need to force states_init
         if self.routing_setup.varying_spread == 1:
@@ -262,8 +276,8 @@ class Model(object):
             self.routing_states_init()
 
         # reset discharges states to zeros
-        if states_reset:
-            self.routing_states_reset()
+        if memory_reset:
+            self.routing_memory_reset()
 
         # initialise routing_results
         self.routing_results_init()
@@ -276,10 +290,11 @@ class Model(object):
             self.routing_parameters,
             inflows,
             self.routing_states,
+            self.routing_memory,
             self.routing_results,
         )
 
-    def calibration(self, inflows, observations, states_init=True, states_reset=True):
+    def calibration(self, inflows, observations, states_init=True, memory_reset=True):
 
         # first initialise states
         # initialise states
@@ -287,8 +302,8 @@ class Model(object):
             self.routing_states_init()
 
         # reset discharges states to zeros
-        if states_reset:
-            self.routing_states_reset()
+        if memory_reset:
+            self.routing_memory_reset()
 
         # initialise routing_results
         self.routing_results_init()
@@ -303,6 +318,7 @@ class Model(object):
             inflows,
             observations,
             self.routing_states,
+            self.routing_memory,
             self.routing_results,
         )
 
@@ -341,6 +357,9 @@ class Model(object):
         )
         copy.routing_states = Mod_Gamma_Routing_States.routing_states_copy(
             self.routing_states
+        )
+        copy.routing_memory = Mod_Gamma_Routing_Memory.routing_memory_copy(
+            self.routing_memory
         )
         copy.routing_results = Mod_Gamma_Routing_Results.routing_results_copy(
             self.routing_results

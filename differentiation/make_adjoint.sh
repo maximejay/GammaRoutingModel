@@ -8,7 +8,7 @@ mkdir backward/
 mkdir forward/
 
 #Copy the required code for diferentiation
-cp $SOURCES/mod_routing_mesh.f90  $SOURCES/mod_routing_setup.f90 $SOURCES/mod_routing_parameters.f90 $SOURCES/mod_routing_states.f90 $SOURCES/mod_routing_results.f90 $SOURCES/mod_gamma_routing.f90 $SOURCES/run_forward.f90 $SOURCES/cost_function.f90 .
+cp $SOURCES/mod_routing_mesh.f90  $SOURCES/mod_routing_setup.f90 $SOURCES/mod_routing_parameters.f90 $SOURCES/mod_routing_states.f90 $SOURCES/mod_routing_memory.f90 $SOURCES/mod_routing_results.f90 $SOURCES/mod_gamma_routing.f90 $SOURCES/run_forward.f90 $SOURCES/cost_function.f90 .
 
 #$SOURCES/mod_gamma_function.f90
 
@@ -24,6 +24,7 @@ sed -i "s/MOD\_GAMMA\_ROUTING\_MESH\_DIFF/MOD\_GAMMA\_ROUTING\_MESH\_DIFF\_D/g" 
 sed -i "s/MOD\_GAMMA\_ROUTING\_PARAMETERS\_DIFF/MOD\_GAMMA\_ROUTING\_PARAMETERS\_DIFF\_D/g" ./forward/TLM_d.f90
 #sed -i "s/MODULE\_GAMMA\_FUNCTION\_DIFF/MODULE\_GAMMA\_FUNCTIONS\_DIFF\_D/g" ./forward/TLM_d.f90
 sed -i "s/MOD\_GAMMA\_ROUTING\_STATES\_DIFF/MOD\_GAMMA\_ROUTING\_STATES\_DIFF\_D/g" ./forward/TLM_d.f90
+sed -i "s/MOD\_GAMMA\_ROUTING\_MEMORY\_DIFF/MOD\_GAMMA\_ROUTING\_MEMORY\_DIFF\_D/g" ./forward/TLM_d.f90
 sed -i "s/MOD\_GAMMA\_ROUTING\_DIFF/MOD\_GAMMA\_ROUTING\_DIFF\_D/g" ./forward/TLM_d.f90
 sed -i "s/ROUTING\_HYDROGRAM\_FORWARD\_NODIFF/ROUTING\_HYDROGRAM\_FORWARD\_NODIFF\_D/g" ./forward/TLM_d.f90
 sed -i "s/COST\_FUNCTION\_NODIFF/COST\_FUNCTION\_NODIFF\_D/g" ./forward/TLM_d.f90
@@ -42,7 +43,7 @@ cp ./forward/TLM_d.f90 $SOURCES/ATLM_d.f90
 
 
 #remove copies of sources
-rm mod_routing_mesh.f90 mod_routing_setup.f90 mod_routing_parameters.f90 mod_routing_states.f90 mod_routing_results.f90 mod_gamma_routing.f90 run_forward.f90 cost_function.f90
+rm mod_routing_mesh.f90 mod_routing_setup.f90 mod_routing_parameters.f90 mod_routing_states.f90 mod_routing_memory.f90 mod_routing_results.f90 mod_gamma_routing.f90 run_forward.f90 cost_function.f90
 
 #Final message
 echo "Differentiation done !"

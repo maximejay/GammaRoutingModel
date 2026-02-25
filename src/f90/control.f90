@@ -17,7 +17,7 @@
 !>@states : spatial and time-dependent variables
 !>@param : spatial parameters
 subroutine control(routing_setup,routing_mesh,routing_parameter,&
-&inflows,observations,routing_states,routing_results)
+&inflows,observations,routing_states,routing_memory,routing_results)
     
     ! Notes
     ! -----
@@ -41,6 +41,7 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
     use mod_gamma_routing_mesh
     use mod_gamma_routing_parameters
     use mod_gamma_routing_states
+    use mod_gamma_routing_memory
     use mod_gamma_routing_results
     use mod_gamma_routing
     use mod_gamma_interface
@@ -53,6 +54,7 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
     real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(inout) :: inflows
     real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(inout) :: observations
     type(type_routing_states), intent(inout) :: routing_states
+    type(type_routing_memory), intent(inout) :: routing_memory
     type(type_routing_results), intent(inout) :: routing_results
     !real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(inout) :: qnetwork
     !real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(inout) :: vnetwork
@@ -180,7 +182,7 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
         
         call routing_states_reset(routing_states)
         call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,&
-        &routing_states,routing_results,cost)
+        &routing_states,routing_memory,routing_results,cost)
         
         
         write(*,*) "At starting point, initial cost=",cost
@@ -212,10 +214,11 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
                 cost=0.
                 costb=1.
                 call routing_states_reset(routing_states)
+                call routing_memory_reset(routing_memory)
                 
                 call routing_hydrogram_forward_b(routing_setup, &
                 &   routing_mesh, routing_parameter, routing_parameterb, inflows, &
-                &   observations, routing_states, routing_results, cost, &
+                &   observations, routing_states, routing_memory, routing_results, cost, &
                 &   costb)
                 
                 !store all gradients
@@ -304,8 +307,9 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
     
     
     call routing_states_reset(routing_states)
+    call routing_memory_reset(routing_memory)
     call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,&
-    &routing_states,routing_results,cost)
+    &routing_states,routing_memory,routing_results,cost)
     
     
     write(101,*) cost,&

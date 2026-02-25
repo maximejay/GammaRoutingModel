@@ -91,11 +91,11 @@ cp $src_f90wrap/kind_map .
 #all source files being compiled: order matters
 cfiles="adStack.c"
 f77files="lbfgsb.f adBuffer.f"
-f90files="mod_routing_setup.f90 mod_routing_mesh.f90 mod_routing_parameters.f90 mod_routing_states.f90 mod_routing_results.f90 mod_gamma_function.f90 mod_gamma_routing.f90 mod_gamma_sorting.f90 mod_gamma_interface.f90 generic_subroutine_gamma_routing.f90 generic_subroutine_gamma_function.f90 run_forward.f90 AADJ_b.f90 ATLM_d.f90 control.f90 cost_function.f90 gradient_test.f90"
+f90files="mod_routing_setup.f90 mod_routing_mesh.f90 mod_routing_parameters.f90 mod_routing_states.f90 mod_routing_memory.f90 mod_routing_results.f90 mod_gamma_function.f90 mod_gamma_routing.f90 mod_gamma_sorting.f90 mod_gamma_interface.f90 generic_subroutine_gamma_routing.f90 generic_subroutine_gamma_function.f90 run_forward.f90 AADJ_b.f90 ATLM_d.f90 control.f90 cost_function.f90 gradient_test.f90"
 f90mainprog="routing.f90"
 
 #module fortran file that going to be wrapped with python: order matters
-f90files_wrap="mod_routing_setup.f90 mod_routing_mesh.f90 mod_routing_parameters.f90 mod_routing_states.f90 mod_routing_results.f90 mod_gamma_interface.f90"
+f90files_wrap="mod_routing_setup.f90 mod_routing_mesh.f90 mod_routing_parameters.f90 mod_routing_states.f90 mod_routing_memory.f90 mod_routing_results.f90 mod_gamma_interface.f90"
 
 
 #compiler flags
@@ -139,7 +139,7 @@ if [ $SHAREDLIB -eq 1 ] ; then
     FFLAGS="-I$(pwd)" FC=gfortran f2py -c --f90flags="$f_flags" -m "_${wrapped_lib_name}" $f90wrapped_files *.o
     
     #create the __init__.py module file
-    echo "from .libfgamma import Mod_Gamma_Interface, Mod_Gamma_Routing_Setup, Mod_Gamma_Routing_Mesh, Mod_Gamma_Routing_Parameters, Mod_Gamma_Routing_Results, Mod_Gamma_Routing_States" > ${wrapped_lib_name}/__init__.py
+    echo "from .libfgamma import Mod_Gamma_Interface, Mod_Gamma_Routing_Setup, Mod_Gamma_Routing_Mesh, Mod_Gamma_Routing_Parameters, Mod_Gamma_Routing_Results, Mod_Gamma_Routing_States, Mod_Gamma_Routing_Memory" > ${wrapped_lib_name}/__init__.py
 
     #move all component inside the module directories and move it inside the source module
     mv _${wrapped_lib_name}* ${wrapped_lib_name}/.

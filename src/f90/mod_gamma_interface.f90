@@ -19,6 +19,7 @@ module mod_gamma_interface
     use mod_gamma_routing_mesh
     use mod_gamma_routing_parameters
     use mod_gamma_routing_states
+    use mod_gamma_routing_memory
     use mod_gamma_routing_results
     use mod_gamma_routing
     use mod_gamma_function
@@ -132,7 +133,7 @@ module mod_gamma_interface
     end subroutine auto_compute_boundaries
     
     
-    subroutine routing_gamma_change_parameters(routing_parameter,routing_states,routing_setup,routing_mesh,&
+    subroutine routing_gamma_change_parameters(routing_parameter,routing_states,routing_memory,routing_setup,routing_mesh,&
     &hydraulics_coefficient,spreading)
         
         ! Notes
@@ -145,7 +146,8 @@ module mod_gamma_interface
         ! Parameters                              Description
         ! =============================           ===================================
         ! ``routing_parameter``                   routing_parameter Derived Type (inout)
-        ! ``routing_states``                      Routing_mesh Derived Type (inout)
+        ! ``routing_states``                      routing_states Derived Type (inout)
+        ! ``routing_memory``                      routing_memory Derived Type (inout)
         ! ``routing_setup``                       routing_setup Derived Type (in)
         ! ``routing_mesh``                        Routing_mesh Derived Type (in)
         ! ``hydraulics_coefficient``              Hydraulic coefficient, real (in)
@@ -157,6 +159,7 @@ module mod_gamma_interface
         
         type(type_routing_parameter), intent(inout) :: routing_parameter
         type(type_routing_states), intent(inout) :: routing_states
+        type(type_routing_memory), intent(inout) :: routing_memory
         type(type_routing_setup), intent(in) :: routing_setup
         type(type_routing_mesh), intent(in) :: routing_mesh
         real,optional,intent(in) :: hydraulics_coefficient
@@ -180,13 +183,14 @@ module mod_gamma_interface
             
             !recompute and reallocate some variables in routing states
             call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
+            call routing_memory_self_initialisation(routing_mesh, routing_states, routing_memory)
             
         end if
         
     end subroutine routing_gamma_change_parameters
     
     
-    subroutine routing_gamma_precomputation(routing_setup,routing_mesh,routing_states)
+    subroutine routing_gamma_precomputation(routing_setup,routing_mesh,routing_states,routing_memory)
         
         ! Notes
         ! -----
@@ -200,6 +204,7 @@ module mod_gamma_interface
         ! ``routing_setup``                       routing_setup Derived Type (in)
         ! ``routing_mesh``                        Routing_mesh Derived Type (in)
         ! ``routing_states``                      Routing_mesh Derived Type (inout)
+        ! ``routing_memory``                      Rrouting_memory Derived Type (inout)
         ! =============================           ==================================
         
         use mod_gamma_function
@@ -209,13 +214,15 @@ module mod_gamma_interface
         type(type_routing_setup), intent(in) :: routing_setup
         type(type_routing_mesh), intent(in) :: routing_mesh
         type(type_routing_states), intent(inout) :: routing_states
+        type(type_routing_memory), intent(inout) :: routing_memory
         
         call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
+        call routing_memory_self_initialisation(routing_mesh, routing_states, routing_memory)
         
     end subroutine routing_gamma_precomputation
     
     
-    subroutine routing_states_update(routing_parameter,routing_setup,routing_mesh,routing_states)
+    subroutine routing_states_update(routing_parameter,routing_setup,routing_mesh,routing_states, routing_memory)
         
         ! Notes
         ! -----
@@ -238,9 +245,11 @@ module mod_gamma_interface
         type(type_routing_setup), intent(in) :: routing_setup
         type(type_routing_mesh), intent(in) :: routing_mesh
         type(type_routing_states), intent(inout) :: routing_states
+        type(type_routing_memory), intent(inout) :: routing_memory
         
         call routing_state_self_initialisation(routing_setup,routing_mesh,routing_parameter,routing_states)
         call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
+        call routing_memory_self_initialisation(routing_mesh, routing_states, routing_memory)
         
     end subroutine routing_states_update
     
@@ -290,7 +299,7 @@ module mod_gamma_interface
     end subroutine unnormalize_routing_parameters
 
     subroutine routing_gamma_run(routing_setup,routing_mesh,routing_parameter,&
-    &inflows,routing_states,routing_results)
+    &inflows,routing_states, routing_memory,routing_results)
         
         ! Notes
         ! -----
@@ -316,6 +325,7 @@ module mod_gamma_interface
         type(type_routing_parameter), intent(inout) :: routing_parameter
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: inflows
         type(type_routing_states), intent(inout) :: routing_states
+        type(type_routing_memory), intent(inout) :: routing_memory
         type(type_routing_results), intent(inout) :: routing_results
         !real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(inout) :: qnetwork
         !real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(inout) :: vnetwork
@@ -323,7 +333,7 @@ module mod_gamma_interface
         call normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
 
         call routing_hydrogram(routing_setup,routing_mesh,routing_parameter,&
-        &inflows,routing_states,routing_results)
+        &inflows,routing_states, routing_memory, routing_results)
         
         call unnormalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
         
@@ -374,7 +384,7 @@ module mod_gamma_interface
     
     
     subroutine routing_gamma_forward_adjoint_b(routing_setup,routing_mesh,routing_parameter,&
-    &inflows,observations,routing_states,routing_results,gradients)
+    &inflows,observations,routing_states, routing_memory,routing_results,gradients)
         implicit none
         
         type(type_routing_setup), intent(in) :: routing_setup
@@ -383,6 +393,7 @@ module mod_gamma_interface
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: inflows
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: observations
         type(type_routing_states), intent(inout) :: routing_states
+        type(type_routing_memory), intent(inout) :: routing_memory
         type(type_routing_results), intent(inout) :: routing_results
         real,dimension(2,routing_mesh%nb_nodes),intent(inout) :: gradients
         
@@ -415,7 +426,7 @@ module mod_gamma_interface
     
     
     subroutine routing_gamma_forward_adjoint_b0(routing_setup,routing_mesh,routing_parameter,&
-    &inflows,observations,routing_states,routing_results,gradients)
+    &inflows,observations,routing_states,routing_memory,routing_results,gradients)
         implicit none
         
         type(type_routing_setup), intent(in) :: routing_setup
@@ -424,6 +435,7 @@ module mod_gamma_interface
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: inflows
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: observations
         type(type_routing_states), intent(inout) :: routing_states
+        type(type_routing_memory), intent(inout) :: routing_memory
         type(type_routing_results), intent(inout) :: routing_results
         real,dimension(routing_setup%npdt,routing_mesh%nb_nodes),intent(inout) :: gradients
         

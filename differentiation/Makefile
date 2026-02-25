@@ -3,7 +3,7 @@
 #invoke this script by the commande : make all
 
 #This script differentiate the following subroutines :
-FILES_FTR= mod_routing_mesh.f90 mod_routing_setup.f90 mod_routing_parameters.f90 mod_routing_states.f90 mod_routing_results.f90 mod_gamma_routing.f90 cost_function.f90 run_forward.f90
+FILES_FTR= mod_routing_mesh.f90 mod_routing_setup.f90 mod_routing_parameters.f90 mod_routing_states.f90 mod_routing_memory.f90 mod_routing_results.f90 mod_gamma_routing.f90 cost_function.f90 run_forward.f90
 #mod_gamma_function.f90
 #Option -fixinterface solves the following warning : PROBLEMATIC INTERACTION WITH INDEPENDENT AND DEPENDENT PARAMETER SETS: https://www-sop.inria.fr/tropics/tapenade/faq.html#validation
 

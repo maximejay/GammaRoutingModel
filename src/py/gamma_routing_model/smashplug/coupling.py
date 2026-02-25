@@ -393,6 +393,20 @@ def FitDataToNewDt(data, dt, new_dt):
     return new_data
 
 
+def CopyGammaDischargesToSmashResponse(model_smash, model_gamma):
+    # copy q in smash
+    gamma_gauge_pos = model_gamma.routing_mesh.controlled_nodes[
+        np.where(model_gamma.routing_mesh.controlled_nodes > 0)
+    ]
+
+    for i in range(len(gamma_gauge_pos)):
+        qg = model_gamma.routing_results.discharges[
+            :, model_gamma.routing_mesh.controlled_nodes[i] - 1
+        ]
+        qg_3600 = gamma.smashplug.FitDataToNewDt(qg, 900.0, 3600.0)
+        model_smash.response.q[i, :] = qg_3600
+
+
 def GammaVectorsToSmashGrid(vector, smash_model, model_gamma):
     # Convert vector from gamma model to smash grid
     # vector[nb_nodes]
@@ -1047,7 +1061,7 @@ def ComputeModelGradients(
     return OutputsGradients
 
 
-def RunCoupledModel(smash_model, model_gamma):
+def RunCoupledModel(smash_model, model_gamma, memory_reset=1):
     # Run the direct problem of the coupled model Smash and Gamma
 
     print("Run of the Smash model")
@@ -1062,7 +1076,7 @@ def RunCoupledModel(smash_model, model_gamma):
 
     # run the model
     print("Run the Gamma Routing model")
-    model_gamma.run(interpolated_inflows, states_init=0)
+    model_gamma.run(interpolated_inflows, states_init=0, memory_reset=memory_reset)
 
 
 def ComputeCostAndGradients(

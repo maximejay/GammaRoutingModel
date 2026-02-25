@@ -267,19 +267,99 @@ END MODULE MOD_GAMMA_ROUTING_STATES_DIFF
 !~ You should have received a copy of the GNU General Public License along with GammaRouting. If not, see <https://www.gnu.org/li
 !censes/>
 !~ Contact: maxime.jay.allemand@hydris-hydrologie.fr
+MODULE MOD_GAMMA_ROUTING_MEMORY_DIFF
+  IMPLICIT NONE
+!state of the system at t0
+!remainder for the routing scheme
+  TYPE TYPE_ROUTING_MEMORY
+      REAL, DIMENSION(:, :), ALLOCATABLE :: states
+      REAL, DIMENSION(:, :), ALLOCATABLE :: remainder
+  END TYPE TYPE_ROUTING_MEMORY
+
+CONTAINS
+  SUBROUTINE ROUTING_MEMORY_SELF_INITIALISATION(routing_mesh, &
+&   routing_states, routing_memory)
+! Notes
+! -----
+! **routing_state_self_initialisation(routing_mesh,routing_states,routing_memory)** :
+!
+! - Initialise the routing_memory derived type, allocate all components and precompute some variables
+!        
+! =============================           ===================================
+! Parameters                              Description
+! =============================           ===================================
+! ``routing_setup``                       routing_setup Derived Type (in)
+! ``routing_mesh``                        Routing_mesh Derived Type (in)
+! ``routing_parameter``                   routing_parameter Derived Type (in)
+! ``routing_states``                      routing_states Derived Type (inout)
+! ``routing_memory``                      routing_memory Derived Type (inout)
+! =============================           ===================================
+    USE MOD_GAMMA_ROUTING_MESH
+    USE MOD_GAMMA_ROUTING_STATES_DIFF
+    IMPLICIT NONE
+    TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
+    TYPE(TYPE_ROUTING_STATES), INTENT(IN) :: routing_states
+    TYPE(TYPE_ROUTING_MEMORY), INTENT(INOUT) :: routing_memory
+    INTRINSIC ALLOCATED
+    INTRINSIC MAXVAL
+    INTRINSIC INT
+    IF (ALLOCATED(routing_memory%remainder)) THEN
+      DEALLOCATE(routing_memory%remainder)
+    END IF
+    IF (ALLOCATED(routing_memory%states)) THEN
+      DEALLOCATE(routing_memory%states)
+    END IF
+    ALLOCATE(routing_memory%remainder(INT(MAXVAL(routing_states%&
+&   window_length)), routing_mesh%nb_nodes))
+    ALLOCATE(routing_memory%states(INT(MAXVAL(routing_states%&
+&   window_length)), routing_mesh%nb_nodes))
+!default value
+    routing_memory%remainder = 0.
+    routing_memory%states = 0.
+  END SUBROUTINE ROUTING_MEMORY_SELF_INITIALISATION
+
+  SUBROUTINE ROUTING_MEMORY_RESET(routing_memory)
+    IMPLICIT NONE
+    TYPE(TYPE_ROUTING_MEMORY), INTENT(INOUT) :: routing_memory
+!default value
+    routing_memory%remainder = 0.
+    routing_memory%states = 0.
+  END SUBROUTINE ROUTING_MEMORY_RESET
+
+  SUBROUTINE ROUTING_MEMORY_CLEAR(routing_memory)
+    IMPLICIT NONE
+    TYPE(TYPE_ROUTING_MEMORY), INTENT(INOUT) :: routing_memory
+    TYPE(TYPE_ROUTING_MEMORY) :: routing_memory_new
+    routing_memory = routing_memory_new
+  END SUBROUTINE ROUTING_MEMORY_CLEAR
+
+  SUBROUTINE ROUTING_MEMORY_COPY(routing_memory, object_copy)
+    IMPLICIT NONE
+    TYPE(TYPE_ROUTING_MEMORY), INTENT(IN) :: routing_memory
+    TYPE(TYPE_ROUTING_MEMORY), INTENT(OUT) :: object_copy
+    object_copy = routing_memory
+  END SUBROUTINE ROUTING_MEMORY_COPY
+
+END MODULE MOD_GAMMA_ROUTING_MEMORY_DIFF
+
+!~ GammaRouting is a conceptual flow propagation model
+!~ Copyright 2022, 2023 Hydris-hydrologie, Maxime Jay-Allemand
+!~ This file is part of GammaRouting.
+!~ GammaRouting is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as p
+!ublished by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+!~ GammaRouting is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+!~ You should have received a copy of the GNU General Public License along with GammaRouting. If not, see <https://www.gnu.org/li
+!censes/>
+!~ Contact: maxime.jay.allemand@hydris-hydrologie.fr
 MODULE MOD_GAMMA_ROUTING_DIFF
   USE MOD_GAMMA_ROUTING_SETUP
   USE MOD_GAMMA_ROUTING_MESH
   USE MOD_GAMMA_ROUTING_PARAMETERS_DIFF
   USE MOD_GAMMA_ROUTING_STATES_DIFF
+  USE MOD_GAMMA_ROUTING_MEMORY_DIFF
   USE MOD_GAMMA_ROUTING_RESULTS
   IMPLICIT NONE
-! Creation of a local type useful for the routing model (memory) ! this is a trick for the differentiation of the model. This typ
-!e need to be allocated before use: type(routing_memory), dimension(nb_nodes) : routingmem
-  TYPE ROUTING_MEMORY
-      REAL :: states
-      REAL :: remainder
-  END TYPE ROUTING_MEMORY
 
 CONTAINS
 !  Differentiation of x_unn in reverse (adjoint) mode (with options fixinterface):
@@ -316,7 +396,8 @@ CONTAINS
   END FUNCTION X_UNN
 
   SUBROUTINE ROUTING_HYDROGRAM(routing_setup, routing_mesh, &
-&   routing_parameter, inflows, routing_states, routing_results)
+&   routing_parameter, inflows, routing_states, routing_memory, &
+&   routing_results)
     IMPLICIT NONE
     TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
@@ -324,6 +405,7 @@ CONTAINS
     REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(&
 &   IN) :: inflows
     TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
+    TYPE(TYPE_ROUTING_MEMORY), INTENT(INOUT) :: routing_memory
     TYPE(TYPE_ROUTING_RESULTS), INTENT(INOUT) :: routing_results
     REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes) :: &
 &   qnetwork
@@ -334,39 +416,41 @@ CONTAINS
     REAL, DIMENSION(routing_mesh%nb_nodes) :: velocities
     REAL, DIMENSION(routing_mesh%nb_nodes) :: inflow
     INTRINSIC SIZE
-    TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-&   routing_mesh%nb_nodes) :: routingmem
-    routingmem(:, :)%states = routing_states%states
-    routingmem(:, :)%remainder = routing_states%remainder
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ) :: remainder
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ) :: states
+    remainder = routing_memory%remainder
+    states = routing_memory%states
     DO i=1,routing_setup%npdt
       velocities = 0.
       qmesh = 0.
       inflow = inflows(i, 1:routing_mesh%nb_nodes)
       CALL ROUTING_FLOW(routing_setup, routing_mesh, routing_parameter, &
-&                 inflow, routing_states, routingmem, qmesh, velocities)
+&                 inflow, routing_states, remainder, states, qmesh, &
+&                 velocities)
       qnetwork(i, :) = qmesh
       vnetwork(i, :) = velocities
     END DO
-    routing_states%states = routingmem(:, :)%states
-    routing_states%remainder = routingmem(:, :)%remainder
+    routing_memory%remainder = remainder
+    routing_memory%states = states
 !storing results
     routing_results%discharges = qnetwork
     routing_results%velocities = vnetwork
   END SUBROUTINE ROUTING_HYDROGRAM
 
 !  Differentiation of routing_flow in reverse (adjoint) mode (with options fixinterface):
-!   gradient     of useful results: routingmem.states routingmem.remainder
-!                *(routing_parameter.hydraulics_coefficient) *(routing_parameter.spreading)
+!   gradient     of useful results: *(routing_parameter.hydraulics_coefficient)
+!                *(routing_parameter.spreading) remainder states
 !                qnetwork
-!   with respect to varying inputs: routingmem.states routingmem.remainder
-!                inflows *(routing_parameter.hydraulics_coefficient)
-!                *(routing_parameter.spreading)
+!   with respect to varying inputs: inflows *(routing_parameter.hydraulics_coefficient)
+!                *(routing_parameter.spreading) remainder states
 !   Plus diff mem management of: routing_parameter.hydraulics_coefficient:in
 !                routing_parameter.spreading:in
   SUBROUTINE ROUTING_FLOW_B(routing_setup, routing_mesh, &
 &   routing_parameter, routing_parameterb, inflows, inflowsb, &
-&   routing_states, routingmem, routingmemb, qnetwork, qnetworkb, &
-&   velocities)
+&   routing_states, remainder, remainderb, states, statesb, qnetwork, &
+&   qnetworkb, velocities)
     IMPLICIT NONE
     TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
@@ -376,10 +460,14 @@ CONTAINS
     REAL, DIMENSION(routing_mesh%nb_nodes) :: inflowsb
     TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
     INTRINSIC SIZE
-    TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-&   routing_mesh%nb_nodes), INTENT(INOUT) :: routingmem
-    TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-&   routing_mesh%nb_nodes), INTENT(INOUT) :: routingmemb
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: remainder
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: remainderb
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: states
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: statesb
     REAL, DIMENSION(routing_mesh%nb_nodes) :: qnetwork
     REAL, DIMENSION(routing_mesh%nb_nodes) :: qnetworkb
     REAL, DIMENSION(routing_mesh%nb_nodes), INTENT(OUT) :: velocities
@@ -402,8 +490,8 @@ CONTAINS
       current_node = routing_mesh%upstream_to_downstream_nodes(i)
 !upstream routed discharges + inflow (m3/s)
       CALL PUSHREAL4(qcell)
-      CALL GET_DISCHARGES(routing_mesh, routing_states, routingmem, &
-&                   current_node, inflows(current_node), qcell)
+      CALL GET_DISCHARGES(routing_mesh, routing_states, remainder, &
+&                   states, current_node, inflows(current_node), qcell)
 !qnetwork is always in m3 => output discharges
 !write(*,*) i,current_node,qcell
       CALL PUSHREAL4(hydro_param_unn)
@@ -447,19 +535,20 @@ CONTAINS
 !    write(*,*) velocity,mode,gamma_coefficient 
 !endif
       CALL LOCALMEMSTORAGE(routing_mesh, routing_states, &
-&                    gamma_coefficient, qcell, current_node, routingmem)
+&                    gamma_coefficient, qcell, current_node, remainder, &
+&                    states)
       CALL MEMMASSTRANSFERT(routing_states, routing_setup, routing_mesh&
-&                     , current_node, routingmem)
+&                     , current_node, remainder, states)
     END DO
     inflowsb = 0.0
     DO i=routing_mesh%nb_nodes,1,-1
       current_node = routing_mesh%upstream_to_downstream_nodes(i)
       CALL MEMMASSTRANSFERT_B(routing_states, routing_setup, &
-&                       routing_mesh, current_node, routingmem, &
-&                       routingmemb)
+&                       routing_mesh, current_node, remainder, &
+&                       remainderb, states, statesb)
       CALL LOCALMEMSTORAGE_B(routing_mesh, routing_states, &
 &                      gamma_coefficient, gamma_coefficientb, qcell, &
-&                      qcellb, current_node, routingmem, routingmemb)
+&                      qcellb, current_node, remainder, states, statesb)
       CALL POPCONTROL1B(branch)
       IF (branch .EQ. 0) THEN
         index_varying_dx = routing_mesh%index_varying_dx(current_node)
@@ -507,14 +596,15 @@ CONTAINS
       qcellb = qcellb + qnetworkb(current_node)
       qnetworkb(current_node) = 0.0
       CALL POPREAL4(qcell)
-      CALL GET_DISCHARGES_B(routing_mesh, routing_states, routingmem, &
-&                     routingmemb, current_node, inflows(current_node), &
-&                     inflowsb(current_node), qcell, qcellb)
+      CALL GET_DISCHARGES_B(routing_mesh, routing_states, remainder, &
+&                     states, statesb, current_node, inflows(&
+&                     current_node), inflowsb(current_node), qcell, &
+&                     qcellb)
     END DO
   END SUBROUTINE ROUTING_FLOW_B
 
   SUBROUTINE ROUTING_FLOW(routing_setup, routing_mesh, routing_parameter&
-&   , inflows, routing_states, routingmem, qnetwork, velocities)
+&   , inflows, routing_states, remainder, states, qnetwork, velocities)
     IMPLICIT NONE
     TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
@@ -522,8 +612,10 @@ CONTAINS
     REAL, DIMENSION(routing_mesh%nb_nodes), INTENT(IN) :: inflows
     TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
     INTRINSIC SIZE
-    TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-&   routing_mesh%nb_nodes), INTENT(INOUT) :: routingmem
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: remainder
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: states
     REAL, DIMENSION(routing_mesh%nb_nodes), INTENT(OUT) :: qnetwork
     REAL, DIMENSION(routing_mesh%nb_nodes), INTENT(OUT) :: velocities
     REAL, DIMENSION(SIZE(routing_states%quantile)) :: gamma_coefficient
@@ -538,8 +630,8 @@ CONTAINS
 !order matters
       current_node = routing_mesh%upstream_to_downstream_nodes(i)
 !upstream routed discharges + inflow (m3/s)
-      CALL GET_DISCHARGES(routing_mesh, routing_states, routingmem, &
-&                   current_node, inflows(current_node), qcell)
+      CALL GET_DISCHARGES(routing_mesh, routing_states, remainder, &
+&                   states, current_node, inflows(current_node), qcell)
 !qnetwork is always in m3 => output discharges
       qnetwork(current_node) = qcell
 !write(*,*) i,current_node,qcell
@@ -575,26 +667,29 @@ CONTAINS
 !    write(*,*) velocity,mode,gamma_coefficient 
 !endif
       CALL LOCALMEMSTORAGE(routing_mesh, routing_states, &
-&                    gamma_coefficient, qcell, current_node, routingmem)
+&                    gamma_coefficient, qcell, current_node, remainder, &
+&                    states)
       CALL MEMMASSTRANSFERT(routing_states, routing_setup, routing_mesh&
-&                     , current_node, routingmem)
+&                     , current_node, remainder, states)
     END DO
   END SUBROUTINE ROUTING_FLOW
 
 !  Differentiation of get_discharges in reverse (adjoint) mode (with options fixinterface):
-!   gradient     of useful results: routingmem.states qcell inflow
-!   with respect to varying inputs: routingmem.states inflow
+!   gradient     of useful results: states qcell inflow
+!   with respect to varying inputs: states inflow
 !get the discharge at current node
-  SUBROUTINE GET_DISCHARGES_B(routing_mesh, routing_states, routingmem, &
-&   routingmemb, current_node, inflow, inflowb, qcell, qcellb)
+  SUBROUTINE GET_DISCHARGES_B(routing_mesh, routing_states, remainder, &
+&   states, statesb, current_node, inflow, inflowb, qcell, qcellb)
     IMPLICIT NONE
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
     TYPE(TYPE_ROUTING_STATES), INTENT(IN) :: routing_states
     INTRINSIC SIZE
-    TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-&   routing_mesh%nb_nodes), INTENT(IN) :: routingmem
-    TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-&   routing_mesh%nb_nodes) :: routingmemb
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: remainder
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: states
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: statesb
     INTEGER, INTENT(IN) :: current_node
     REAL, INTENT(IN) :: inflow
     REAL :: inflowb
@@ -619,21 +714,22 @@ CONTAINS
       CALL POPCONTROL1B(branch)
       IF (branch .NE. 0) THEN
         upstream_node = routing_mesh%nodes_linker(i, current_node)
-        routingmemb(1, upstream_node)%states = routingmemb(1, &
-&         upstream_node)%states + qroutb
+        statesb(1, upstream_node) = statesb(1, upstream_node) + qroutb
       END IF
     END DO
   END SUBROUTINE GET_DISCHARGES_B
 
 !get the discharge at current node
-  SUBROUTINE GET_DISCHARGES(routing_mesh, routing_states, routingmem, &
-&   current_node, inflow, qcell)
+  SUBROUTINE GET_DISCHARGES(routing_mesh, routing_states, remainder, &
+&   states, current_node, inflow, qcell)
     IMPLICIT NONE
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
     TYPE(TYPE_ROUTING_STATES), INTENT(IN) :: routing_states
     INTRINSIC SIZE
-    TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-&   routing_mesh%nb_nodes), INTENT(IN) :: routingmem
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: remainder
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: states
     INTEGER, INTENT(IN) :: current_node
     REAL, INTENT(IN) :: inflow
     REAL, INTENT(OUT) :: qcell
@@ -646,7 +742,7 @@ CONTAINS
       upstream_node = routing_mesh%nodes_linker(i, current_node)
       IF (upstream_node .GT. 0) THEN
 !ici on est en m3/s
-        qrout = qrout + routingmem(1, upstream_node)%states
+        qrout = qrout + states(1, upstream_node)
       END IF
     END DO
 ! en m3 
@@ -1312,13 +1408,12 @@ CONTAINS
   END FUNCTION CUBIC_HERMITE
 
 !  Differentiation of localmemstorage in reverse (adjoint) mode (with options fixinterface):
-!   gradient     of useful results: routingmem.states
-!   with respect to varying inputs: gamma_coefficient routingmem.states
-!                qcell
+!   gradient     of useful results: states
+!   with respect to varying inputs: gamma_coefficient states qcell
 !>Store and spread in memory the delayed discharge
   SUBROUTINE LOCALMEMSTORAGE_B(routing_mesh, routing_states, &
 &   gamma_coefficient, gamma_coefficientb, qcell, qcellb, current_node, &
-&   routingmem, routingmemb)
+&   remainder, states, statesb)
     IMPLICIT NONE
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
     TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
@@ -1329,24 +1424,25 @@ CONTAINS
     REAL, INTENT(IN) :: qcell
     REAL :: qcellb
     INTEGER, INTENT(IN) :: current_node
-    TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-&   routing_mesh%nb_nodes), INTENT(INOUT) :: routingmem
-    TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-&   routing_mesh%nb_nodes), INTENT(INOUT) :: routingmemb
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: remainder
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: states
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: statesb
     INTEGER :: t
     gamma_coefficientb = 0.0
     qcellb = 0.0
     DO t=routing_states%window_length(current_node),1,-1
-      gamma_coefficientb(t) = gamma_coefficientb(t) + qcell*routingmemb(&
-&       t, current_node)%states
-      qcellb = qcellb + gamma_coefficient(t)*routingmemb(t, current_node&
-&       )%states
+      gamma_coefficientb(t) = gamma_coefficientb(t) + qcell*statesb(t, &
+&       current_node)
+      qcellb = qcellb + gamma_coefficient(t)*statesb(t, current_node)
     END DO
   END SUBROUTINE LOCALMEMSTORAGE_B
 
 !>Store and spread in memory the delayed discharge
   SUBROUTINE LOCALMEMSTORAGE(routing_mesh, routing_states, &
-&   gamma_coefficient, qcell, current_node, routingmem)
+&   gamma_coefficient, qcell, current_node, remainder, states)
     IMPLICIT NONE
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
     TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
@@ -1355,31 +1451,37 @@ CONTAINS
 &   gamma_coefficient
     REAL, INTENT(IN) :: qcell
     INTEGER, INTENT(IN) :: current_node
-    TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-&   routing_mesh%nb_nodes), INTENT(INOUT) :: routingmem
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: remainder
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: states
     INTEGER :: t
     DO t=1,routing_states%window_length(current_node)
-      routingmem(t, current_node)%states = routingmem(t, current_node)%&
-&       states + gamma_coefficient(t)*qcell
+      states(t, current_node) = states(t, current_node) + &
+&       gamma_coefficient(t)*qcell
     END DO
   END SUBROUTINE LOCALMEMSTORAGE
 
 !  Differentiation of memmasstransfert in reverse (adjoint) mode (with options fixinterface):
-!   gradient     of useful results: routingmem.states routingmem.remainder
-!   with respect to varying inputs: routingmem.states routingmem.remainder
+!   gradient     of useful results: remainder states
+!   with respect to varying inputs: remainder states
 !>Switch up in time the local memory_storage array at position ix,iy
   SUBROUTINE MEMMASSTRANSFERT_B(routing_states, routing_setup, &
-&   routing_mesh, current_node, routingmem, routingmemb)
+&   routing_mesh, current_node, remainder, remainderb, states, statesb)
     IMPLICIT NONE
     TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
     TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
     INTEGER, INTENT(IN) :: current_node
     INTRINSIC SIZE
-    TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-&   routing_mesh%nb_nodes), INTENT(INOUT) :: routingmem
-    TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-&   routing_mesh%nb_nodes), INTENT(INOUT) :: routingmemb
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: remainder
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: remainderb
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: states
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: statesb
     INTEGER :: nbmemcell
     INTEGER :: upstream_node
     INTEGER :: t
@@ -1408,18 +1510,17 @@ CONTAINS
         IF (branch .NE. 0) THEN
           upstream_node = routing_mesh%nodes_linker(i, current_node)
           nbmemcell = routing_states%window_length(upstream_node)
-          routingmemb(nbmemcell, upstream_node)%remainder = 0.0
-          routingmemb(nbmemcell, upstream_node)%states = 0.0
+          remainderb(nbmemcell, upstream_node) = 0.0
+          statesb(nbmemcell, upstream_node) = 0.0
           CALL POPINTEGER4(ad_to)
           DO t=ad_to,1,-1
-            dqfillb = routingmemb(t, upstream_node)%states - routingmemb&
-&             (t, upstream_node)%remainder
-            routingmemb(t+1, upstream_node)%states = routingmemb(t+1, &
-&             upstream_node)%states + routingmemb(t, upstream_node)%&
-&             remainder + inv_elongation_factor*dqfillb
-            routingmemb(t, upstream_node)%remainder = routingmemb(t, &
-&             upstream_node)%states
-            routingmemb(t, upstream_node)%states = 0.0
+            dqfillb = statesb(t, upstream_node) - remainderb(t, &
+&             upstream_node)
+            statesb(t+1, upstream_node) = statesb(t+1, upstream_node) + &
+&             remainderb(t, upstream_node) + inv_elongation_factor*&
+&             dqfillb
+            remainderb(t, upstream_node) = statesb(t, upstream_node)
+            statesb(t, upstream_node) = 0.0
           END DO
         END IF
       END DO
@@ -1428,15 +1529,17 @@ CONTAINS
 
 !>Switch up in time the local memory_storage array at position ix,iy
   PURE SUBROUTINE MEMMASSTRANSFERT(routing_states, routing_setup, &
-&   routing_mesh, current_node, routingmem)
+&   routing_mesh, current_node, remainder, states)
     IMPLICIT NONE
     TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
     TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
     INTEGER, INTENT(IN) :: current_node
     INTRINSIC SIZE
-    TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-&   routing_mesh%nb_nodes), INTENT(INOUT) :: routingmem
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: remainder
+    REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
+&   ), INTENT(INOUT) :: states
     INTEGER :: nbmemcell
     INTEGER :: upstream_node
     INTEGER :: t
@@ -1451,16 +1554,15 @@ CONTAINS
           nbmemcell = routing_states%window_length(upstream_node)
 !loop over delay in memory
           DO t=1,nbmemcell-1
-            dqfill = inv_elongation_factor*routingmem(t+1, upstream_node&
-&             )%states
-            routingmem(t, upstream_node)%states = dqfill + routingmem(t&
-&             , upstream_node)%remainder
-            routingmem(t, upstream_node)%remainder = routingmem(t+1, &
-&             upstream_node)%states - dqfill
+            dqfill = inv_elongation_factor*states(t+1, upstream_node)
+            states(t, upstream_node) = dqfill + remainder(t, &
+&             upstream_node)
+            remainder(t, upstream_node) = states(t+1, upstream_node) - &
+&             dqfill
           END DO
 !last time step in memory
-          routingmem(nbmemcell, upstream_node)%states = 0.
-          routingmem(nbmemcell, upstream_node)%remainder = 0.
+          states(nbmemcell, upstream_node) = 0.
+          remainder(nbmemcell, upstream_node) = 0.
         END IF
       END DO
     END IF
@@ -1487,11 +1589,11 @@ END MODULE MOD_GAMMA_ROUTING_DIFF
 !~ Contact: maxime.jay.allemand@hydris-hydrologie.fr
 SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B0(routing_setup, routing_mesh, &
 & routing_parameter, routing_parameterb, inflows, inflowsb, observations&
-& , routing_states, routing_results, cost, costb)
+& , routing_states, routing_memory, routing_results, cost, costb)
 ! Notes
 ! -----
-! **routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,routing_states,routing_results,co
-!st)** :
+! **routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,routing_states,routing_memory,rou
+!ting_results,cost)** :
 !
 ! - Run the model an propagate the hydrogram thanks to the inflows and compute the cost function. This subroutine is differentiab
 !le
@@ -1505,6 +1607,7 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B0(routing_setup, routing_mesh, &
 ! ``inflows``                             Inflows, array(npdt,nb_nodes) (in)
 ! ``observations``                        Discharges observations, array(npdt,nb_nodes) (in)
 ! ``routing_states``                      Routing_mesh Derived Type (inout)
+! ``routing_memory``                      routing_memory Derived Type (inout)
 ! ``routing_results``                     Routing_results Derived Type (inout)
 ! ``cost``                                Cost function evaluation (inout)
 ! =============================           ===================================
@@ -1512,6 +1615,7 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B0(routing_setup, routing_mesh, &
   USE MOD_GAMMA_ROUTING_MESH
   USE MOD_GAMMA_ROUTING_PARAMETERS_DIFF
   USE MOD_GAMMA_ROUTING_STATES_DIFF
+  USE MOD_GAMMA_ROUTING_MEMORY_DIFF
   USE MOD_GAMMA_ROUTING_RESULTS
   USE MOD_GAMMA_ROUTING_DIFF
   IMPLICIT NONE
@@ -1525,6 +1629,7 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B0(routing_setup, routing_mesh, &
   REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
 & :: observations
   TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
+  TYPE(TYPE_ROUTING_MEMORY), INTENT(INOUT) :: routing_memory
   TYPE(TYPE_ROUTING_RESULTS), INTENT(INOUT) :: routing_results
   REAL :: cost
   REAL :: costb
@@ -1540,10 +1645,14 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B0(routing_setup, routing_mesh, &
   REAL, DIMENSION(routing_mesh%nb_nodes) :: inflow
   REAL, DIMENSION(routing_mesh%nb_nodes) :: inflowb
   INTRINSIC SIZE
-  TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-& routing_mesh%nb_nodes) :: routingmem
-  TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-& routing_mesh%nb_nodes) :: routingmemb
+  REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes) &
+& :: remainder
+  REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes) &
+& :: remainderb
+  REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes) &
+& :: states
+  REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes) &
+& :: statesb
   REAL :: tmp
   REAL :: tmp0
   IF (routing_setup%hydraulics_coef_uniform .EQ. 1) THEN
@@ -1561,17 +1670,18 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B0(routing_setup, routing_mesh, &
 !Here we should denormalise parameter if nedeed:
 !if routing_setup_normalized=True:
 !   call denormalized(routing_parameter)
-  routingmem(:, :)%states = routing_states%states
-  routingmem(:, :)%remainder = routing_states%remainder
+  remainder = routing_memory%remainder
+  states = routing_memory%states
   DO i=1,routing_setup%npdt
     qmesh = 0.
     inflow = inflows(i, 1:routing_mesh%nb_nodes)
-    CALL PUSHREAL4ARRAY(routingmem%states, SIZE(routing_states%quantile)&
-&                 *routing_mesh%nb_nodes)
-    CALL PUSHREAL4ARRAY(routingmem%remainder, SIZE(routing_states%&
-&                 quantile)*routing_mesh%nb_nodes)
+    CALL PUSHREAL4ARRAY(states, SIZE(routing_states%quantile)*&
+&                 routing_mesh%nb_nodes)
+    CALL PUSHREAL4ARRAY(remainder, SIZE(routing_states%quantile)*&
+&                 routing_mesh%nb_nodes)
     CALL ROUTING_FLOW(routing_setup, routing_mesh, routing_parameter, &
-&               inflow, routing_states, routingmem, qmesh, velocities)
+&               inflow, routing_states, remainder, states, qmesh, &
+&               velocities)
     qnetwork(i, :) = qmesh
   END DO
  CALL COST_FUNCTION(routing_setup,routing_mesh,routing_parameter,observations,qnetwork,tab_cost,cost)
@@ -1579,22 +1689,23 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B0(routing_setup, routing_mesh, &
 &                routing_parameterb, observations, qnetwork, qnetworkb, &
 &                tab_cost, cost, costb)
   inflowsb = 0.0
-  routingmemb%states = 0.0
-  routingmemb%remainder = 0.0
+  remainderb = 0.0
+  statesb = 0.0
   DO i=routing_setup%npdt,1,-1
     qmeshb = 0.0
     qmeshb = qnetworkb(i, :)
     qnetworkb(i, :) = 0.0
     inflow = inflows(i, 1:routing_mesh%nb_nodes)
-    CALL POPREAL4ARRAY(routingmem%remainder, SIZE(routing_states%&
-&                quantile)*routing_mesh%nb_nodes)
-    CALL POPREAL4ARRAY(routingmem%states, SIZE(routing_states%quantile)*&
+    CALL POPREAL4ARRAY(remainder, SIZE(routing_states%quantile)*&
+&                routing_mesh%nb_nodes)
+    CALL POPREAL4ARRAY(states, SIZE(routing_states%quantile)*&
 &                routing_mesh%nb_nodes)
     routing_parameterb%hydraulics_coefficient = 0.0
     routing_parameterb%spreading = 0.0
     CALL ROUTING_FLOW_B(routing_setup, routing_mesh, routing_parameter, &
 &                 routing_parameterb, inflow, inflowb, routing_states, &
-&                 routingmem, routingmemb, qmesh, qmeshb, velocities)
+&                 remainder, remainderb, states, statesb, qmesh, qmeshb&
+&                 , velocities)
     inflowsb(i, :) = inflowsb(i, :) + inflowb
   END DO
 END SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B0
@@ -1621,11 +1732,11 @@ END SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B0
 !~ Contact: maxime.jay.allemand@hydris-hydrologie.fr
 SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B(routing_setup, routing_mesh, &
 & routing_parameter, routing_parameterb, inflows, observations, &
-& routing_states, routing_results, cost, costb)
+& routing_states, routing_memory, routing_results, cost, costb)
 ! Notes
 ! -----
-! **routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,routing_states,routing_results,co
-!st)** :
+! **routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,routing_states,routing_memory,rou
+!ting_results,cost)** :
 !
 ! - Run the model an propagate the hydrogram thanks to the inflows and compute the cost function. This subroutine is differentiab
 !le
@@ -1639,6 +1750,7 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B(routing_setup, routing_mesh, &
 ! ``inflows``                             Inflows, array(npdt,nb_nodes) (in)
 ! ``observations``                        Discharges observations, array(npdt,nb_nodes) (in)
 ! ``routing_states``                      Routing_mesh Derived Type (inout)
+! ``routing_memory``                      routing_memory Derived Type (inout)
 ! ``routing_results``                     Routing_results Derived Type (inout)
 ! ``cost``                                Cost function evaluation (inout)
 ! =============================           ===================================
@@ -1646,6 +1758,7 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B(routing_setup, routing_mesh, &
   USE MOD_GAMMA_ROUTING_MESH
   USE MOD_GAMMA_ROUTING_PARAMETERS_DIFF
   USE MOD_GAMMA_ROUTING_STATES_DIFF
+  USE MOD_GAMMA_ROUTING_MEMORY_DIFF
   USE MOD_GAMMA_ROUTING_RESULTS
   USE MOD_GAMMA_ROUTING_DIFF
   IMPLICIT NONE
@@ -1659,6 +1772,7 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B(routing_setup, routing_mesh, &
   REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
 & :: observations
   TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
+  TYPE(TYPE_ROUTING_MEMORY), INTENT(INOUT) :: routing_memory
   TYPE(TYPE_ROUTING_RESULTS), INTENT(INOUT) :: routing_results
   REAL :: cost
   REAL :: costb
@@ -1674,10 +1788,14 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B(routing_setup, routing_mesh, &
   REAL, DIMENSION(routing_mesh%nb_nodes) :: inflow
   REAL, DIMENSION(routing_mesh%nb_nodes) :: inflowb
   INTRINSIC SIZE
-  TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-& routing_mesh%nb_nodes) :: routingmem
-  TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-& routing_mesh%nb_nodes) :: routingmemb
+  REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes) &
+& :: remainder
+  REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes) &
+& :: remainderb
+  REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes) &
+& :: states
+  REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes) &
+& :: statesb
   REAL :: tmp
   REAL :: tmpb
   REAL :: tmp0
@@ -1704,37 +1822,39 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B(routing_setup, routing_mesh, &
 !Here we should denormalise parameter if nedeed:
 !if routing_setup_normalized=True:
 !   call denormalized(routing_parameter)
-  routingmem(:, :)%states = routing_states%states
-  routingmem(:, :)%remainder = routing_states%remainder
+  remainder = routing_memory%remainder
+  states = routing_memory%states
   DO i=1,routing_setup%npdt
     qmesh = 0.
     inflow = inflows(i, 1:routing_mesh%nb_nodes)
-    CALL PUSHREAL4ARRAY(routingmem%states, SIZE(routing_states%quantile)&
-&                 *routing_mesh%nb_nodes)
-    CALL PUSHREAL4ARRAY(routingmem%remainder, SIZE(routing_states%&
-&                 quantile)*routing_mesh%nb_nodes)
+    CALL PUSHREAL4ARRAY(states, SIZE(routing_states%quantile)*&
+&                 routing_mesh%nb_nodes)
+    CALL PUSHREAL4ARRAY(remainder, SIZE(routing_states%quantile)*&
+&                 routing_mesh%nb_nodes)
     CALL ROUTING_FLOW(routing_setup, routing_mesh, routing_parameter, &
-&               inflow, routing_states, routingmem, qmesh, velocities)
+&               inflow, routing_states, remainder, states, qmesh, &
+&               velocities)
     qnetwork(i, :) = qmesh
   END DO
  CALL COST_FUNCTION(routing_setup,routing_mesh,routing_parameter,observations,qnetwork,tab_cost,cost)
   CALL COST_FUNCTION_B(routing_setup, routing_mesh, routing_parameter, &
 &                routing_parameterb, observations, qnetwork, qnetworkb, &
 &                tab_cost, cost, costb)
-  routingmemb%states = 0.0
-  routingmemb%remainder = 0.0
+  remainderb = 0.0
+  statesb = 0.0
   DO i=routing_setup%npdt,1,-1
     qmeshb = 0.0
     qmeshb = qnetworkb(i, :)
     qnetworkb(i, :) = 0.0
     inflow = inflows(i, 1:routing_mesh%nb_nodes)
-    CALL POPREAL4ARRAY(routingmem%remainder, SIZE(routing_states%&
-&                quantile)*routing_mesh%nb_nodes)
-    CALL POPREAL4ARRAY(routingmem%states, SIZE(routing_states%quantile)*&
+    CALL POPREAL4ARRAY(remainder, SIZE(routing_states%quantile)*&
+&                routing_mesh%nb_nodes)
+    CALL POPREAL4ARRAY(states, SIZE(routing_states%quantile)*&
 &                routing_mesh%nb_nodes)
     CALL ROUTING_FLOW_B(routing_setup, routing_mesh, routing_parameter, &
 &                 routing_parameterb, inflow, inflowb, routing_states, &
-&                 routingmem, routingmemb, qmesh, qmeshb, velocities)
+&                 remainder, remainderb, states, statesb, qmesh, qmeshb&
+&                 , velocities)
   END DO
   CALL POPCONTROL1B(branch)
   IF (branch .EQ. 0) THEN
@@ -1768,11 +1888,11 @@ END SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B
 !~ Contact: maxime.jay.allemand@hydris-hydrologie.fr
 SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF(routing_setup, routing_mesh&
 & , routing_parameter, inflows, observations, routing_states, &
-& routing_results, cost)
+& routing_memory, routing_results, cost)
 ! Notes
 ! -----
-! **routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,routing_states,routing_results,co
-!st)** :
+! **routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,routing_states,routing_memory,rou
+!ting_results,cost)** :
 !
 ! - Run the model an propagate the hydrogram thanks to the inflows and compute the cost function. This subroutine is differentiab
 !le
@@ -1786,6 +1906,7 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF(routing_setup, routing_mesh&
 ! ``inflows``                             Inflows, array(npdt,nb_nodes) (in)
 ! ``observations``                        Discharges observations, array(npdt,nb_nodes) (in)
 ! ``routing_states``                      Routing_mesh Derived Type (inout)
+! ``routing_memory``                      routing_memory Derived Type (inout)
 ! ``routing_results``                     Routing_results Derived Type (inout)
 ! ``cost``                                Cost function evaluation (inout)
 ! =============================           ===================================
@@ -1793,6 +1914,7 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF(routing_setup, routing_mesh&
   USE MOD_GAMMA_ROUTING_MESH
   USE MOD_GAMMA_ROUTING_PARAMETERS_DIFF
   USE MOD_GAMMA_ROUTING_STATES_DIFF
+  USE MOD_GAMMA_ROUTING_MEMORY_DIFF
   USE MOD_GAMMA_ROUTING_RESULTS
   USE MOD_GAMMA_ROUTING_DIFF
   IMPLICIT NONE
@@ -1804,6 +1926,7 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF(routing_setup, routing_mesh&
   REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
 & :: observations
   TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
+  TYPE(TYPE_ROUTING_MEMORY), INTENT(INOUT) :: routing_memory
   TYPE(TYPE_ROUTING_RESULTS), INTENT(INOUT) :: routing_results
   REAL, INTENT(OUT) :: cost
   REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes) :: qnetwork
@@ -1814,8 +1937,10 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF(routing_setup, routing_mesh&
   REAL, DIMENSION(routing_mesh%nb_nodes) :: velocities
   REAL, DIMENSION(routing_mesh%nb_nodes) :: inflow
   INTRINSIC SIZE
-  TYPE(ROUTING_MEMORY), DIMENSION(SIZE(routing_states%quantile), &
-& routing_mesh%nb_nodes) :: routingmem
+  REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes) &
+& :: remainder
+  REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes) &
+& :: states
   IF (routing_setup%hydraulics_coef_uniform .EQ. 1) THEN
     DO i=1,routing_mesh%nb_nodes
       routing_parameter%hydraulics_coefficient(i) = routing_parameter%&
@@ -1830,14 +1955,15 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF(routing_setup, routing_mesh&
 !Here we should denormalise parameter if nedeed:
 !if routing_setup_normalized=True:
 !   call denormalized(routing_parameter)
-  routingmem(:, :)%states = routing_states%states
-  routingmem(:, :)%remainder = routing_states%remainder
+  remainder = routing_memory%remainder
+  states = routing_memory%states
   DO i=1,routing_setup%npdt
     velocities = 0.
     qmesh = 0.
     inflow = inflows(i, 1:routing_mesh%nb_nodes)
     CALL ROUTING_FLOW(routing_setup, routing_mesh, routing_parameter, &
-&               inflow, routing_states, routingmem, qmesh, velocities)
+&               inflow, routing_states, remainder, states, qmesh, &
+&               velocities)
     qnetwork(i, :) = qmesh
     vnetwork(i, :) = velocities
   END DO
@@ -1848,8 +1974,8 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF(routing_setup, routing_mesh&
   routing_results%costs = tab_cost
   routing_results%discharges = qnetwork
   routing_results%velocities = vnetwork
-  routing_states%states = routingmem(:, :)%states
-  routing_states%remainder = routingmem(:, :)%remainder
+  routing_memory%remainder = remainder
+  routing_memory%states = states
 END SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF
 
 !  Differentiation of cost_function in reverse (adjoint) mode (with options fixinterface):

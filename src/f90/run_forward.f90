@@ -13,11 +13,11 @@
 
 
 subroutine routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,&
-&inflows,observations,routing_states,routing_results,cost)
+&inflows,observations,routing_states,routing_memory,routing_results,cost)
     
     ! Notes
     ! -----
-    ! **routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,routing_states,routing_results,cost)** :
+    ! **routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,routing_states,routing_memory,routing_results,cost)** :
     !
     ! - Run the model an propagate the hydrogram thanks to the inflows and compute the cost function. This subroutine is differentiable
     !        
@@ -30,6 +30,7 @@ subroutine routing_hydrogram_forward(routing_setup,routing_mesh,routing_paramete
     ! ``inflows``                             Inflows, array(npdt,nb_nodes) (in)
     ! ``observations``                        Discharges observations, array(npdt,nb_nodes) (in)
     ! ``routing_states``                      Routing_mesh Derived Type (inout)
+    ! ``routing_memory``                      routing_memory Derived Type (inout)
     ! ``routing_results``                     Routing_results Derived Type (inout)
     ! ``cost``                                Cost function evaluation (inout)
     ! =============================           ===================================
@@ -38,6 +39,7 @@ subroutine routing_hydrogram_forward(routing_setup,routing_mesh,routing_paramete
     use mod_gamma_routing_mesh
     use mod_gamma_routing_parameters
     use mod_gamma_routing_states
+    use mod_gamma_routing_memory
     use mod_gamma_routing_results
     use mod_gamma_routing
     
@@ -49,6 +51,7 @@ subroutine routing_hydrogram_forward(routing_setup,routing_mesh,routing_paramete
     real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: inflows
     real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: observations
     type(type_routing_states), intent(inout) :: routing_states
+    type(type_routing_memory), intent(inout) :: routing_memory
     type(type_routing_results), intent(inout) :: routing_results
     real, intent(out) :: cost
     
@@ -59,8 +62,9 @@ subroutine routing_hydrogram_forward(routing_setup,routing_mesh,routing_paramete
     real,dimension(routing_mesh%nb_nodes) :: qmesh
     real,dimension(routing_mesh%nb_nodes) :: velocities
     real,dimension(routing_mesh%nb_nodes) :: inflow
-    
-    type(routing_memory),dimension(size(routing_states%quantile),routing_mesh%nb_nodes) :: routingmem
+        
+    real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes) :: remainder
+    real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes) :: states
     
     if (routing_setup%hydraulics_coef_uniform==1) then
         do i=1,routing_mesh%nb_nodes
@@ -76,15 +80,16 @@ subroutine routing_hydrogram_forward(routing_setup,routing_mesh,routing_paramete
     !Here we should denormalise parameter if nedeed:
     !if routing_setup_normalized=True:
     !   call denormalized(routing_parameter)
-    routingmem(:,:)%states=routing_states%states
-    routingmem(:,:)%remainder=routing_states%remainder
+    
+    remainder=routing_memory%remainder
+    states=routing_memory%states
     
     do i=1,routing_setup%npdt
         velocities=0.
         qmesh=0.
         inflow=inflows(i,1:routing_mesh%nb_nodes)
-        call routing_flow(routing_setup,routing_mesh,routing_parameter,inflow,routing_states,routingmem,&
-        &qmesh,velocities)
+        call routing_flow(routing_setup,routing_mesh,routing_parameter,inflow,routing_states,&
+        &remainder,states,qmesh,velocities)
         
         qnetwork(i,:)=qmesh
         vnetwork(i,:)=velocities
@@ -98,8 +103,8 @@ subroutine routing_hydrogram_forward(routing_setup,routing_mesh,routing_paramete
     routing_results%discharges=qnetwork
     routing_results%velocities=vnetwork
     
-    routing_states%states=routingmem(:,:)%states
-    routing_states%remainder=routingmem(:,:)%remainder
-    
+    routing_memory%remainder=remainder
+    routing_memory%states=states
+
 end subroutine routing_hydrogram_forward
 

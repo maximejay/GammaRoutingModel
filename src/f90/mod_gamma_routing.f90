@@ -19,15 +19,10 @@ module mod_gamma_routing
     use mod_gamma_routing_mesh
     use mod_gamma_routing_parameters
     use mod_gamma_routing_states
+    use mod_gamma_routing_memory
     use mod_gamma_routing_results
     
     implicit none
-    
-    ! Creation of a local type useful for the routing model (memory) ! this is a trick for the differentiation of the model. This type need to be allocated before use: type(routing_memory), dimension(nb_nodes) : routingmem
-    type routing_memory
-        real :: states
-        real :: remainder
-    end type routing_memory
     
     contains
     
@@ -47,7 +42,7 @@ module mod_gamma_routing
     end function x_unn
     
     subroutine routing_hydrogram(routing_setup,routing_mesh,routing_parameter,&
-    &inflows,routing_states,routing_results)
+    &inflows,routing_states,routing_memory,routing_results)
         
         ! Notes
         ! -----
@@ -73,6 +68,7 @@ module mod_gamma_routing
         type(type_routing_parameter), intent(in) :: routing_parameter
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: inflows
         type(type_routing_states), intent(inout) :: routing_states
+        type(type_routing_memory), intent(inout) :: routing_memory
         type(type_routing_results), intent(inout) :: routing_results
         
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes) :: qnetwork
@@ -82,23 +78,25 @@ module mod_gamma_routing
         real,dimension(routing_mesh%nb_nodes) :: qmesh
         real,dimension(routing_mesh%nb_nodes) :: velocities
         real,dimension(routing_mesh%nb_nodes) :: inflow
+                
+        real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes) :: remainder
+        real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes) :: states
         
-        type(routing_memory),dimension(size(routing_states%quantile),routing_mesh%nb_nodes) :: routingmem
-        
-        routingmem(:,:)%states=routing_states%states
-        routingmem(:,:)%remainder=routing_states%remainder
+        remainder=routing_memory%remainder
+        states=routing_memory%states
         
         do i=1,routing_setup%npdt
             velocities=0.
             qmesh=0.
             inflow=inflows(i,1:routing_mesh%nb_nodes)
-            call routing_flow(routing_setup,routing_mesh,routing_parameter,inflow,routing_states,routingmem,qmesh,velocities)
+            call routing_flow(routing_setup,routing_mesh,routing_parameter,inflow,routing_states,remainder,&
+            &states,qmesh,velocities)
             qnetwork(i,:)=qmesh
             vnetwork(i,:)=velocities
         end do
         
-        routing_states%states=routingmem(:,:)%states
-        routing_states%remainder=routingmem(:,:)%remainder
+        routing_memory%remainder=remainder
+        routing_memory%states=states
         
         !storing results
         routing_results%discharges=qnetwork
@@ -106,7 +104,8 @@ module mod_gamma_routing
         
     end subroutine routing_hydrogram
     
-    subroutine routing_flow(routing_setup,routing_mesh,routing_parameter,inflows,routing_states,routingmem,qnetwork,velocities)
+    subroutine routing_flow(routing_setup,routing_mesh,routing_parameter,inflows,routing_states,remainder,states,&
+    &qnetwork,velocities)
         
         ! Notes
         ! -----
@@ -133,7 +132,8 @@ module mod_gamma_routing
         type(type_routing_parameter), intent(in) :: routing_parameter
         real, dimension(routing_mesh%nb_nodes), intent(in) :: inflows
         type(type_routing_states), intent(inout) :: routing_states
-        type(routing_memory),dimension(size(routing_states%quantile),routing_mesh%nb_nodes), intent(inout) :: routingmem
+        real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes), intent(inout) :: remainder
+        real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes), intent(inout) :: states
         real, dimension(routing_mesh%nb_nodes), intent(out) :: qnetwork
         real, dimension(routing_mesh%nb_nodes), intent(out) :: velocities
         
@@ -152,7 +152,8 @@ module mod_gamma_routing
             current_node=routing_mesh%upstream_to_downstream_nodes(i)
             
             !upstream routed discharges + inflow (m3/s)
-            call get_discharges(routing_mesh,routing_states,routingmem,current_node,inflows(current_node),qcell)
+            call get_discharges(routing_mesh,routing_states,remainder,states,current_node,&
+            &inflows(current_node),qcell)
             
             !qnetwork is always in m3 => output discharges
             qnetwork(current_node)=qcell
@@ -189,9 +190,10 @@ module mod_gamma_routing
             !    write(*,*) velocity,mode,gamma_coefficient 
             !endif
             
-            call LocalMemStorage(routing_mesh,routing_states,gamma_coefficient,qcell,current_node,routingmem)
+            call LocalMemStorage(routing_mesh,routing_states,gamma_coefficient,qcell,current_node,&
+            &remainder,states)
             
-            call MemMassTransfert(routing_states,routing_setup,routing_mesh,current_node,routingmem)
+            call MemMassTransfert(routing_states,routing_setup,routing_mesh,current_node,remainder,states)
             
         end do
         
@@ -201,11 +203,11 @@ module mod_gamma_routing
     
     
     !get the discharge at current node
-     subroutine get_discharges(routing_mesh,routing_states,routingmem,current_node,inflow,qcell)
+     subroutine get_discharges(routing_mesh,routing_states,remainder,states,current_node,inflow,qcell)
         
         ! Notes
         ! -----
-        ! **get_discharges(routing_mesh,routing_states,routingmem,current_node,inflow,qcell)** :
+        ! **get_discharges(routing_mesh,routing_states,current_node,inflow,qcell)** :
         !
         ! - Compute the discharge at the current node, get the discharges from upstream nodes
         !        
@@ -214,7 +216,7 @@ module mod_gamma_routing
         ! =============================           ===================================
         ! ``routing_setup``                       routing_setup Derived Type (in)
         ! ``routing_states``                      Routing_mesh Derived Type (in)
-        ! ``routingmem``                          routingmem Derived Type (in)
+        ! ``routing_memory``                      routing_memory Derived Type (in)
         ! ``current_node``                        Indexe of the current node (in)
         ! ``inflow``                              Input discharge / rainfall in m3/s
         ! ``qcell``                               Discharge at the current cell in m3/s
@@ -224,7 +226,8 @@ module mod_gamma_routing
         
         type(type_routing_mesh), intent(in) :: routing_mesh
         type(type_routing_states), intent(in) :: routing_states
-        type(routing_memory), dimension(size(routing_states%quantile),routing_mesh%nb_nodes), intent(in) :: routingmem
+        real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes), intent(inout) :: remainder
+        real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes), intent(inout) :: states
         integer, intent(in) :: current_node
         real, intent(in) :: inflow
         real, intent(out) :: qcell
@@ -241,7 +244,7 @@ module mod_gamma_routing
             upstream_node=routing_mesh%nodes_linker(i,current_node)
             
             if (upstream_node>0) then
-                qrout = qrout + routingmem(1,upstream_node)%states!ici on est en m3/s
+                qrout = qrout + states(1,upstream_node)!ici on est en m3/s
             endif
             
         end do
@@ -569,11 +572,11 @@ module mod_gamma_routing
     
     
     !>Store and spread in memory the delayed discharge
-     subroutine LocalMemStorage(routing_mesh,routing_states,gamma_coefficient,qcell,current_node,routingmem)
+     subroutine LocalMemStorage(routing_mesh,routing_states,gamma_coefficient,qcell,current_node,remainder,states)
         
         ! Notes
         ! -----
-        ! **LocalMemStorage(routing_mesh,routing_states,gamma_coefficient,qcell,current_node,routingmem)** :
+        ! **LocalMemStorage(routing_mesh,routing_states,gamma_coefficient,qcell,current_node)** :
         !
         ! - Spreading in memory the discharge thank to the interpolated Gamma coefficients
         !        
@@ -585,7 +588,7 @@ module mod_gamma_routing
         ! ``gamma_coefficient``                   gamma coefficient for all quantile (in)
         ! ``qcell``                               Discharge at the current cell in m3/s (in)
         ! ``current_node``                        Current node index (in)
-        ! ``routingmem``                          routingmem derived type (inout)
+        ! ``routing_memory``                      routing_memory derived type (inout)
         ! =============================           ===================================
         
         implicit none
@@ -594,12 +597,13 @@ module mod_gamma_routing
         real, dimension(size(routing_states%quantile)),intent(in) :: gamma_coefficient
         real, intent(in) :: qcell
         integer, intent(in) :: current_node
-        type(routing_memory),dimension(size(routing_states%quantile),routing_mesh%nb_nodes),intent(inout) :: routingmem
+        real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes), intent(inout) :: remainder
+        real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes), intent(inout) :: states
         
         integer :: t
         
         do t=1,routing_states%window_length(current_node)
-            routingmem(t,current_node)%states=routingmem(t,current_node)%states + gamma_coefficient(t)*qcell
+            states(t,current_node)=states(t,current_node) + gamma_coefficient(t)*qcell
         enddo
         
     endsubroutine LocalMemStorage
@@ -607,11 +611,11 @@ module mod_gamma_routing
     
     
     !>Switch up in time the local memory_storage array at position ix,iy
-    pure subroutine MemMassTransfert(routing_states,routing_setup,routing_mesh,current_node,routingmem)
+    pure subroutine MemMassTransfert(routing_states,routing_setup,routing_mesh,current_node,remainder,states)
         
         ! Notes
         ! -----
-        ! **MemMassTransfert(routing_states,routing_setup,routing_mesh,current_node,routingmem)** :
+        ! **MemMassTransfert(routing_states,routing_setup,routing_mesh,current_node)** :
         !
         ! - Switch up in time the memory storage array
         !        
@@ -623,7 +627,7 @@ module mod_gamma_routing
         ! ``routing_mesh``                        routing_mesh Derived Type (in)
         ! ``gamma_coefficient``                   gamma coefficient for all quantile (in)
         ! ``current_node``                        Current node index (in)
-        ! ``routingmem``                          routingmem derived type (inout)
+        ! ``routing_memory``                      routing_memory derived type (inout)
         ! =============================           ===================================
         
         implicit none
@@ -632,7 +636,8 @@ module mod_gamma_routing
         type(type_routing_setup),intent(in) :: routing_setup
         type(type_routing_mesh),intent(in) :: routing_mesh
         integer, intent(in) :: current_node
-        type(routing_memory),dimension(size(routing_states%quantile),routing_mesh%nb_nodes),intent(inout) :: routingmem
+        real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes), intent(inout) :: remainder
+        real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes), intent(inout) :: states
         
         integer :: nbmemcell
         integer :: upstream_node
@@ -656,17 +661,16 @@ module mod_gamma_routing
                     !loop over delay in memory
                     do t=1,nbmemcell-1
                     
-                        dqfill=inv_elongation_factor * routingmem(t+1,upstream_node)%states
+                        dqfill=inv_elongation_factor * states(t+1,upstream_node)
                         
-                        routingmem(t,upstream_node)%states= dqfill + routingmem(t,upstream_node)%remainder
-                        
-                        routingmem(t,upstream_node)%remainder=routingmem(t+1,upstream_node)%states-dqfill
+                        states(t,upstream_node)= dqfill + remainder(t,upstream_node)
+                        remainder(t,upstream_node)=states(t+1,upstream_node)-dqfill
                         
                     enddo
                     
                     !last time step in memory
-                    routingmem(nbmemcell,upstream_node)%states=0.
-                    routingmem(nbmemcell,upstream_node)%remainder=0.
+                    states(nbmemcell,upstream_node)=0.
+                    remainder(nbmemcell,upstream_node)=0.
                 
                 end if
                 
