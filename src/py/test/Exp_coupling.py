@@ -70,7 +70,7 @@ model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
     mode_discretization_step=0.1,
     spreading_discretization_step=0.1,
     ponderation_regul=0.0,
-    velocity_computation="mm",
+    velocity_computation="qm3",
     varying_spread=1,
     spreading_uniform=1,
     criteria="nse",
@@ -80,7 +80,7 @@ model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
 
 # Set parameter
 model_gamma.routing_parameters.hydraulics_coefficient = 1.0
-model_gamma.routing_parameters.spreading = 3.0
+model_gamma.routing_parameters.spreading = 2.0
 model_gamma.routing_mesh.controlled_nodes[1:3] = 0
 
 # direct run of the coupled model
@@ -100,12 +100,13 @@ model_gamma.routing_results.costs
 boundaries = gamma.smashplug.get_boundaries(
     model_gamma,
     smash_model,
-    control_parameters_list=["cp", "ct", "hydraulics_coefficient", "spreading"],
+    # control_parameters_list=["cp", "ct", "hydraulics_coefficient", "spreading"],
+    control_parameters_list=["hydraulics_coefficient", "spreading"],
     bounds={
-        "cp": [0.1, 1000.0],
-        "ct": [0.1, 1000.0],
+        # "cp": [0.1, 1000.0],
+        # "ct": [0.1, 1000.0],
         "hydraulics_coefficient": [0.3, 5.0],
-        "spreading": [0.5, 3.0],
+        "spreading": [0.5, 5.0],
     },
 )
 
@@ -113,12 +114,13 @@ boundaries = gamma.smashplug.get_boundaries(
 ControlVector = gamma.smashplug.VectorizeModelParameters(
     smash_model,
     model_gamma,
-    control_parameters_list=["cp", "ct", "hydraulics_coefficient", "spreading"],
+    # control_parameters_list=["cp", "ct", "hydraulics_coefficient", "spreading"],
+    control_parameters_list=["hydraulics_coefficient", "spreading"],
     bounds={
-        "cp": [0.1, 1000.0],
-        "ct": [0.1, 1000.0],
+        # "cp": [0.1, 1000.0],
+        # "ct": [0.1, 1000.0],
         "hydraulics_coefficient": [0.3, 5.0],
-        "spreading": [0.5, 3.0],
+        "spreading": [0.5, 5.0],
     },
 )
 
@@ -138,7 +140,6 @@ cost, grad = gamma.smashplug.ComputeCostAndGradients(
     True,
     True,
 )
-
 # Compute the gradient
 gradient = gamma.smashplug.ComputeModelGradients(
     ControlVector, smash_model, model_gamma, GammaInflows, GammaGriddedObservation
@@ -149,6 +150,7 @@ gradient = gamma.smashplug.ComputeModelGradients(
 # the spreading coefficient will uniformly calibrated => the gradient of this variable is scaled by the nb of nodes !
 
 # control_parameters_list = ["cp", "ct", "hydraulics_coefficient"]
+# control_parameters_list = ["cp", "ct", "spreading"]
 control_parameters_list = ["cp", "ct", "hydraulics_coefficient", "spreading"]
 
 BestControlVector, optimized_smash_model, optimized_gamma_model = (

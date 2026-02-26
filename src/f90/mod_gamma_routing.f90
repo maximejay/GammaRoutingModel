@@ -104,8 +104,8 @@ module mod_gamma_routing
         
     end subroutine routing_hydrogram
     
-    subroutine routing_flow(routing_setup,routing_mesh,routing_parameter,inflows,routing_states,remainder,states,&
-    &qnetwork,velocities)
+    subroutine routing_flow(routing_setup,routing_mesh,routing_parameter,inflows,routing_states,&
+    &remainder,states,qnetwork,velocities)
         
         ! Notes
         ! -----

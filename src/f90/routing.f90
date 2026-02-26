@@ -76,7 +76,7 @@ program routing
     
     write(*,*) "manual_gradient_test..."
     write(*,*) ""
-    !call manual_gradient_test()
+    call manual_gradient_test()
     
     pause
     
@@ -132,8 +132,8 @@ program routing
     write(*,*) "routing_states%quantile=",routing_states%quantile
     write(*,*) "routing_states%tabulated_delay=",routing_states%tabulated_delay
     write(*,*) "routing_states%tabulated_routing_coef=",routing_states%tabulated_routing_coef(1,1,:,1)
-    write(*,*) "routing_states%states=",routing_states%states
-    write(*,*) "routing_states%remainder=",routing_states%remainder
+!~     write(*,*) "routing_states%states=",routing_states%states
+!~     write(*,*) "routing_states%remainder=",routing_states%remainder
     write(*,*) ""
     
     filename="out/tabulated_gamma_coefficient_3D_pdf.txt"
@@ -404,7 +404,8 @@ program routing
     write(*,*) ""
     allocate(observations(routing_setup%npdt,routing_mesh%nb_nodes))
     observations=0.0
-    call routing_states_reset(routing_states)
+!~     call routing_states_reset(routing_states)
+    call routing_memory_reset(routing_memory)
     call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,&
     &routing_states,routing_memory,routing_results,cost)
     
@@ -427,7 +428,8 @@ program routing
     
     write(*,*) "routing_hydrogram_forward..."
     write(*,*) ""
-    call routing_states_reset(routing_states)
+!~     call routing_states_reset(routing_states)
+    call routing_memory_reset(routing_memory)
     call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,&
     &routing_states,routing_memory,routing_results,cost)
     
@@ -443,7 +445,7 @@ program routing
     
     write(*,*) "control..."
     write(*,*) ""
-    call routing_states_reset(routing_states)
+!~     call routing_states_reset(routing_states)
     call routing_memory_reset(routing_memory)
     
     call control(routing_setup,routing_mesh,routing_parameter,&

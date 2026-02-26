@@ -19,6 +19,7 @@ subroutine manual_gradient_test()
         use mod_gamma_routing_mesh
         use mod_gamma_routing_parameters
         use mod_gamma_routing_states
+        use mod_gamma_routing_memory
         use mod_gamma_function
         use mod_gamma_routing
         use mod_gamma_routing_results
@@ -35,6 +36,7 @@ subroutine manual_gradient_test()
         type(type_routing_mesh) :: routing_mesh
         type(type_routing_parameter) :: routing_parameter
         type(type_routing_states) :: routing_states
+        type(type_routing_memory) :: routing_memory
         type(type_routing_results) :: routing_results
         real :: cost
         
@@ -150,6 +152,9 @@ subroutine manual_gradient_test()
         write(*,*) ""
         call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
         
+        write(*,*) "routing_memory_self_initialisation..."
+        write(*,*) ""
+        call routing_memory_self_initialisation(routing_mesh,routing_states,routing_memory)
         
 !~         write(*,*) "routing_states:"
 !~         write(*,*) "routing_states%max_mode=",routing_states%max_mode
@@ -176,7 +181,7 @@ subroutine manual_gradient_test()
         allocate(observations(routing_setup%npdt,routing_mesh%nb_nodes))
         observations=0.0
         call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,&
-        &routing_states,routing_results,cost)
+        &routing_states,routing_memory,routing_results,cost)
         
         write(*,*) routing_results%discharges
         write(*,*) cost
@@ -195,7 +200,7 @@ subroutine manual_gradient_test()
             WRITE(*,*) "Call grd1d x3 :"
             
             
-            call routing_states_reset(routing_states)
+            call routing_memory_reset(routing_memory)
             call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
             &routing_setup=routing_setup,routing_mesh=routing_mesh,&
             &hydraulics_coefficient=1.0,spreading=1.)
@@ -203,7 +208,7 @@ subroutine manual_gradient_test()
             ! run grd accoring spatial parameters  param and spatial time-varying states 
             cost=0.
             call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,&
-            &inflows,observations,routing_states,routing_results,cost)
+            &inflows,observations,routing_states,routing_memory,routing_results,cost)
             COST_F(1)=cost
             write(*,*) "At starting point, initial cost=",COST_F(1)
                         
@@ -213,7 +218,7 @@ subroutine manual_gradient_test()
             ! On appelle ensuite le modele et on stocke le cout
 
             
-            call routing_states_reset(routing_states)
+            call routing_memory_reset(routing_memory)
             if (ni.eq.1) then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
@@ -228,7 +233,7 @@ subroutine manual_gradient_test()
            ! run gamma accoring spatial parameters  param and spatial time-varying states 
             cost=0.
             call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,&
-            &inflows,observations,routing_states,routing_results,cost)
+            &inflows,observations,routing_states,routing_memory,routing_results,cost)
             COST_F(2)=cost
             write(*,*) "cost +pdx=",COST_F(2)
                         
@@ -238,7 +243,7 @@ subroutine manual_gradient_test()
 
             
     
-            call routing_states_reset(routing_states)
+            call routing_memory_reset(routing_memory)
             if (ni.eq.1) then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
@@ -254,7 +259,7 @@ subroutine manual_gradient_test()
            ! run gamma accoring spatial parameters  param and spatial time-varying states 
             cost=0.
             call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,&
-            &inflows,observations,routing_states,routing_results,cost)
+            &inflows,observations,routing_states,routing_memory,routing_results,cost)
             COST_F(3)=cost
             write(*,*) "cost -pdx=",COST_F(3)
             
@@ -272,7 +277,7 @@ subroutine manual_gradient_test()
             
             
             
-            call routing_states_reset(routing_states)
+            call routing_memory_reset(routing_memory)
             if (ni.eq.1) then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
@@ -300,7 +305,7 @@ subroutine manual_gradient_test()
             costd=1.0
             call ROUTING_HYDROGRAM_FORWARD_D( routing_setup, &
             &   routing_mesh, routing_parameter, routing_parameterd, inflows, &
-            &   observations, routing_states, routing_results, cost, &
+            &   observations, routing_states,routing_memory, routing_results, cost, &
             &   costd)
             write(*,*) "New Cost = ",cost
             
@@ -312,7 +317,7 @@ subroutine manual_gradient_test()
             
             WRITE(*,*) "CALL ADJOINT MODEL ... :"
             
-            call routing_states_reset(routing_states)
+            call routing_memory_reset(routing_memory)
             if (ni.eq.1) then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
@@ -338,7 +343,7 @@ subroutine manual_gradient_test()
             
             call ROUTING_HYDROGRAM_FORWARD_B( routing_setup, &
             &   routing_mesh, routing_parameter, routing_parameterb, inflows, &
-            &   observations, routing_states, routing_results, cost, &
+            &   observations, routing_states, routing_memory, routing_results, cost, &
             &   costb)
             
             write(*,*) "New Cost = ",cost

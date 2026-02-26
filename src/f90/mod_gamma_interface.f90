@@ -341,7 +341,7 @@ module mod_gamma_interface
     
     
     subroutine routing_gamma_control(routing_setup,routing_mesh,routing_parameter,&
-    &inflows,observations,routing_states,routing_results)
+    &inflows,observations,routing_states,routing_memory,routing_results)
         
         ! Notes
         ! -----
@@ -371,6 +371,7 @@ module mod_gamma_interface
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: inflows
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: observations
         type(type_routing_states), intent(inout) :: routing_states
+        type(type_routing_memory), intent(inout) :: routing_memory
         type(type_routing_results), intent(inout) :: routing_results
         !real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(out) :: qnetwork
         !real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(out) :: vnetwork
@@ -378,7 +379,7 @@ module mod_gamma_interface
         !real, intent(out) :: cost
         
         call control(routing_setup,routing_mesh,routing_parameter,&
-            &inflows,observations,routing_states,routing_results)
+            &inflows,observations,routing_states,routing_memory,routing_results)
         
     end subroutine routing_gamma_control
     
@@ -404,7 +405,8 @@ module mod_gamma_interface
         call routing_parameter_self_initialisation(routing_parameter=routing_parameterb,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,hydraulics_coefficient=0.,spreading=0.)
         
-        call routing_states_reset(routing_states)
+        call routing_memory_reset(routing_memory)
+!~         call routing_states_reset(routing_states)
         
         call normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
         
@@ -413,7 +415,7 @@ module mod_gamma_interface
         costb=1.
         call routing_hydrogram_forward_b(routing_setup, &
                 &   routing_mesh, routing_parameter, routing_parameterb, inflows, &
-                &   observations, routing_states, routing_results, cost, &
+                &   observations, routing_states, routing_memory, routing_results, cost, &
                 &   costb)
         
         gradients(1,:)=routing_parameterb%hydraulics_coefficient
@@ -448,7 +450,7 @@ module mod_gamma_interface
         call routing_parameter_self_initialisation(routing_parameter=routing_parameterb,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,hydraulics_coefficient=0.,spreading=0.)
         
-        call routing_states_reset(routing_states)
+        call routing_memory_reset(routing_memory)
         
         call normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
         
@@ -457,7 +459,7 @@ module mod_gamma_interface
         costb=1.
         call routing_hydrogram_forward_b0(routing_setup, &
                 &   routing_mesh, routing_parameter,routing_parameterb, inflows, inflowsb,&
-                &   observations, routing_states, routing_results, cost, &
+                &   observations, routing_states, routing_memory, routing_results, cost, &
                 &   costb)
         
         gradients=inflowsb

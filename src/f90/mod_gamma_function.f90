@@ -52,18 +52,18 @@ module mod_gamma_function
         call compute_gamma_window(routing_setup,routing_mesh,routing_states)
         call gamma_elongation_cells(routing_setup,routing_mesh,routing_states)
         
-        if (allocated(routing_states%remainder)) then
-            deallocate(routing_states%remainder)
-        end if
-        if (allocated(routing_states%states)) then
-            deallocate(routing_states%states)
-        end if
-        allocate(routing_states%remainder(maxval(routing_states%window_length),routing_mesh%nb_nodes))
-        allocate(routing_states%states(maxval(routing_states%window_length),routing_mesh%nb_nodes))
+!~         if (allocated(routing_states%remainder)) then
+!~             deallocate(routing_states%remainder)
+!~         end if
+!~         if (allocated(routing_states%states)) then
+!~             deallocate(routing_states%states)
+!~         end if
+!~         allocate(routing_states%remainder(maxval(routing_states%window_length),routing_mesh%nb_nodes))
+!~         allocate(routing_states%states(maxval(routing_states%window_length),routing_mesh%nb_nodes))
         
         !default value
-        routing_states%remainder=0.
-        routing_states%states=0.
+!~         routing_states%remainder=0.
+!~         routing_states%states=0.
         
         !make the tabulated gamma routing coefficient
         call tabulated_routing_coefficients_3D(routing_setup,routing_mesh,routing_states,"cdf")

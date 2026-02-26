@@ -1538,65 +1538,6 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
         def tabulated_routing_coef(self, tabulated_routing_coef):
             self.tabulated_routing_coef[...] = tabulated_routing_coef
         
-        @property
-        def states(self):
-            """
-            Element states ftype=real pytype=float array
-            Defined at mod_routing_states.f90 line 26
-            """
-            array_ndim, array_type, array_shape, array_handle = \
-                _libfgamma.f90wrap_type_routing_states__array__states(self._handle)
-            array_hash = hash((array_ndim, array_type, tuple(array_shape), array_handle))
-            states = self._arrays.get(array_hash)
-            if states is not None:
-                # Validate cached array: check data pointer matches current handle (issue #222)
-                # Arrays can be deallocated and reallocated at same address, invalidating cache
-                if states.ctypes.data != array_handle:
-                    states = None
-            if states is None:
-                try:
-                    states = f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
-                                            self._handle,
-                                            _libfgamma.f90wrap_type_routing_states__array__states)
-                except TypeError:
-                    states = f90wrap.runtime.direct_c_array(array_type, array_shape, array_handle)
-                self._arrays[array_hash] = states
-            return states
-        
-        @states.setter
-        def states(self, states):
-            self.states[...] = states
-        
-        @property
-        def remainder(self):
-            """
-            Element remainder ftype=real pytype=float array
-            Defined at mod_routing_states.f90 line 27
-            """
-            array_ndim, array_type, array_shape, array_handle = \
-                _libfgamma.f90wrap_type_routing_states__array__remainder(self._handle)
-            array_hash = hash((array_ndim, array_type, tuple(array_shape), array_handle))
-            remainder = self._arrays.get(array_hash)
-            if remainder is not None:
-                # Validate cached array: check data pointer matches current handle (issue #222)
-                # Arrays can be deallocated and reallocated at same address, invalidating cache
-                if remainder.ctypes.data != array_handle:
-                    remainder = None
-            if remainder is None:
-                try:
-                    remainder = f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
-                                            self._handle,
-                                            _libfgamma.f90wrap_type_routing_states__array__remainder)
-                except TypeError:
-                    remainder = f90wrap.runtime.direct_c_array(array_type, array_shape, \
-                        array_handle)
-                self._arrays[array_hash] = remainder
-            return remainder
-        
-        @remainder.setter
-        def remainder(self, remainder):
-            self.remainder[...] = remainder
-        
         def __str__(self):
             ret = ['<type_routing_states>{\n']
             ret.append('    window_length : ')
@@ -1625,10 +1566,6 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
             ret.append(repr(self.tabulated_spreading))
             ret.append(',\n    tabulated_routing_coef : ')
             ret.append(repr(self.tabulated_routing_coef))
-            ret.append(',\n    states : ')
-            ret.append(repr(self.states))
-            ret.append(',\n    remainder : ')
-            ret.append(repr(self.remainder))
             ret.append('}')
             return ''.join(ret)
         
@@ -1654,18 +1591,6 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
             routing_mesh=routing_mesh._handle, \
             routing_parameter=routing_parameter._handle, \
             routing_states=routing_states._handle)
-    
-    @staticmethod
-    def routing_states_reset(self, interface_call=False):
-        """
-        routing_states_reset(self)
-        Defined at mod_routing_states.f90 lines 88-104
-        
-        Parameters
-        ----------
-        routing_states : Type_Routing_States
-        """
-        _libfgamma.f90wrap_mod_gamma_routing_states__routing_states_reset(routing_states=self._handle)
     
     @staticmethod
     def routing_states_clear(self, interface_call=False):
@@ -2368,7 +2293,7 @@ mod_gamma_routing_results = Mod_Gamma_Routing_Results()
 class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
     """
     Module mod_gamma_interface
-    Defined at mod_gamma_interface.f90 lines 8-403
+    Defined at mod_gamma_interface.f90 lines 8-405
     """
     @staticmethod
     def auto_compute_boundaries(self, routing_mesh, observed_discharges, \
@@ -2511,11 +2436,12 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
     
     @staticmethod
     def routing_gamma_control(self, routing_mesh, routing_parameter, inflows, \
-        observations, routing_states, routing_results, interface_call=False):
+        observations, routing_states, routing_memory, routing_results, \
+        interface_call=False):
         """
         routing_gamma_control(self, routing_mesh, routing_parameter, inflows, \
-            observations, routing_states, routing_results)
-        Defined at mod_gamma_interface.f90 lines 244-278
+            observations, routing_states, routing_memory, routing_results)
+        Defined at mod_gamma_interface.f90 lines 244-279
         
         Parameters
         ----------
@@ -2525,12 +2451,14 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         inflows : float array
         observations : float array
         routing_states : Type_Routing_States
+        routing_memory : Type_Routing_Memory
         routing_results : Type_Routing_Results
         """
         _libfgamma.f90wrap_mod_gamma_interface__routing_gamma_control(routing_setup=self._handle, \
             routing_mesh=routing_mesh._handle, \
             routing_parameter=routing_parameter._handle, inflows=inflows, \
             observations=observations, routing_states=routing_states._handle, \
+            routing_memory=routing_memory._handle, \
             routing_results=routing_results._handle)
     
     @staticmethod
@@ -2540,7 +2468,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         """
         routing_gamma_forward_adjoint_b(self, routing_mesh, routing_parameter, inflows, \
             observations, routing_states, routing_memory, routing_results, gradients)
-        Defined at mod_gamma_interface.f90 lines 280-308
+        Defined at mod_gamma_interface.f90 lines 281-310
         
         Parameters
         ----------
@@ -2568,7 +2496,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         """
         routing_gamma_forward_adjoint_b0(self, routing_mesh, routing_parameter, inflows, \
             observations, routing_states, routing_memory, routing_results, gradients)
-        Defined at mod_gamma_interface.f90 lines 310-337
+        Defined at mod_gamma_interface.f90 lines 312-339
         
         Parameters
         ----------
@@ -2595,7 +2523,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         """
         routing_gamma_cost_function(self, routing_mesh, routing_parameter, observations, \
             qnetwork, routing_results)
-        Defined at mod_gamma_interface.f90 lines 339-369
+        Defined at mod_gamma_interface.f90 lines 341-371
         
         Parameters
         ----------
@@ -2617,7 +2545,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         """
         routing_gamma_linear_interpolation(delay, index_varying_dx, routing_states, \
             gamma_coefficient)
-        Defined at mod_gamma_interface.f90 lines 372-378
+        Defined at mod_gamma_interface.f90 lines 374-380
         
         Parameters
         ----------
@@ -2636,7 +2564,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         """
         interface_compute_routing_coefficient(scale, mode, quantile, window_shift, \
             density_function, gamma_coefficient)
-        Defined at mod_gamma_interface.f90 lines 394-402
+        Defined at mod_gamma_interface.f90 lines 396-404
         
         Parameters
         ----------

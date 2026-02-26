@@ -180,7 +180,8 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
         
         cost=0.
         
-        call routing_states_reset(routing_states)
+!~         call routing_states_reset(routing_states)
+        call routing_memory_reset(routing_memory)
         call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,&
         &routing_states,routing_memory,routing_results,cost)
         
@@ -213,7 +214,7 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
                 
                 cost=0.
                 costb=1.
-                call routing_states_reset(routing_states)
+!~                 call routing_states_reset(routing_states)
                 call routing_memory_reset(routing_memory)
                 
                 call routing_hydrogram_forward_b(routing_setup, &
@@ -306,7 +307,7 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
     call unlinearise_control_vector(nn,routing_mesh,xx,routing_parameter)
     
     
-    call routing_states_reset(routing_states)
+!~     call routing_states_reset(routing_states)
     call routing_memory_reset(routing_memory)
     call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,&
     &routing_states,routing_memory,routing_results,cost)

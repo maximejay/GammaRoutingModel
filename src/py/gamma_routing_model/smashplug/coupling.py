@@ -870,6 +870,7 @@ def ComputeModelGradients(
     # print(
     #     "</>  call gamma.routing_gamma_forward_adjoint_b: Gradients of COST with respect to varying inputs ROUTING_PARAMETERS"
     # )
+
     gamma.libfgamma.Mod_Gamma_Interface.routing_gamma_forward_adjoint_b(
         model_gamma.routing_setup,
         model_gamma.routing_mesh,
@@ -877,9 +878,21 @@ def ComputeModelGradients(
         interpolated_inflows,
         observations,
         model_gamma.routing_states,
+        model_gamma.routing_memory,
         model_gamma.routing_results,
         Grad_dCOST_dROUTINGPARAMETERS,
     )
+
+    print(
+        "Norm of projectedGrad hydraulics_coefficient:",
+        np.mean(Grad_dCOST_dROUTINGPARAMETERS[0, :] ** 2.0),
+    )
+    print(
+        "Norm of projectedGrad spreading:",
+        np.mean(Grad_dCOST_dROUTINGPARAMETERS[1, :] ** 2.0),
+    )
+    Proj_grad_gamma_hydro_coef = np.mean(Grad_dCOST_dROUTINGPARAMETERS[0, :] ** 2.0)
+    Proj_grad_gamma_spreading = np.mean(Grad_dCOST_dROUTINGPARAMETERS[0, :] ** 2.0)
 
     # Gradients of COST with respect to inflows (interpolated_inflows)
     Grad_dCOST_dINFLOWS = np.zeros(
@@ -898,6 +911,7 @@ def ComputeModelGradients(
         interpolated_inflows,
         observations,
         model_gamma.routing_states,
+        model_gamma.routing_memory,
         model_gamma.routing_results,
         Grad_dCOST_dINFLOWS,
     )
@@ -909,9 +923,10 @@ def ComputeModelGradients(
             Grad_dCOST_dINFLOWS[model_gamma.routing_setup.pdt_start_optim :, i]
         )
 
-    # print(
-    #     "</> call _get_smash_gradient: Gradients of output.response.qac with respect to varying inputs PARAMETERS and STATES"
-    # )
+    print(
+        "Norm of projectedGrad qin:",
+        np.mean(Int_Grad_dCOST_dINFLOWS**2.0),
+    )
 
     control_smash = copy.deepcopy(control_vector)
     param_gamma = ["hydraulics_coefficient", "spreading"]
@@ -932,28 +947,51 @@ def ComputeModelGradients(
 
     SmashGradients = _get_smash_gradient(smash_model, control_smash)
 
-    # vec = gamma.smashplug.SmashGridToGammaVectors(
-    #     grad_matrix[:, :, 0], smash_model, model_gamma
-    # )
-
-    # gamma.smashplug.functions_smash_plot.plot_image(
-    #     grad_matrix[:, :, 0],
-    #     figname="grad_cp.pdf",
-    #     mask=smash_model.mesh.active_cell,
-    #     title="grad_cp",
-    #     title_font_size=14,
-    # )
-
     nb_param_smash = len(control_smash["ParamList"])
     LinearizedGradientsForSmash = np.zeros(
         model_gamma.routing_mesh.nb_nodes * nb_param_smash
     )
     nbnode = model_gamma.routing_mesh.nb_nodes
 
+    Proj_grad_smash = np.zeros(shape=(nb_param_smash))
     for i in range(nb_param_smash):
         LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] = (
             SmashGradients[i * nbnode : nbnode + i * nbnode] * Int_Grad_dCOST_dINFLOWS[:]
         )
+        Proj_grad_smash[i] = np.mean(
+            LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] ** 2.0
+        )
+
+        print(
+            f"Norm of projectedGrad {control_smash['ParamList'][i]}:",
+            np.mean(LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] ** 2.0),
+        )
+
+    # scaling_hydro = abs(np.mean(Proj_grad_smash) - Proj_grad_gamma_hydro_coef)
+    # scaling_spreading = abs(np.mean(Proj_grad_smash) - Proj_grad_gamma_spreading)
+
+    # Grad_dCOST_dROUTINGPARAMETERS[0, :] = (
+    #     Grad_dCOST_dROUTINGPARAMETERS[0, :] / scaling_hydro
+    # )
+    # Grad_dCOST_dROUTINGPARAMETERS[1, :] = (
+    #     Grad_dCOST_dROUTINGPARAMETERS[1, :] / scaling_spreading
+    # )
+
+    # # print prof
+    # print("New scaled proj")
+    # print(
+    #     "Norm of projectedGrad hydraulics_coefficient:",
+    #     np.mean(Grad_dCOST_dROUTINGPARAMETERS[0, :] ** 2.0),
+    # )
+    # print(
+    #     "Norm of projectedGrad spreading:",
+    #     np.mean(Grad_dCOST_dROUTINGPARAMETERS[1, :] ** 2.0),
+    # )
+    # for i in range(nb_param_smash):
+    #     print(
+    #         f"Norm of projectedGrad {control_smash['ParamList'][i]}:",
+    #         Proj_grad_smash[i] ** 2.0,
+    #     )
 
     # At this step we own all gradients given by Tapenade.
     # Here we must normalise the gradients, so that the gradients of Gamma and Smash have the same magnitude (same physical meaning)
@@ -972,6 +1010,11 @@ def ComputeModelGradients(
             / model_gamma.routing_mesh.cumulated_surface[:]
         )
 
+    if ScaleGammaGradients and model_gamma.routing_setup.spreading_uniform == 1:
+        Grad_dCOST_dROUTINGPARAMETERS[1, :] = Grad_dCOST_dROUTINGPARAMETERS[
+            1, :
+        ] / np.max(model_gamma.routing_mesh.cumulated_surface[:])
+
     # Here is an attempt to normalize by the mean discharge
     # ~ mean_gamma_discharges=np.zeros(model_gamma.routing_mesh.nb_nodes)
     # ~ for i in range(model_gamma.routing_mesh.nb_nodes):
@@ -979,8 +1022,6 @@ def ComputeModelGradients(
     # normalisation par mean discharges
     # ~ Grad_dCOST_dROUTINGPARAMETERS[0,:]=Grad_dCOST_dROUTINGPARAMETERS[0,:]/mean_gamma_discharges[:]
     # ~ Grad_dCOST_dROUTINGPARAMETERS[1,:]=Grad_dCOST_dROUTINGPARAMETERS[1,:]/mean_gamma_discharges[:]
-
-    # Parameters/states are not normalized... We should normalize the gradient ?
 
     # Finally we aggregate all computed gradients in a single vector given the control_vector
     NbControledGammaParameter = 0
@@ -1064,19 +1105,19 @@ def ComputeModelGradients(
 def RunCoupledModel(smash_model, model_gamma, memory_reset=1):
     # Run the direct problem of the coupled model Smash and Gamma
 
-    print("Run of the Smash model")
+    print("</> Run of the Smash model")
     smash_model.forward_run()
 
-    # print(
-    #     f"Getting the interpolated Smash outflow at time-step {model_gamma.routing_setup.dt}"
-    # )
     interpolated_inflows = GetGammaInflowFromSmash(
         smash_model, dt=model_gamma.routing_setup.dt
     )
 
     # run the model
-    print("Run the Gamma Routing model")
+    print("</> Run the Gamma Routing model")
     model_gamma.run(interpolated_inflows, states_init=0, memory_reset=memory_reset)
+
+    print("</> Copy the simulated discharges in the smash model object")
+    gamma.smashplug.CopyGammaDischargesToSmashResponse(smash_model, model_gamma)
 
 
 def ComputeCostAndGradients(
@@ -1284,16 +1325,6 @@ def OptimizeCoupledModel(
     bounds[:, 0] = 0.0
     bounds[:, 1] = 1.0
 
-    # cost, grad = gamma.smashplug.ComputeCostAndGradients(
-    #     ControlVector["X"],
-    #     ControlVector,
-    #     optimized_smash,
-    #     optimized_gamma,
-    #     observations,
-    #     ScaleGammaGradients,
-    #     ScaleGradientsByBounds,
-    # )
-
     res = scipy.optimize.minimize(
         gamma.smashplug.ComputeCostAndGradients,
         ControlVector["X"],
@@ -1310,7 +1341,12 @@ def OptimizeCoupledModel(
         jac=True,
         bounds=bounds,
         tol=tol,
-        options={"disp": True, "iprint": 101, "maxiter": maxiter},
+        options={
+            "disp": True,
+            "iprint": 101,
+            "maxiter": maxiter,
+            # "gtol": 1e-8,
+        },
         # options={"disp": True, "maxiter": maxiter},
     )
 

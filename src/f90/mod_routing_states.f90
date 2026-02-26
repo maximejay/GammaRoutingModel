@@ -32,8 +32,8 @@ module mod_gamma_routing_states
         real, dimension(:), allocatable :: tabulated_spreading !tabulated spreading to spread the Gamma pdf
         !real,dimension(:,:,:), allocatable :: tabulated_routing_coef !tabulated routing coefficient for the unit hydrogram
         real,dimension(:,:,:,:), allocatable :: tabulated_routing_coef !tabulated routing coefficient for the unit hydrogram
-        real,dimension(:,:), allocatable :: states !state of the system at t0
-        real,dimension(:,:),allocatable :: remainder!remainder for the routing scheme
+        !real,dimension(:,:), allocatable :: states !state of the system at t0
+        !real,dimension(:,:),allocatable :: remainder!remainder for the routing scheme
     end type type_routing_states
     
 
@@ -114,28 +114,28 @@ module mod_gamma_routing_states
     end subroutine routing_state_self_initialisation
     
     
-    subroutine routing_states_reset(routing_states)
+!~     subroutine routing_states_reset(routing_states)
         
-        ! Notes
-        ! -----
-        ! **routing_states_reset(routing_states)** :
-        !
-        ! - Reset the derived type routing_states, set to zeros the states and the remainder components
-        !        
-        ! =============================           ===================================
-        ! Parameters                              Description
-        ! =============================           ===================================
-        ! ``routing_states``                      routing_states Derived Type (inout)
-        ! =============================           ===================================
+!~         ! Notes
+!~         ! -----
+!~         ! **routing_states_reset(routing_states)** :
+!~         !
+!~         ! - Reset the derived type routing_states, set to zeros the states and the remainder components
+!~         !        
+!~         ! =============================           ===================================
+!~         ! Parameters                              Description
+!~         ! =============================           ===================================
+!~         ! ``routing_states``                      routing_states Derived Type (inout)
+!~         ! =============================           ===================================
         
-        implicit none
-        type(type_routing_states), intent(inout) :: routing_states
+!~         implicit none
+!~         type(type_routing_states), intent(inout) :: routing_states
         
-        !default value
-        routing_states%remainder=0.
-        routing_states%states=0.
+!~         !default value
+!~         !routing_states%remainder=0.
+!~         !routing_states%states=0.
         
-    end subroutine routing_states_reset
+!~     end subroutine routing_states_reset
     
     subroutine routing_states_clear(routing_states)
         

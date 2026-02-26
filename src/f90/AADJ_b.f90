@@ -136,8 +136,8 @@ MODULE MOD_GAMMA_ROUTING_STATES_DIFF
 !tabulated spreading to spread the Gamma pdf
 !real,dimension(:,:,:), allocatable :: tabulated_routing_coef !tabulated routing coefficient for the unit hydrogram
 !tabulated routing coefficient for the unit hydrogram
-!state of the system at t0
-!remainder for the routing scheme
+!real,dimension(:,:), allocatable :: states !state of the system at t0
+!real,dimension(:,:),allocatable :: remainder!remainder for the routing scheme
   TYPE TYPE_ROUTING_STATES
       INTEGER, DIMENSION(:), ALLOCATABLE :: window_length
       INTEGER :: nb_mode
@@ -152,8 +152,6 @@ MODULE MOD_GAMMA_ROUTING_STATES_DIFF
       REAL, DIMENSION(:), ALLOCATABLE :: tabulated_delay
       REAL, DIMENSION(:), ALLOCATABLE :: tabulated_spreading
       REAL, DIMENSION(:, :, :, :), ALLOCATABLE :: tabulated_routing_coef
-      REAL, DIMENSION(:, :), ALLOCATABLE :: states
-      REAL, DIMENSION(:, :), ALLOCATABLE :: remainder
   END TYPE TYPE_ROUTING_STATES
 
 CONTAINS
@@ -233,14 +231,24 @@ CONTAINS
     routing_states%param_normalisation = 1.0
   END SUBROUTINE ROUTING_STATE_SELF_INITIALISATION
 
-  SUBROUTINE ROUTING_STATES_RESET(routing_states)
-    IMPLICIT NONE
-    TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
-!default value
-    routing_states%remainder = 0.
-    routing_states%states = 0.
-  END SUBROUTINE ROUTING_STATES_RESET
-
+!~     subroutine routing_states_reset(routing_states)
+!~         ! Notes
+!~         ! -----
+!~         ! **routing_states_reset(routing_states)** :
+!~         !
+!~         ! - Reset the derived type routing_states, set to zeros the states and the remainder components
+!~         !        
+!~         ! =============================           ===================================
+!~         ! Parameters                              Description
+!~         ! =============================           ===================================
+!~         ! ``routing_states``                      routing_states Derived Type (inout)
+!~         ! =============================           ===================================
+!~         implicit none
+!~         type(type_routing_states), intent(inout) :: routing_states
+!~         !default value
+!~         !routing_states%remainder=0.
+!~         !routing_states%states=0.
+!~     end subroutine routing_states_reset
   SUBROUTINE ROUTING_STATES_CLEAR(routing_states)
     IMPLICIT NONE
     TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states

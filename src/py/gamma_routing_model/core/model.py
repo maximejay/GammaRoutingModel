@@ -17,6 +17,7 @@ from __future__ import annotations
 import traceback
 import os
 import numpy as np
+import copy
 
 from gamma_routing_model.libfgamma import (
     Mod_Gamma_Routing_Setup,
@@ -121,7 +122,6 @@ class Model(object):
 
     @property
     def routing_memory(self):
-
         return self._routing_memory
 
     @routing_memory.setter
