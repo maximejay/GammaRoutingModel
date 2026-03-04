@@ -406,7 +406,6 @@ module mod_gamma_interface
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,hydraulics_coefficient=0.,spreading=0.)
         
         call routing_memory_reset(routing_memory)
-!~         call routing_states_reset(routing_states)
         
         call normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
         
@@ -457,6 +456,7 @@ module mod_gamma_interface
         gradients=0.
         cost=0.
         costb=1.
+        inflowsb=0.
         call routing_hydrogram_forward_b0(routing_setup, &
                 &   routing_mesh, routing_parameter,routing_parameterb, inflows, inflowsb,&
                 &   observations, routing_states, routing_memory, routing_results, cost, &

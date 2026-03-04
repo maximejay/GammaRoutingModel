@@ -70,8 +70,8 @@ model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
     mode_discretization_step=0.1,
     spreading_discretization_step=0.1,
     ponderation_regul=0.0,
-    velocity_computation="qm3",
-    varying_spread=1,
+    velocity_computation="qmm",
+    varying_spread=0,
     spreading_uniform=1,
     criteria="nse",
     ponderation_cost=10000.0,
@@ -149,9 +149,9 @@ gradient = gamma.smashplug.ComputeModelGradients(
 # Here smash parameter are not normalized. That cause slow convergence. We try some gradient normalisation technics : ScaleGradientsByBounds and ScaleGammaGradients
 # the spreading coefficient will uniformly calibrated => the gradient of this variable is scaled by the nb of nodes !
 
-# control_parameters_list = ["cp", "ct", "hydraulics_coefficient"]
+control_parameters_list = ["cp", "ct", "hydraulics_coefficient"]
 # control_parameters_list = ["cp", "ct", "spreading"]
-control_parameters_list = ["cp", "ct", "hydraulics_coefficient", "spreading"]
+# control_parameters_list = ["cp", "ct", "hydraulics_coefficient", "spreading"]
 
 BestControlVector, optimized_smash_model, optimized_gamma_model = (
     gamma.smashplug.OptimizeCoupledModel(
@@ -163,12 +163,12 @@ BestControlVector, optimized_smash_model, optimized_gamma_model = (
             "cp": [1.0, 1000.0],
             "ct": [1.0, 1000.0],
             "hydraulics_coefficient": [0.3, 5.0],
-            "spreading": [0.5, 5.0],
+            # "spreading": [0.5, 5.0],
         },
         maxiter=30,
         tol=0.0001,
-        ScaleGradientsByBounds=False,
-        ScaleGammaGradients=False,
+        ScaleGradients=False,
+        ScaleGammaGradientsBySurface=False,
     )
 )
 

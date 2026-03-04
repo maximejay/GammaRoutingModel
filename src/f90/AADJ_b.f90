@@ -1085,15 +1085,6 @@ CONTAINS
     x2 = routing_states%tabulated_delay(ix2)
     y1 = routing_states%tabulated_spreading(iy1)
     y2 = routing_states%tabulated_spreading(iy2)
-!~         gamma_coefficient=&
-!~         & ((mode-x2)/(x1-x2)) * ((spreading-y2)/(y1-y2)) * &
-!~         &routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)&
-!~         &+((mode-x1)/(x2-x1)) * ((spreading-y2)/(y1-y2)) * &
-!~         &routing_states%tabulated_routing_coef(:,ix2,iy1,index_dx)&
-!~         &+((mode-x2)/(x1-x2)) * ((spreading-y1)/(y2-y1)) * &
-!~         &routing_states%tabulated_routing_coef(:,ix1,iy2,index_dx)&
-!~         &+((mode-x1)/(x2-x1)) * ((spreading-y1)/(y2-y1)) * &
-!~         &routing_states%tabulated_routing_coef(:,ix2,iy2,index_dx)
     wx1 = (x2-x)/(x2-x1)
     wx2 = (x-x1)/(x2-x1)
     wy1 = (y2-y)/(y2-y1)
@@ -1239,15 +1230,6 @@ CONTAINS
     x2 = routing_states%tabulated_delay(ix2)
     y1 = routing_states%tabulated_spreading(iy1)
     y2 = routing_states%tabulated_spreading(iy2)
-!~         gamma_coefficient=&
-!~         & ((mode-x2)/(x1-x2)) * ((spreading-y2)/(y1-y2)) * &
-!~         &routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)&
-!~         &+((mode-x1)/(x2-x1)) * ((spreading-y2)/(y1-y2)) * &
-!~         &routing_states%tabulated_routing_coef(:,ix2,iy1,index_dx)&
-!~         &+((mode-x2)/(x1-x2)) * ((spreading-y1)/(y2-y1)) * &
-!~         &routing_states%tabulated_routing_coef(:,ix1,iy2,index_dx)&
-!~         &+((mode-x1)/(x2-x1)) * ((spreading-y1)/(y2-y1)) * &
-!~         &routing_states%tabulated_routing_coef(:,ix2,iy2,index_dx)
     wx1 = (x2-x)/(x2-x1)
     wx2 = (x-x1)/(x2-x1)
     wy1 = (y2-y)/(y2-y1)

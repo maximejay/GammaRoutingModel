@@ -2468,7 +2468,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         """
         routing_gamma_forward_adjoint_b(self, routing_mesh, routing_parameter, inflows, \
             observations, routing_states, routing_memory, routing_results, gradients)
-        Defined at mod_gamma_interface.f90 lines 281-310
+        Defined at mod_gamma_interface.f90 lines 281-309
         
         Parameters
         ----------
@@ -2496,7 +2496,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         """
         routing_gamma_forward_adjoint_b0(self, routing_mesh, routing_parameter, inflows, \
             observations, routing_states, routing_memory, routing_results, gradients)
-        Defined at mod_gamma_interface.f90 lines 312-339
+        Defined at mod_gamma_interface.f90 lines 311-339
         
         Parameters
         ----------

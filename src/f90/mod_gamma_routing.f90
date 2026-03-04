@@ -299,11 +299,10 @@ module mod_gamma_routing
             velocity =  hydraulics_coefficient * &
             &( incoming_discharges * routing_setup%dt * 1000. / &
             &(routing_mesh%cumulated_surface(current_node) * 1000.0**2.) )**0.4
-        else if (routing_setup%velocity_computation.eq."qm3") then
+        end if
+        
+        if (routing_setup%velocity_computation.eq."qm3") then
             velocity =  hydraulics_coefficient * incoming_discharges**0.4
-        else
-            write(*,*) "Wrong value for routing_setup%velocity_computation",routing_setup%velocity_computation 
-            stop 1
         end if
         
         
@@ -402,10 +401,10 @@ module mod_gamma_routing
         real :: x1,y1,x2,y2
         real :: wx1, wx2,wy1, wy2
         real :: x,y
-        !real :: spreading
+        !real :: spreading_new
         
         !Avoid chocs by increasing the spreading with the mode: we could calibrate the exponnent instead of the spreading... This works very well, less chocs when v is low (hydro_coef is low too)
-        !spreading=spreading_origin+spreading_origin*mode**0.5
+        !spreading_new=spreading+spreading*(mode/900.)**0.5
         
         x = max(routing_states%tabulated_delay(1), min(mode, routing_states%tabulated_delay(routing_states%nb_mode)))
         y = max(routing_states%tabulated_spreading(1), &
@@ -437,16 +436,6 @@ module mod_gamma_routing
         x2=routing_states%tabulated_delay(ix2)
         y1=routing_states%tabulated_spreading(iy1)
         y2=routing_states%tabulated_spreading(iy2)
-        
-!~         gamma_coefficient=&
-!~         & ((mode-x2)/(x1-x2)) * ((spreading-y2)/(y1-y2)) * &
-!~         &routing_states%tabulated_routing_coef(:,ix1,iy1,index_dx)&
-!~         &+((mode-x1)/(x2-x1)) * ((spreading-y2)/(y1-y2)) * &
-!~         &routing_states%tabulated_routing_coef(:,ix2,iy1,index_dx)&
-!~         &+((mode-x2)/(x1-x2)) * ((spreading-y1)/(y2-y1)) * &
-!~         &routing_states%tabulated_routing_coef(:,ix1,iy2,index_dx)&
-!~         &+((mode-x1)/(x2-x1)) * ((spreading-y1)/(y2-y1)) * &
-!~         &routing_states%tabulated_routing_coef(:,ix2,iy2,index_dx)
         
         wx1 = (x2 - x)/(x2 - x1)
         wx2 = (x - x1)/(x2 - x1)
