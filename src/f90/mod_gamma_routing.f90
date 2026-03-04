@@ -299,10 +299,11 @@ module mod_gamma_routing
             velocity =  hydraulics_coefficient * &
             &( incoming_discharges * routing_setup%dt * 1000. / &
             &(routing_mesh%cumulated_surface(current_node) * 1000.0**2.) )**0.4
-        end if
-        
-        if (routing_setup%velocity_computation.eq."qm3") then
+        else if (routing_setup%velocity_computation.eq."qm3") then
             velocity =  hydraulics_coefficient * incoming_discharges**0.4
+        else
+            write(*,*) "Wrong value for routing_setup%velocity_computation",routing_setup%velocity_computation 
+            stop 1
         end if
         
         
