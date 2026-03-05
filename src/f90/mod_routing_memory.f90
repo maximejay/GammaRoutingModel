@@ -19,6 +19,8 @@ module mod_gamma_routing_memory
     type type_routing_memory
         real,dimension(:,:), allocatable :: states !state of the system at t0
         real,dimension(:,:), allocatable :: remainder!remainder for the routing scheme
+        real,dimension(:,:), allocatable :: states_init !state of the system at t0
+        real,dimension(:,:), allocatable :: remainder_init!remainder for the routing scheme
     end type type_routing_memory
     
     contains
@@ -56,13 +58,23 @@ module mod_gamma_routing_memory
         if (allocated(routing_memory%states)) then
             deallocate(routing_memory%states)
         end if
+        if (allocated(routing_memory%remainder_init)) then
+            deallocate(routing_memory%remainder)
+        end if
+        if (allocated(routing_memory%states_init)) then
+            deallocate(routing_memory%states)
+        end if
         
         allocate(routing_memory%remainder(int(maxval(routing_states%window_length)),routing_mesh%nb_nodes))
         allocate(routing_memory%states(int(maxval(routing_states%window_length)),routing_mesh%nb_nodes))
+        allocate(routing_memory%remainder_init(int(maxval(routing_states%window_length)),routing_mesh%nb_nodes))
+        allocate(routing_memory%states_init(int(maxval(routing_states%window_length)),routing_mesh%nb_nodes))
         
         !default value
         routing_memory%remainder=0.
         routing_memory%states=0.
+        routing_memory%remainder_init=0.
+        routing_memory%states_init=0.
         
     end subroutine routing_memory_self_initialisation
     
@@ -85,8 +97,8 @@ module mod_gamma_routing_memory
         type(type_routing_memory), intent(inout) :: routing_memory
         
         !default value
-        routing_memory%remainder=0.
-        routing_memory%states=0.
+        routing_memory%remainder=routing_memory%remainder_init
+        routing_memory%states=routing_memory%states_init
         
     end subroutine routing_memory_reset
     

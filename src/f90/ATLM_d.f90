@@ -279,9 +279,13 @@ MODULE MOD_GAMMA_ROUTING_MEMORY_DIFF_D
   IMPLICIT NONE
 !state of the system at t0
 !remainder for the routing scheme
+!state of the system at t0
+!remainder for the routing scheme
   TYPE TYPE_ROUTING_MEMORY
       REAL, DIMENSION(:, :), ALLOCATABLE :: states
       REAL, DIMENSION(:, :), ALLOCATABLE :: remainder
+      REAL, DIMENSION(:, :), ALLOCATABLE :: states_init
+      REAL, DIMENSION(:, :), ALLOCATABLE :: remainder_init
   END TYPE TYPE_ROUTING_MEMORY
 
 CONTAINS
@@ -317,21 +321,33 @@ CONTAINS
     IF (ALLOCATED(routing_memory%states)) THEN
       DEALLOCATE(routing_memory%states)
     END IF
+    IF (ALLOCATED(routing_memory%remainder_init)) THEN
+      DEALLOCATE(routing_memory%remainder)
+    END IF
+    IF (ALLOCATED(routing_memory%states_init)) THEN
+      DEALLOCATE(routing_memory%states)
+    END IF
     ALLOCATE(routing_memory%remainder(INT(MAXVAL(routing_states%&
 &   window_length)), routing_mesh%nb_nodes))
     ALLOCATE(routing_memory%states(INT(MAXVAL(routing_states%&
 &   window_length)), routing_mesh%nb_nodes))
+    ALLOCATE(routing_memory%remainder_init(INT(MAXVAL(routing_states%&
+&   window_length)), routing_mesh%nb_nodes))
+    ALLOCATE(routing_memory%states_init(INT(MAXVAL(routing_states%&
+&   window_length)), routing_mesh%nb_nodes))
 !default value
     routing_memory%remainder = 0.
     routing_memory%states = 0.
+    routing_memory%remainder_init = 0.
+    routing_memory%states_init = 0.
   END SUBROUTINE ROUTING_MEMORY_SELF_INITIALISATION
 
   SUBROUTINE ROUTING_MEMORY_RESET(routing_memory)
     IMPLICIT NONE
     TYPE(TYPE_ROUTING_MEMORY), INTENT(INOUT) :: routing_memory
 !default value
-    routing_memory%remainder = 0.
-    routing_memory%states = 0.
+    routing_memory%remainder = routing_memory%remainder_init
+    routing_memory%states = routing_memory%states_init
   END SUBROUTINE ROUTING_MEMORY_RESET
 
   SUBROUTINE ROUTING_MEMORY_CLEAR(routing_memory)
@@ -430,8 +446,8 @@ CONTAINS
 &   ) :: remainder
     REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
 &   ) :: states
-    remainder = routing_memory%remainder
-    states = routing_memory%states
+    remainder = routing_memory%remainder_init
+    states = routing_memory%states_init
     DO i=1,routing_setup%npdt
       velocities = 0.
       qmesh = 0.
@@ -1827,57 +1843,68 @@ SUBROUTINE COST_FUNCTION_D(routing_setup, routing_mesh, &
   REAL, INTENT(INOUT) :: cost_finald
   REAL :: penalty, cost
   REAL :: penaltyd, costd
-  REAL :: num, den, meanobs, sumobs
+  REAL :: num, den, meanobs, sumobs, numobs
   REAL :: numd
-  INTEGER :: j, i, k, numobs
+  INTEGER :: j, i, k
+  INTEGER :: nb_controlled_nodes
+  INTRINSIC SIZE
   INTRINSIC TRIM
   cost = 0.
   tab_cost = 0.
   cost_final = 0.
 !write(*,*) any((observations-qnetwork)**2.>0)
+  nb_controlled_nodes = SIZE(routing_mesh%controlled_nodes)
   SELECT CASE  (TRIM(routing_setup%criteria)) 
   CASE ('rmse') 
     cost = 0.
     costd = 0.0
-    DO j=1,routing_mesh%nb_nodes
+!~         do j=1,routing_mesh%nb_nodes
+    DO j=1,nb_controlled_nodes
       k = routing_mesh%controlled_nodes(j)
       IF (k .GT. 0 .AND. k .LE. routing_mesh%nb_nodes) THEN
         DO i=routing_setup%pdt_start_optim,routing_setup%npdt
+          IF (observations(i, k) .GE. 0.) THEN
 !write(*,*) i,k,(observations(i,k)-qnetwork(i,k))**2.,observations(i,k),qnetwork(i,k)
 !~                     if (observations(i,k).ne.qnetwork(i,k))then
 !~                         write(*,*) i,k,(observations(i,k)-qnetwork(i,k))**2.,observations(i,k),qnetwork(i,k)
 !~                     end if
-          costd = costd - 2.*(observations(i, k)-qnetwork(i, k))*&
-&           qnetworkd(i, k)
-          cost = cost + (observations(i, k)-qnetwork(i, k))**2.
+            costd = costd - 2.*(observations(i, k)-qnetwork(i, k))*&
+&             qnetworkd(i, k)
+            cost = cost + (observations(i, k)-qnetwork(i, k))**2.
+          END IF
         END DO
       END IF
     END DO
   CASE ('nse') 
     cost = 0.
     costd = 0.0
-    DO j=1,routing_mesh%nb_nodes
+!~         do j=1,routing_mesh%nb_nodes
+    DO j=1,nb_controlled_nodes
       k = routing_mesh%controlled_nodes(j)
       IF (k .GT. 0 .AND. k .LE. routing_mesh%nb_nodes) THEN
         sumobs = 0.
         num = 0.
         den = 0.
-        numobs = 0
+        numobs = 0.
         DO i=routing_setup%pdt_start_optim,routing_setup%npdt
-          sumobs = sumobs + observations(i, k)
-          numobs = numobs + 1
+          IF (observations(i, k) .GE. 0.) THEN
+            sumobs = sumobs + observations(i, k)
+            numobs = numobs + 1.0
+          END IF
         END DO
-        IF (numobs .GT. 0) THEN
+        IF (numobs .GT. 0.) THEN
           meanobs = sumobs/numobs
           numd = 0.0
         ELSE
           numd = 0.0
         END IF
         DO i=routing_setup%pdt_start_optim,routing_setup%npdt
-          numd = numd - 2.*(observations(i, k)-qnetwork(i, k))*qnetworkd&
-&           (i, k)
-          num = num + (observations(i, k)-qnetwork(i, k))**2.
-          den = den + (observations(i, k)-meanobs)**2.
+          IF (observations(i, k) .GE. 0.) THEN
+            numd = numd - 2.*(observations(i, k)-qnetwork(i, k))*&
+&             qnetworkd(i, k)
+            num = num + (observations(i, k)-qnetwork(i, k))**2.
+            den = den + (observations(i, k)-meanobs)**2.
+          END IF
         END DO
         IF (den .GT. 0.) THEN
           costd = costd + numd/den
@@ -1948,45 +1975,56 @@ SUBROUTINE COST_FUNCTION_NODIFF_D(routing_setup, routing_mesh, &
   REAL, DIMENSION(3), INTENT(INOUT) :: tab_cost
   REAL, INTENT(INOUT) :: cost_final
   REAL :: penalty, cost
-  REAL :: num, den, meanobs, sumobs
-  INTEGER :: j, i, k, numobs
+  REAL :: num, den, meanobs, sumobs, numobs
+  INTEGER :: j, i, k
+  INTEGER :: nb_controlled_nodes
+  INTRINSIC SIZE
   INTRINSIC TRIM
   cost = 0.
   tab_cost = 0.
   cost_final = 0.
 !write(*,*) any((observations-qnetwork)**2.>0)
+  nb_controlled_nodes = SIZE(routing_mesh%controlled_nodes)
   SELECT CASE  (TRIM(routing_setup%criteria)) 
   CASE ('rmse') 
     cost = 0.
-    DO j=1,routing_mesh%nb_nodes
+!~         do j=1,routing_mesh%nb_nodes
+    DO j=1,nb_controlled_nodes
       k = routing_mesh%controlled_nodes(j)
       IF (k .GT. 0 .AND. k .LE. routing_mesh%nb_nodes) THEN
         DO i=routing_setup%pdt_start_optim,routing_setup%npdt
+          IF (observations(i, k) .GE. 0.) THEN
 !write(*,*) i,k,(observations(i,k)-qnetwork(i,k))**2.,observations(i,k),qnetwork(i,k)
 !~                     if (observations(i,k).ne.qnetwork(i,k))then
 !~                         write(*,*) i,k,(observations(i,k)-qnetwork(i,k))**2.,observations(i,k),qnetwork(i,k)
 !~                     end if
-          cost = cost + (observations(i, k)-qnetwork(i, k))**2.
+            cost = cost + (observations(i, k)-qnetwork(i, k))**2.
+          END IF
         END DO
       END IF
     END DO
   CASE ('nse') 
     cost = 0.
-    DO j=1,routing_mesh%nb_nodes
+!~         do j=1,routing_mesh%nb_nodes
+    DO j=1,nb_controlled_nodes
       k = routing_mesh%controlled_nodes(j)
       IF (k .GT. 0 .AND. k .LE. routing_mesh%nb_nodes) THEN
         sumobs = 0.
         num = 0.
         den = 0.
-        numobs = 0
+        numobs = 0.
         DO i=routing_setup%pdt_start_optim,routing_setup%npdt
-          sumobs = sumobs + observations(i, k)
-          numobs = numobs + 1
+          IF (observations(i, k) .GE. 0.) THEN
+            sumobs = sumobs + observations(i, k)
+            numobs = numobs + 1.0
+          END IF
         END DO
-        IF (numobs .GT. 0) meanobs = sumobs/numobs
+        IF (numobs .GT. 0.) meanobs = sumobs/numobs
         DO i=routing_setup%pdt_start_optim,routing_setup%npdt
-          num = num + (observations(i, k)-qnetwork(i, k))**2.
-          den = den + (observations(i, k)-meanobs)**2.
+          IF (observations(i, k) .GE. 0.) THEN
+            num = num + (observations(i, k)-qnetwork(i, k))**2.
+            den = den + (observations(i, k)-meanobs)**2.
+          END IF
         END DO
         IF (den .GT. 0.) cost = cost + num/den
       END IF

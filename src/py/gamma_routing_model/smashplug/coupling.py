@@ -72,7 +72,9 @@ def VectorIndexesOfSmashGauges(smash_model):
     )
     index_vector_matrix = VectorIndexesOfActiveSmashCells(smash_model)
 
-    gauge_pos = np.zeros(nb_active_cell) - 1
+    # gauge_pos = np.zeros(nb_active_cell) - 1
+
+    gauge_pos = np.zeros(len(index_gauge_pos))
 
     for i in range(len(index_gauge_pos)):
 
@@ -196,7 +198,9 @@ def SmashMeshToGammaMesh(smash_model, model_gamma):
         np.argsort(VectorMesh1D["FlowAcc"]) + 1
     )
     model_gamma.routing_mesh.nodes_linker = nodes_linker
-    model_gamma.routing_mesh.controlled_nodes = gauge_pos + 1
+
+    model_gamma.routing_mesh_set_control(gauge_pos + 1)
+
     model_gamma.routing_mesh.surface = VectorMesh1D["dx"] ** 2.0 / 1000.0**2.0  #!km²
     model_gamma.routing_mesh.dx = VectorMesh1D["dx"]
 
@@ -395,16 +399,16 @@ def FitDataToNewDt(data, dt, new_dt):
 
 def CopyGammaDischargesToSmashResponse(model_smash, model_gamma):
     # copy q in smash
-    gamma_gauge_pos = model_gamma.routing_mesh.controlled_nodes[
-        np.where(model_gamma.routing_mesh.controlled_nodes > 0)
-    ]
 
-    for i in range(len(gamma_gauge_pos)):
+    for i in range(len(model_gamma.routing_mesh.gauge_nodes)):
         qg = model_gamma.routing_results.discharges[
-            :, model_gamma.routing_mesh.controlled_nodes[i] - 1
+            :, model_gamma.routing_mesh.gauge_nodes[i] - 1
         ]
         qg_3600 = gamma.smashplug.FitDataToNewDt(qg, 900.0, 3600.0)
-        model_smash.response.q[i, :] = qg_3600
+
+        position_smash = model_gamma.routing_mesh.gauge_name_index[i] - 1
+
+        model_smash.response.q[position_smash, :] = qg_3600
 
 
 def GammaVectorsToSmashGrid(vector, smash_model, model_gamma):
@@ -430,8 +434,6 @@ def SmashGridToGammaVectors(grid, smash_model, model_gamma):
     # Convert smash gridded data to vectors for gamma model
     # grid[nbx,nby]
 
-    nb_gauge = len(np.where(model_gamma.routing_mesh.controlled_nodes > 0)[0])
-
     vector = np.zeros(shape=(model_gamma.routing_mesh.nb_nodes))
 
     k = 0
@@ -451,21 +453,23 @@ def SmashDataVectorsToGrid(observations, model_gamma, smash_dt):
     # observations[nb_gauge,npdt]
     # gridded_observation[npdt,nb_cells]
 
-    gridded_observation = np.zeros(
-        shape=(model_gamma.routing_setup.npdt, model_gamma.routing_mesh.nb_nodes)
+    gridded_observation = (
+        np.zeros(
+            shape=(model_gamma.routing_setup.npdt, model_gamma.routing_mesh.nb_nodes)
+        )
+        - 99.0
     )
 
-    pos_observation = 0
-    for i in range(model_gamma.routing_mesh.nb_nodes):
+    for i in range(len(model_gamma.routing_mesh.gauge_nodes)):
 
-        k = model_gamma.routing_mesh.controlled_nodes[i] - 1
+        k = model_gamma.routing_mesh.gauge_nodes[i] - 1
+        position_in_smash = model_gamma.routing_mesh.gauge_name_index[i] - 1
 
         if (k > 0) and (k <= model_gamma.routing_mesh.nb_nodes):
             # print(f"fitting at obs {pos_observation} for grid {k} from {smash_dt} to {model_gamma.routing_setup.dt}")
             gridded_observation[:, k] = FitDataToNewDt(
-                observations[pos_observation, :], smash_dt, model_gamma.routing_setup.dt
+                observations[position_in_smash, :], smash_dt, model_gamma.routing_setup.dt
             )
-            pos_observation = pos_observation + 1
 
     return gridded_observation
 
@@ -474,7 +478,7 @@ def GriddedDataToSmashVectors(gridded_observation, model_gamma, smash_dt):
     # gridded_observation[npdt,nb_cells]
     # observations[nb_gauge,npdt]
 
-    nb_gauge = len(np.where(model_gamma.routing_mesh.controlled_nodes > 0)[0])
+    nb_gauge = len(model_gamma.routing_mesh.gauge_nodes)
 
     observations = np.zeros(
         shape=(
@@ -483,17 +487,16 @@ def GriddedDataToSmashVectors(gridded_observation, model_gamma, smash_dt):
         )
     )
 
-    pos_observation = 0
-    for i in range(model_gamma.routing_mesh.nb_nodes):
+    for i in range(len(model_gamma.routing_mesh.gauge_nodes)):
 
-        k = model_gamma.routing_mesh.controlled_nodes[i] - 1
+        k = model_gamma.routing_mesh.gauge_nodes[i] - 1
+        position_in_smash = model_gamma.routing_mesh.gauge_name_index[i] - 1
 
         if (k > 0) and (k <= model_gamma.routing_mesh.nb_nodes):
 
-            observations[pos_observation, :] = FitDataToNewDt(
+            observations[position_in_smash, :] = FitDataToNewDt(
                 gridded_observation[:, k], model_gamma.routing_setup.dt, smash_dt
             )
-            pos_observation = pos_observation + 1
 
     return observations
 
@@ -1143,7 +1146,7 @@ def ComputeCostAndGradients(
 
     # run the model
     print("Run the Gamma model")
-    model_gamma.run(interpolated_inflows, states_init=False, memory_reset=True)
+    model_gamma.run(interpolated_inflows, states_init=False, memory_reset=False)
 
     print("Compute the cost")
     model_gamma.cost_function(observations, model_gamma.routing_results.discharges)
@@ -1285,10 +1288,12 @@ def OptimizeCoupledModel(
         "spreading": [1.0, 3.0],
     },
     maxiter=10,
-    tol=0.00001,
+    tol=None,
     ScaleGammaGradientsBySurface=True,
     ScaleGradients=True,
     inplace=False,
+    optim_type="local",
+    local_optimizer="L-BFGS-B",
 ):
 
     # Optimize the distributed parameters of the coupled model using the lbfgsb controler
@@ -1315,30 +1320,56 @@ def OptimizeCoupledModel(
     bounds[:, 0] = 0.0
     bounds[:, 1] = 1.0
 
-    res = scipy.optimize.minimize(
-        gamma.smashplug.ComputeCostAndGradients,
-        ControlVector["X"],
-        args=(
-            ControlVector,
-            optimized_smash,
-            optimized_gamma,
-            observations,
-            ScaleGammaGradientsBySurface,
-            ScaleGradients,
-        ),
-        method="L-BFGS-B",
-        # method="Newton-CG",
-        jac=True,
-        bounds=bounds,
-        tol=tol,
-        options={
-            "disp": True,
-            "iprint": 101,
-            "maxiter": maxiter,
-            # "gtol": 1e-8,
-        },
-        # options={"disp": True, "maxiter": maxiter},
-    )
+    if optim_type == "local":
+        res = scipy.optimize.minimize(
+            gamma.smashplug.ComputeCostAndGradients,
+            ControlVector["X"],
+            args=(
+                ControlVector,
+                optimized_smash,
+                optimized_gamma,
+                observations,
+                ScaleGammaGradientsBySurface,
+                ScaleGradients,
+            ),
+            # method="L-BFGS-B",
+            method=local_optimizer,
+            # method="Newton-CG",
+            jac=True,
+            bounds=bounds,
+            tol=tol,
+            options={
+                "disp": True,
+                "maxiter": maxiter,
+                "verbose": 1,
+                "maxfun": 10,
+            },
+        )
+
+    elif optim_type == "global":
+
+        res = scipy.optimize.shgo(
+            gamma.smashplug.ComputeCostAndGradients,
+            args=(
+                ControlVector,
+                optimized_smash,
+                optimized_gamma,
+                observations,
+                ScaleGammaGradientsBySurface,
+                ScaleGradients,
+            ),
+            n=10,
+            options={
+                "local_iter": 3,
+                "maxiter": 5,
+                "jac": True,
+            },
+            bounds=bounds,
+            minimizer_kwargs={"method": "L-BFGS-B", "tol": tol},
+            sampling_method="simplicial",  # "halton | sobol | simplicial"
+        )
+
+    ControlVector["scipy_res"] = res
 
     # get results
     new_parameters = res.x

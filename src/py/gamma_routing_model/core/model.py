@@ -243,6 +243,14 @@ class Model(object):
             self.routing_setup, self.routing_mesh, self.routing_results
         )
 
+    def routing_mesh_set_control(self, nodes):
+
+        ncontrol = len(nodes)
+
+        Mod_Gamma_Routing_Mesh.routing_mesh_set_control(
+            self.routing_mesh, ncontrol, nodes
+        )
+
     def run(self, inflows, states_init=True, memory_reset=True):
 
         # first check if we need to force states_init

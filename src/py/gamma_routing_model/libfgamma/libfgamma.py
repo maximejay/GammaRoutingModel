@@ -483,20 +483,20 @@ mod_gamma_routing_setup = Mod_Gamma_Routing_Setup()
 class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     """
     Module mod_gamma_routing_mesh
-    Defined at mod_routing_mesh.f90 lines 8-220
+    Defined at mod_routing_mesh.f90 lines 8-248
     """
     @f90wrap.runtime.register_class("libfgamma.type_routing_mesh")
     class type_routing_mesh(f90wrap.runtime.FortranDerivedType):
         """
         Type(name=type_routing_mesh)
-        Defined at mod_routing_mesh.f90 lines 10-23
+        Defined at mod_routing_mesh.f90 lines 10-25
         """
         def __init__(self, handle=None):
             """
             Automatically generated constructor for type_routing_mesh
             
             self = Type_Routing_Mesh()
-            Defined at mod_routing_mesh.f90 lines 10-23
+            Defined at mod_routing_mesh.f90 lines 10-25
             
             Returns
             -------
@@ -878,6 +878,66 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
         def controlled_nodes(self, controlled_nodes):
             self.controlled_nodes[...] = controlled_nodes
         
+        @property
+        def gauge_nodes(self):
+            """
+            Element gauge_nodes ftype=integer pytype=int array
+            Defined at mod_routing_mesh.f90 line 24
+            """
+            array_ndim, array_type, array_shape, array_handle = \
+                _libfgamma.f90wrap_type_routing_mesh__array__gauge_nodes(self._handle)
+            array_hash = hash((array_ndim, array_type, tuple(array_shape), array_handle))
+            gauge_nodes = self._arrays.get(array_hash)
+            if gauge_nodes is not None:
+                # Validate cached array: check data pointer matches current handle (issue #222)
+                # Arrays can be deallocated and reallocated at same address, invalidating cache
+                if gauge_nodes.ctypes.data != array_handle:
+                    gauge_nodes = None
+            if gauge_nodes is None:
+                try:
+                    gauge_nodes = f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
+                                            self._handle,
+                                            _libfgamma.f90wrap_type_routing_mesh__array__gauge_nodes)
+                except TypeError:
+                    gauge_nodes = f90wrap.runtime.direct_c_array(array_type, array_shape, \
+                        array_handle)
+                self._arrays[array_hash] = gauge_nodes
+            return gauge_nodes
+        
+        @gauge_nodes.setter
+        def gauge_nodes(self, gauge_nodes):
+            self.gauge_nodes[...] = gauge_nodes
+        
+        @property
+        def gauge_name_index(self):
+            """
+            Element gauge_name_index ftype=integer pytype=int array
+            Defined at mod_routing_mesh.f90 line 25
+            """
+            array_ndim, array_type, array_shape, array_handle = \
+                _libfgamma.f90wrap_type_routing_mesh__array__gauge_name_index(self._handle)
+            array_hash = hash((array_ndim, array_type, tuple(array_shape), array_handle))
+            gauge_name_index = self._arrays.get(array_hash)
+            if gauge_name_index is not None:
+                # Validate cached array: check data pointer matches current handle (issue #222)
+                # Arrays can be deallocated and reallocated at same address, invalidating cache
+                if gauge_name_index.ctypes.data != array_handle:
+                    gauge_name_index = None
+            if gauge_name_index is None:
+                try:
+                    gauge_name_index = f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
+                                            self._handle,
+                                            _libfgamma.f90wrap_type_routing_mesh__array__gauge_name_index)
+                except TypeError:
+                    gauge_name_index = f90wrap.runtime.direct_c_array(array_type, array_shape, \
+                        array_handle)
+                self._arrays[array_hash] = gauge_name_index
+            return gauge_name_index
+        
+        @gauge_name_index.setter
+        def gauge_name_index(self, gauge_name_index):
+            self.gauge_name_index[...] = gauge_name_index
+        
         def __str__(self):
             ret = ['<type_routing_mesh>{\n']
             ret.append('    nb_nodes : ')
@@ -906,6 +966,10 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
             ret.append(repr(self.cum_node_index))
             ret.append(',\n    controlled_nodes : ')
             ret.append(repr(self.controlled_nodes))
+            ret.append(',\n    gauge_nodes : ')
+            ret.append(repr(self.gauge_nodes))
+            ret.append(',\n    gauge_name_index : ')
+            ret.append(repr(self.gauge_name_index))
             ret.append('}')
             return ''.join(ret)
         
@@ -917,7 +981,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
         nb_upstream_nodes=None, dx=None, interface_call=False):
         """
         routing_mesh_self_initialisation(self[, nb_nodes, nb_upstream_nodes, dx])
-        Defined at mod_routing_mesh.f90 lines 26-78
+        Defined at mod_routing_mesh.f90 lines 28-83
         
         Parameters
         ----------
@@ -930,10 +994,25 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
             nb_nodes=nb_nodes, nb_upstream_nodes=nb_upstream_nodes, dx=dx)
     
     @staticmethod
+    def routing_mesh_set_control(self, ncontrol, nodes, interface_call=False):
+        """
+        routing_mesh_set_control(self, ncontrol, nodes)
+        Defined at mod_routing_mesh.f90 lines 85-106
+        
+        Parameters
+        ----------
+        routing_mesh : Type_Routing_Mesh
+        ncontrol : int32
+        nodes : int array
+        """
+        _libfgamma.f90wrap_mod_gamma_routing_mesh__routing_mesh_set_control(routing_mesh=self._handle, \
+            ncontrol=ncontrol, nodes=nodes)
+    
+    @staticmethod
     def routing_mesh_clear(self, interface_call=False):
         """
         routing_mesh_clear(self)
-        Defined at mod_routing_mesh.f90 lines 80-94
+        Defined at mod_routing_mesh.f90 lines 108-122
         
         Parameters
         ----------
@@ -945,7 +1024,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def mesh_update(self, interface_call=False):
         """
         mesh_update(self)
-        Defined at mod_routing_mesh.f90 lines 96-112
+        Defined at mod_routing_mesh.f90 lines 124-140
         
         Parameters
         ----------
@@ -957,7 +1036,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def mesh_compute_cumulated_surface(self, interface_call=False):
         """
         mesh_compute_cumulated_surface(self)
-        Defined at mod_routing_mesh.f90 lines 114-142
+        Defined at mod_routing_mesh.f90 lines 142-170
         
         Parameters
         ----------
@@ -969,7 +1048,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def mesh_compute_cumulated_node_index(self, interface_call=False):
         """
         mesh_compute_cumulated_node_index(self)
-        Defined at mod_routing_mesh.f90 lines 144-172
+        Defined at mod_routing_mesh.f90 lines 172-200
         
         Parameters
         ----------
@@ -981,7 +1060,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def mesh_uniq_dx(self, interface_call=False):
         """
         mesh_uniq_dx(self)
-        Defined at mod_routing_mesh.f90 lines 174-215
+        Defined at mod_routing_mesh.f90 lines 202-243
         
         Parameters
         ----------
@@ -993,7 +1072,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def routing_mesh_copy(self, interface_call=False):
         """
         object_copy = routing_mesh_copy(self)
-        Defined at mod_routing_mesh.f90 lines 217-220
+        Defined at mod_routing_mesh.f90 lines 245-248
         
         Parameters
         ----------
@@ -1635,20 +1714,20 @@ mod_gamma_routing_states = Mod_Gamma_Routing_States()
 class Mod_Gamma_Routing_Memory(f90wrap.runtime.FortranModule):
     """
     Module mod_gamma_routing_memory
-    Defined at mod_routing_memory.f90 lines 8-87
+    Defined at mod_routing_memory.f90 lines 8-99
     """
     @f90wrap.runtime.register_class("libfgamma.type_routing_memory")
     class type_routing_memory(f90wrap.runtime.FortranDerivedType):
         """
         Type(name=type_routing_memory)
-        Defined at mod_routing_memory.f90 lines 10-12
+        Defined at mod_routing_memory.f90 lines 10-14
         """
         def __init__(self, handle=None):
             """
             Automatically generated constructor for type_routing_memory
             
             self = Type_Routing_Memory()
-            Defined at mod_routing_memory.f90 lines 10-12
+            Defined at mod_routing_memory.f90 lines 10-14
             
             Returns
             -------
@@ -1734,12 +1813,76 @@ class Mod_Gamma_Routing_Memory(f90wrap.runtime.FortranModule):
         def remainder(self, remainder):
             self.remainder[...] = remainder
         
+        @property
+        def states_init(self):
+            """
+            Element states_init ftype=real pytype=float array
+            Defined at mod_routing_memory.f90 line 13
+            """
+            array_ndim, array_type, array_shape, array_handle = \
+                _libfgamma.f90wrap_type_routing_memory__array__states_init(self._handle)
+            array_hash = hash((array_ndim, array_type, tuple(array_shape), array_handle))
+            states_init = self._arrays.get(array_hash)
+            if states_init is not None:
+                # Validate cached array: check data pointer matches current handle (issue #222)
+                # Arrays can be deallocated and reallocated at same address, invalidating cache
+                if states_init.ctypes.data != array_handle:
+                    states_init = None
+            if states_init is None:
+                try:
+                    states_init = f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
+                                            self._handle,
+                                            _libfgamma.f90wrap_type_routing_memory__array__states_init)
+                except TypeError:
+                    states_init = f90wrap.runtime.direct_c_array(array_type, array_shape, \
+                        array_handle)
+                self._arrays[array_hash] = states_init
+            return states_init
+        
+        @states_init.setter
+        def states_init(self, states_init):
+            self.states_init[...] = states_init
+        
+        @property
+        def remainder_init(self):
+            """
+            Element remainder_init ftype=real pytype=float array
+            Defined at mod_routing_memory.f90 line 14
+            """
+            array_ndim, array_type, array_shape, array_handle = \
+                _libfgamma.f90wrap_type_routing_memory__array__remainder_init(self._handle)
+            array_hash = hash((array_ndim, array_type, tuple(array_shape), array_handle))
+            remainder_init = self._arrays.get(array_hash)
+            if remainder_init is not None:
+                # Validate cached array: check data pointer matches current handle (issue #222)
+                # Arrays can be deallocated and reallocated at same address, invalidating cache
+                if remainder_init.ctypes.data != array_handle:
+                    remainder_init = None
+            if remainder_init is None:
+                try:
+                    remainder_init = f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
+                                            self._handle,
+                                            _libfgamma.f90wrap_type_routing_memory__array__remainder_init)
+                except TypeError:
+                    remainder_init = f90wrap.runtime.direct_c_array(array_type, array_shape, \
+                        array_handle)
+                self._arrays[array_hash] = remainder_init
+            return remainder_init
+        
+        @remainder_init.setter
+        def remainder_init(self, remainder_init):
+            self.remainder_init[...] = remainder_init
+        
         def __str__(self):
             ret = ['<type_routing_memory>{\n']
             ret.append('    states : ')
             ret.append(repr(self.states))
             ret.append(',\n    remainder : ')
             ret.append(repr(self.remainder))
+            ret.append(',\n    states_init : ')
+            ret.append(repr(self.states_init))
+            ret.append(',\n    remainder_init : ')
+            ret.append(repr(self.remainder_init))
             ret.append('}')
             return ''.join(ret)
         
@@ -1751,7 +1894,7 @@ class Mod_Gamma_Routing_Memory(f90wrap.runtime.FortranModule):
         interface_call=False):
         """
         routing_memory_self_initialisation(self, routing_states, routing_memory)
-        Defined at mod_routing_memory.f90 lines 15-47
+        Defined at mod_routing_memory.f90 lines 17-59
         
         Parameters
         ----------
@@ -1767,7 +1910,7 @@ class Mod_Gamma_Routing_Memory(f90wrap.runtime.FortranModule):
     def routing_memory_reset(self, interface_call=False):
         """
         routing_memory_reset(self)
-        Defined at mod_routing_memory.f90 lines 49-65
+        Defined at mod_routing_memory.f90 lines 61-77
         
         Parameters
         ----------
@@ -1779,7 +1922,7 @@ class Mod_Gamma_Routing_Memory(f90wrap.runtime.FortranModule):
     def routing_memory_clear(self, interface_call=False):
         """
         routing_memory_clear(self)
-        Defined at mod_routing_memory.f90 lines 67-82
+        Defined at mod_routing_memory.f90 lines 79-94
         
         Parameters
         ----------
@@ -1791,7 +1934,7 @@ class Mod_Gamma_Routing_Memory(f90wrap.runtime.FortranModule):
     def routing_memory_copy(self, interface_call=False):
         """
         object_copy = routing_memory_copy(self)
-        Defined at mod_routing_memory.f90 lines 84-87
+        Defined at mod_routing_memory.f90 lines 96-99
         
         Parameters
         ----------

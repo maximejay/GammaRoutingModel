@@ -166,9 +166,11 @@ BestControlVector, optimized_smash_model, optimized_gamma_model = (
             # "spreading": [0.5, 5.0],
         },
         maxiter=30,
-        tol=0.0001,
+        tol=None,
         ScaleGradients=False,
         ScaleGammaGradientsBySurface=False,
+        optim_type="local",
+        local_optimizer="L-BFGS-B",  # L-BFGS-B | trust-constr | SLSQP | TNC
     )
 )
 

@@ -82,8 +82,8 @@ module mod_gamma_routing
         real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes) :: remainder
         real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes) :: states
         
-        remainder=routing_memory%remainder
-        states=routing_memory%states
+        remainder=routing_memory%remainder_init
+        states=routing_memory%states_init
         
         do i=1,routing_setup%npdt
             velocities=0.

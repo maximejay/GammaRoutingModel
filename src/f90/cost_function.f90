@@ -48,8 +48,9 @@ subroutine cost_function(routing_setup,routing_mesh,routing_parameter,observatio
     real, intent(inout) :: cost_final
     
     real :: penalty,cost
-    real :: num,den,meanobs,sumobs
-    integer :: j,i,k,numobs
+    real :: num,den,meanobs,sumobs,numobs
+    integer :: j,i,k
+    integer :: nb_controlled_nodes
     
     cost=0.
     tab_cost=0.
@@ -59,13 +60,13 @@ subroutine cost_function(routing_setup,routing_mesh,routing_parameter,observatio
     !write(*,*) any((observations-qnetwork)**2.>0)
     
     
-    
+    nb_controlled_nodes=size(routing_mesh%controlled_nodes)
     
     select case(trim(routing_setup%criteria))
     case("rmse")
         
         cost=0.
-        do j=1,routing_mesh%nb_nodes
+        do j=1, nb_controlled_nodes
             
             k=routing_mesh%controlled_nodes(j)
             
@@ -73,14 +74,9 @@ subroutine cost_function(routing_setup,routing_mesh,routing_parameter,observatio
                 
                 do i=routing_setup%pdt_start_optim,routing_setup%npdt
                     
-                    !write(*,*) i,k,(observations(i,k)-qnetwork(i,k))**2.,observations(i,k),qnetwork(i,k)
-!~                     if (observations(i,k).ne.qnetwork(i,k))then
-                    
-!~                         write(*,*) i,k,(observations(i,k)-qnetwork(i,k))**2.,observations(i,k),qnetwork(i,k)
-                        
-!~                     end if
-                    
-                    cost=cost+(observations(i,k)-qnetwork(i,k))**2.
+                    if (observations(i,k)>=0.) then
+                        cost=cost+(observations(i,k)-qnetwork(i,k))**2.
+                    end if
                 
                 end do
                 
@@ -91,7 +87,7 @@ subroutine cost_function(routing_setup,routing_mesh,routing_parameter,observatio
     case("nse")
         
         cost=0.
-        do j=1,routing_mesh%nb_nodes
+        do j=1, nb_controlled_nodes
             
             k=routing_mesh%controlled_nodes(j)
             
@@ -100,24 +96,24 @@ subroutine cost_function(routing_setup,routing_mesh,routing_parameter,observatio
                 sumobs=0.
                 num=0.
                 den=0.
-                numobs=0
+                numobs=0.
                 
                 do i=routing_setup%pdt_start_optim,routing_setup%npdt
-                    
-                    sumobs=sumobs+observations(i,k)
-                    numobs=numobs+1
-                    
+                    if (observations(i,k)>=0.) then
+                        sumobs=sumobs+observations(i,k)
+                        numobs=numobs+1.0
+                    end if
                 end do
                 
-                if (numobs>0) then
+                if (numobs>0.) then
                     meanobs=sumobs/numobs
                 endif
                 
                 do i=routing_setup%pdt_start_optim,routing_setup%npdt
-                    
-                    num=num+(observations(i,k)-qnetwork(i,k))**2.
-                    den=den+(observations(i,k)-meanobs)**2.
-                    
+                    if (observations(i,k)>=0.) then
+                        num=num+(observations(i,k)-qnetwork(i,k))**2.
+                        den=den+(observations(i,k)-meanobs)**2.
+                    end if
                 end do
                 
                 if (den>0.) then

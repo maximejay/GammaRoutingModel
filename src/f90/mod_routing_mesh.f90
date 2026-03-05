@@ -30,6 +30,8 @@ module mod_gamma_routing_mesh
         integer, dimension(:), allocatable :: upstream_to_downstream_nodes ! flow path, dimension(nb_nodes)
         integer, dimension(:), allocatable :: cum_node_index ! for optimization only : cumulated node from upstream to downstreamm
         integer, dimension(:), allocatable :: controlled_nodes ! for optimization only : indexes of the controlled nodes
+        integer, dimension(:), allocatable :: gauge_nodes ! for optimization only : indexes of the controlled nodes
+        integer, dimension(:), allocatable :: gauge_name_index ! for optimization only : indexes of the controlled nodes
     end type type_routing_mesh
     
     
@@ -82,7 +84,11 @@ module mod_gamma_routing_mesh
         allocate(routing_mesh%cum_node_index(routing_mesh%nb_nodes))
         allocate(routing_mesh%nodes_indexes(routing_mesh%nb_nodes))
         allocate(routing_mesh%nodes_names(routing_mesh%nb_nodes))
-        allocate(routing_mesh%controlled_nodes(routing_mesh%nb_nodes))
+        
+!~         allocate(routing_mesh%controlled_nodes(routing_mesh%nb_nodes))
+        allocate(routing_mesh%controlled_nodes(0))
+        allocate(routing_mesh%gauge_nodes(0))
+        allocate(routing_mesh%gauge_name_index(0))
         
         !default value
         routing_mesh%surface=1. !km2
@@ -99,6 +105,38 @@ module mod_gamma_routing_mesh
         
     end subroutine routing_mesh_self_initialisation
     
+    subroutine routing_mesh_set_control(routing_mesh, ncontrol, nodes)
+        type(type_routing_mesh), intent(inout) :: routing_mesh
+        integer, intent(in) :: ncontrol
+        integer, dimension(ncontrol), intent(in) :: nodes 
+        
+        integer :: i
+        
+        if (allocated(routing_mesh%gauge_nodes)) then
+            deallocate(routing_mesh%gauge_nodes)
+        end if
+        
+        if (allocated(routing_mesh%gauge_name_index)) then
+            deallocate(routing_mesh%gauge_name_index)
+        end if
+        
+        if (allocated(routing_mesh%controlled_nodes)) then
+            deallocate(routing_mesh%controlled_nodes)
+        end if
+        
+        allocate(routing_mesh%gauge_nodes(ncontrol))
+        allocate(routing_mesh%gauge_name_index(ncontrol))
+        allocate(routing_mesh%controlled_nodes(ncontrol))
+        
+        routing_mesh%gauge_nodes=nodes
+        
+        do i=1, ncontrol 
+            routing_mesh%gauge_name_index(i)=i
+        end do
+        
+        routing_mesh%controlled_nodes=nodes
+        
+    end subroutine routing_mesh_set_control
     
     subroutine routing_mesh_clear(routing_mesh)
         
