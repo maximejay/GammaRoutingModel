@@ -76,12 +76,16 @@ model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
     criteria="nse",
     ponderation_cost=10000.0,
     pdt_start_optim=1600,
+    # pdt_start_optim=int(1600 / 4),
 )
 
 # Set parameter
 model_gamma.routing_parameters.hydraulics_coefficient = 1.0
 model_gamma.routing_parameters.spreading = 2.0
 model_gamma.routing_mesh.controlled_nodes[1:3] = 0
+model_gamma.routing_mesh.controlled_nodes[0] = model_gamma.routing_mesh.gauge_nodes[
+    np.argmax(smash_model.mesh.area[model_gamma.routing_mesh.gauge_name_index - 1])
+]
 
 # direct run of the coupled model
 gamma.smashplug.RunCoupledModel(smash_model, model_gamma)
@@ -166,9 +170,10 @@ BestControlVector, optimized_smash_model, optimized_gamma_model = (
             # "spreading": [0.5, 5.0],
         },
         maxiter=30,
-        tol=None,
-        ScaleGradients=False,
-        ScaleGammaGradientsBySurface=False,
+        maxfun=30,
+        tol=1e-6,
+        ScaleGradients=True,
+        ScaleGammaGradientsBySurface=True,
         optim_type="local",
         local_optimizer="L-BFGS-B",  # L-BFGS-B | trust-constr | SLSQP | TNC
     )

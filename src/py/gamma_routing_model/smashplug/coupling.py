@@ -404,7 +404,9 @@ def CopyGammaDischargesToSmashResponse(model_smash, model_gamma):
         qg = model_gamma.routing_results.discharges[
             :, model_gamma.routing_mesh.gauge_nodes[i] - 1
         ]
-        qg_3600 = gamma.smashplug.FitDataToNewDt(qg, 900.0, 3600.0)
+        qg_3600 = gamma.smashplug.FitDataToNewDt(
+            qg, model_gamma.routing_setup.dt, model_smash.setup.dt
+        )
 
         position_smash = model_gamma.routing_mesh.gauge_name_index[i] - 1
 
@@ -1280,7 +1282,7 @@ def get_boundaries(
 def OptimizeCoupledModel(
     smash_model,
     model_gamma,
-    observations,
+    observations=None,
     control_parameters_list=["cp", "hydraulics_coefficient", "spreading"],
     bounds={
         "cp": [0.1, 1000.0],
@@ -1288,6 +1290,7 @@ def OptimizeCoupledModel(
         "spreading": [1.0, 3.0],
     },
     maxiter=10,
+    maxfun=20,
     tol=None,
     ScaleGammaGradientsBySurface=True,
     ScaleGradients=True,
@@ -1300,6 +1303,13 @@ def OptimizeCoupledModel(
 
     optimized_gamma = model_gamma.copy()
     optimized_smash = smash_model.copy()
+
+    if observations is None:
+        observations = gamma.smashplug.SmashDataVectorsToGrid(
+            smash_model.response_data.q,
+            model_gamma,
+            smash_dt=smash_model.setup.dt,
+        )
 
     if observations.shape != optimized_gamma.routing_results.discharges.shape:
         raise ValueError(
@@ -1342,7 +1352,7 @@ def OptimizeCoupledModel(
                 "disp": True,
                 "maxiter": maxiter,
                 "verbose": 1,
-                "maxfun": 10,
+                "maxfun": maxfun,
             },
         )
 

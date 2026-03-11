@@ -268,7 +268,7 @@ class Model(object):
 
         if max_spreading != self.routing_states.max_spreading:
             print(
-                "Force states_init, reason change of max_spreading {max_spreading} != {self.routing_states.max_spreading}"
+                f"Force states_init, reason change of max_spreading {max_spreading} != {self.routing_states.max_spreading}"
             )
             states_init = True
 
