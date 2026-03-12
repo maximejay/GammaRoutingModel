@@ -3,19 +3,110 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import smash
-
 import gamma_routing_model as gamma
 import scipy
 import smashbox as sb
+import pyhdf5_handler
+import os
+import datetime
+
+bv = "Cance"
+
+scenarios_gamma = {
+    "s1": {
+        "control_vector": ["cp", "ct", "hydraulics_coefficient"],
+        "varying_spread": 0,
+        "spreading_uniform": 1,
+    },
+    "s2": {
+        "control_vector": ["cp", "ct", "hydraulics_coefficient", "spreading"],
+        "varying_spread": 1,
+        "spreading_uniform": 1,
+    },
+    "s3": {
+        "control_vector": ["cp", "ct", "hydraulics_coefficient", "spreading"],
+        "varying_spread": 1,
+        "spreading_uniform": 0,
+    },
+    "s4": {
+        "control_vector": ["hydraulics_coefficient"],
+        "varying_spread": 0,
+        "spreading_uniform": 1,
+    },
+    "s5": {
+        "control_vector": ["hydraulics_coefficient", "spreading"],
+        "varying_spread": 1,
+        "spreading_uniform": 1,
+    },
+    "s6": {
+        "control_vector": ["hydraulics_coefficient", "spreading"],
+        "varying_spread": 1,
+        "spreading_uniform": 0,
+    },
+}
+
+scenarios_smash = {
+    "s1": {
+        "control_vector": ["cp", "ct", "llr"],
+    },
+    "s2": {
+        "control_vector": [
+            "llr",
+        ],
+    },
+}
+
+bounds = {
+    "cp": [1, 2000],
+    "ct": [1, 1000],
+    "llr": [1, 200],
+    "hydraulics_coefficient": [0.3, 5],
+    "spreading": [0.5, 5],
+}
 
 
-setup_cance, mesh_cance = smash.factory.load_dataset("Cance")
+start_time = "2008-01-01 00:00"
+end_time = "2018-01-01 00:00"
+
+start_time = "2014-01-01 00:00"
+end_time = "2014-04-01 00:00"
+
+val_start_time = "2018-01-01 00:00"
+val_end_time = "2025-01-01 00:00"
+
+gamma_dt = 900.0
+
+warmup_time = 150
+pdt_start_optim = int(warmup_time * 24 * 3600 / gamma_dt)
+end_warmup = datetime.datetime.fromisoformat(start_time) - datetime.timedelta(
+    days=warmup_time
+)
+
+
+gamma_settings = {
+    "vmin": 0.1,
+    "vmax": 10.0,
+    "mode_discretization_step": 0.1,
+    "spreading_discretization_step": 0.1,
+    "ponderation_regul": 10.0,
+    "velocity_computation": "qmm",
+    "varying_spread": 1,
+    "spreading_uniform": 1,
+    "criteria": "nse",
+    "ponderation_cost": 10000.0,
+    "pdt_start_optim": pdt_start_optim,
+}
+
+exu = {
+    "Cance": ["V3524010", "V3515010", "V3517010"],
+    "Ardeche": ["V5014010", "V5015210", "V5004030"],
+}
 
 
 sbc = sb.SmashBox()
 
 sbc.myparam.list_param()
-sbc.myparam.set_param("outletsID", list(mesh_cance["code"]))
+sbc.myparam.set_param("outletsID", exu[bv])
 sbc.myparam.set_param(
     "outlets_shapefile", "/home/maxime/DATA/BNBVlight/BNBV_light_bassins.shp"
 )
@@ -29,27 +120,21 @@ sbc.myparam.set_param(
         "id_shapefile": "CODE_BNBV",
     },
 )
-warmup_time = 350
+
+os.makedirs("./figures", exist_ok=True)
 
 # create required model
 sbc.newmodel("Cance")
 sbc.Cance.generate_mesh()
 sbc.Cance.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
-# sbc.Cance.forward_run(warmup=warmup_time)
+sbc.Cance.mysetup.update_setup({"start_time": val_start_time, "end_time": val_end_time})
+sbc.Cance.forward_run(warmup=warmup_time)
 
-import pyhdf5_handler
+sbc.Cance.save_model_container(f"{bv}.hdf5")
+sbc.Cance.save_as_smash_model(f"./{bv}")
 
-structure = pyhdf5_handler.src.object_handler.generate_object_structure(
-    sbc.Cance, include_method=False
-)
 
-pyhdf5_handler.save_object_to_hdf5file(
-    path_to_hdf5="Cance.hdf5",
-    instance=sbc.Cance,
-    keys_data=structure,
-)
-
-# sbc.Cance.myplot.plot_mesh()
+sbc.Cance.myplot.plot_mesh(fig_settings={"figname": "./figures/mesh_{bv}.pdf"})
 # sbc.Cance.myplot.plot_hydrograph(columns=[0, 1, 2])
 # sbc.Cance.myplot.multiplot_parameters()
 
@@ -58,161 +143,174 @@ sbc.Cance_Gamma.mysetup.update_setup({"routing_module": "zero", "return_opt_grad
 sbc.Cance_Gamma.model()  # rebuild model because setup has changed but without reading the data
 sbc.copymodeldata("Cance", "Cance_Gamma")  # copy the data
 sbc.Cance_Gamma.forward_run()
+sbc.Cance_Gamma.save_model_container(f"{bv}.hdf5")
+sbc.Cance_Gamma.save_as_smash_model(f"./{bv}")
 
-sbc.copymodel("Cance_Gamma", "Cance_Gamma_calibrated")
 
 # optimize smash model
-optimize_options = {
-    "parameters": ["llr"],
-    "bounds": {"llr": (1, 200)},
-    "termination_crit": {
-        "maxiter": 30,
-        "factr": 1e6,
-    },
-}
-cost_options = {
-    "gauge": "dws",
-    "end_warmup": "2015-01-10 00:00",
-}
-sbc.Cance.optimize(
-    mapping="distributed",
-    optimize_options=optimize_options,
-    cost_options=cost_options,
-)
+for s in scenarios_smash:
+    sbc.copymodel(bv, f"{bv}_{s}")
+    new_bounds = {}
+    for p in scenarios_smash[s]["control_vector"]:
+        new_bounds.update({p: bounds[p]})
+
+    optimize_options = {
+        "parameters": scenarios_smash[s]["control_vector"],
+        "bounds": new_bounds,
+        "termination_crit": {
+            "maxiter": 30,
+            "factr": 1e6,
+        },
+    }
+    cost_options = {
+        "gauge": "dws",
+        "end_warmup": end_warmup,
+    }
+    model = getattr(sb, f"{bv}_{s}")
+    model.optimize(
+        mapping="distributed",
+        optimize_options=optimize_options,
+        cost_options=cost_options,
+    )
+    model.save_model_container(f"{bv}.hdf5")
+    model.save_as_smash_model(f"./{bv}")
+
+
+for s in scenarios_gamma:
+    sbc.copymodel("Cance_Gamma", f"{bv}_Gamma_calibrated_{s}")
+    new_bounds = {}
+    for p in scenarios_smash[s]["control_vector"]:
+        new_bounds.update({p: bounds[p]})
+
+    # configure the Gamma model
+    model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
+        sbc.Cance_Gamma.mysmashmodel, dt=gamma_dt, **gamma_settings
+    )
+
+    # Set parameter
+    model_gamma.routing_parameters.hydraulics_coefficient = 1.0
+    model_gamma.routing_parameters.spreading = 2.0
+
+    model = getattr(sb, f"{bv}_Gamma_calibrated_{s}")
+
+    gamma.smashplug.RunCoupledModel(model.mysmashmodel, model_gamma)
+
+    model_gamma.routing_mesh.controlled_nodes = 0
+    model_gamma.routing_mesh.controlled_nodes[0] = model_gamma.routing_mesh.gauge_nodes[
+        np.argmax(
+            sbc.Cance_Gamma.mysmashmodel.mesh.area[
+                model_gamma.routing_mesh.gauge_name_index - 1
+            ]
+        )
+    ]
+
+    BestControlVector, optimized_smash_model, optimized_gamma_model = (
+        gamma.smashplug.OptimizeCoupledModel(
+            sbc.Cance_Gamma.mysmashmodel,
+            model_gamma,
+            # GammaGriddedObservation,
+            control_parameters_list=scenarios_gamma[s]["control_vector"],
+            bounds=new_bounds,
+            maxiter=20,
+            maxfun=20,
+            tol=1e-6,
+            ScaleGradients=False,
+            ScaleGammaGradientsBySurface=True,
+            optim_type="local",
+            local_optimizer="L-BFGS-B",  # L-BFGS-B | trust-constr | SLSQP | TNC
+        )
+    )
+
+    model.mysmashmodel = optimized_smash_model.copy()
+    model.save_model_container(f"{bv}.hdf5")
+    model.save_as_smash_model(f"./{bv}")
+
+    fig, ax = gamma.smashplug.plot.multiplot_parameters(
+        sbc.Cance_Gamma_calibrated, optimized_gamma_model
+    )
+
+    sbc.plot.plot.save_figure(f"{bv}_parameters_{s}.pdf", xsize=12, ysize=10)
+
+    fig, ax = gamma.smashplug.plot.plot_hydrograph(
+        (
+            {
+                "model": sbc.Cance.mysmashmodel,
+                "fig_settings": {"color": "blue", "label": "Smash Regional"},
+            },
+            {
+                "model": sbc.Cance_Gamma.mysmashmodel,
+                "fig_settings": {"color": "green", "label": "Smash Regional + Gamma"},
+            },
+            {
+                "model": model.mysmashmodel,
+                "fig_settings": {
+                    "color": "red",
+                    "label": "Smash Regional + Gamma-Calibrated",
+                },
+            },
+            # {
+            #     "model": sbc.Cance.optimize_model,
+            #     "fig_settings": {
+            #         "color": "orange",
+            #         "label": "Smash Rgional + llr-Calibrated",
+            #     },
+            # },
+        )
+    )
+
+    sbc.plot.plot.save_figure(f"{bv}_hydrograph_{s}.pdf", xsize=12, ysize=10)
+
+
+# save figure
+
+
+# validation temporelle
+sbc.newmodel("Cance_validation")
+sbc.Cance.generate_mesh()
+sbc.Cance.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
+sbc.Cance.mysetup.update_setup({"date_start": val_start_time, "date_end": val_end_time})
+sbc.Cance.forward_run(warmup=warmup_time)
+
+sbc.copymodel("Cance_validation", "Cance_Gamma_validation")
+sbc.Cance_Gamma.mysetup.update_setup({"routing_module": "zero", "return_opt_grad": "qe"})
+sbc.Cance_Gamma.model()  # rebuild model because setup has changed but without reading the data
+sbc.copymodeldata("Cance", "Cance_Gamma")  # copy the data
+sbc.Cance_Gamma.forward_run()
 
 
 # configure the Gamma model for warmup (not used here)
-# model_gamma_warm = gamma.smashplug.ConfigureGammaWithSmash(
-#     sbc.Cance_Gamma.warmup_model,
-#     dt=900,
-#     vmin=0.1,
-#     vmax=10.0,
-#     mode_discretization_step=0.1,
-#     spreading_discretization_step=0.1,
-#     ponderation_regul=0.0,
-#     velocity_computation="qmm",
-#     varying_spread=1,
-#     spreading_uniform=1,
-#     criteria="nse",
-#     ponderation_cost=10000.0,
-#     pdt_start_optim=1600,
-# )
-# model_gamma_warm.routing_parameters.hydraulics_coefficient = 1.0
-# model_gamma_warm.routing_parameters.spreading = 2.0
-# gamma.smashplug.RunCoupledModel(sbc.Cance_Gamma.warmup_model, model_gamma_warm)
+model_gamma_validation_warm = gamma.smashplug.ConfigureGammaWithSmash(
+    sbc.Cance_Gamma.warmup_model, dt=gamma_dt, **gamma_settings
+)
+model_gamma_validation_warm.routing_parameters.hydraulics_coefficient = (
+    optimized_gamma_model.routing_parameters.hydraulics_coefficient
+)
+model_gamma_validation_warm.routing_parameters.spreading = (
+    optimized_gamma_model.routing_parameters.spreading
+)
+
+gamma.smashplug.RunCoupledModel(sbc.Cance_Gamma.warmup_model, model_gamma_validation_warm)
 
 
 # configure the Gamma model
-model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
-    sbc.Cance_Gamma.mysmashmodel,
-    dt=900,
-    vmin=0.1,
-    vmax=10.0,
-    mode_discretization_step=0.1,
-    spreading_discretization_step=0.1,
-    ponderation_regul=10.0,
-    velocity_computation="qmm",
-    varying_spread=1,
-    spreading_uniform=1,
-    criteria="nse",
-    ponderation_cost=10000.0,
-    pdt_start_optim=1000,
+model_gamma_validation = gamma.smashplug.ConfigureGammaWithSmash(
+    sbc.Cance_Gamma.mysmashmodel, dt=gamma_dt, **gamma_settings
 )
-
-# Set parameter
-model_gamma.routing_parameters.hydraulics_coefficient = 1.0
-model_gamma.routing_parameters.spreading = 2.0
-
+model_gamma_validation.routing_parameters.hydraulics_coefficient = (
+    optimized_gamma_model.routing_parameters.hydraulics_coefficient
+)
+model_gamma_validation.routing_parameters.spreading = (
+    optimized_gamma_model.routing_parameters.spreading
+)
 # Set initial_states : not useful, since the calibration involve a jump in discharge at the first time steps. may be better to start at 0.
-# model_gamma.routing_memory.remainder_init = model_gamma_warm.routing_memory.remainder
-# model_gamma.routing_memory.states_init = model_gamma_warm.routing_memory.states
-
-gamma.smashplug.RunCoupledModel(sbc.Cance_Gamma.mysmashmodel, model_gamma)
-
-# sbc.Cance_Gamma.myplot.plot_hydrograph(columns=[0, 1, 2])
-
-model_gamma.routing_mesh.controlled_nodes = 0
-model_gamma.routing_mesh.controlled_nodes[0] = model_gamma.routing_mesh.gauge_nodes[
-    np.argmax(
-        sbc.Cance_Gamma.mysmashmodel.mesh.area[
-            model_gamma.routing_mesh.gauge_name_index - 1
-        ]
-    )
-]
-
-
-# Calage
-# control_parameters_list = ["cp", "ct", "hydraulics_coefficient", "spreading"]
-control_parameters_list = ["hydraulics_coefficient", "spreading"]
-# control_parameters_list = ["hydraulics_coefficient"]
-
-
-BestControlVector, optimized_smash_model, optimized_gamma_model = (
-    gamma.smashplug.OptimizeCoupledModel(
-        sbc.Cance_Gamma.mysmashmodel,
-        model_gamma,
-        # GammaGriddedObservation,
-        control_parameters_list=control_parameters_list,
-        bounds={
-            # "cp": [1.0, 2000.0],
-            # "ct": [1.0, 1000.0],
-            "hydraulics_coefficient": [0.3, 5.0],
-            "spreading": [0.5, 5.0],
-        },
-        maxiter=20,
-        maxfun=20,
-        tol=1e-6,
-        ScaleGradients=False,
-        ScaleGammaGradientsBySurface=True,
-        optim_type="local",
-        local_optimizer="L-BFGS-B",  # L-BFGS-B | trust-constr | SLSQP | TNC
-    )
+model_gamma_validation.routing_memory.remainder_init = (
+    model_gamma_validation_warm.routing_memory.remainder
+)
+model_gamma_validation.routing_memory.states_init = (
+    model_gamma_validation_warm.routing_memory.states
 )
 
-sbc.Cance_Gamma_calibrated.mysmashmodel = optimized_smash_model.copy()
-# sbc.Cance_Gamma_calibrated.myplot.plot_hydrograph(columns=[0, 1, 2])
-# sbc.Cance_Gamma.myplot.plot_hydrograph(columns=[0, 1, 2])
-# sbc.Cance.myplot.multiplot_parameters()
-
-
-sbc.Cance_Gamma_calibrated.save_model_container("Cance.hdf5")
-
-fig, ax = gamma.smashplug.plot.multiplot_parameters(
-    sbc.Cance_Gamma_calibrated, optimized_gamma_model
-)
-
-fig, ax = gamma.smashplug.plot.plot_hydrograph(
-    (
-        {
-            "model": sbc.Cance.mysmashmodel,
-            "fig_settings": {"color": "blue", "label": "Smash Regional"},
-        },
-        {
-            "model": sbc.Cance_Gamma.mysmashmodel,
-            "fig_settings": {"color": "green", "label": "Smash Regional + Gamma"},
-        },
-        {
-            "model": sbc.Cance_Gamma_calibrated.mysmashmodel,
-            "fig_settings": {
-                "color": "red",
-                "label": "Smash Regional + Gamma-Calibrated",
-            },
-        },
-        {
-            "model": sbc.Cance.optimize_model,
-            "fig_settings": {
-                "color": "orange",
-                "label": "Smash Rgional + llr-Calibrated",
-            },
-        },
-    )
-)
-
-ctrl = ""
-for c in control_parameters_list:
-    ctrl = ctrl + "-" + c
-
-# save figure
+gamma.smashplug.RunCoupledModel(sbc.Cance_Gamma.warmup_model, model_gamma_validation)
 
 # sbc.Cance_Gamma_calibrated.myplot.multiplot_parameters()
 
