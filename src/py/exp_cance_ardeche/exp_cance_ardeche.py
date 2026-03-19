@@ -23,15 +23,17 @@ mode = args.mode
 catchment = args.catchment
 scenario_key = args.scenario_key
 
-# mode = "smash"
+# mode = "smash_gamma"
 # catchment = "Cance"
 # scenario_key = "s1"
+
+# Optimizer : SLSQP ?? au lieu de LBGSFB ?
 
 scenarios_gamma = {
     "s1": {
         "control_vector": ["cp", "ct", "hydraulics_coefficient"],
-        "ScaleGammaGradientsBySurface": True,
-        "ScaleGradients": True,
+        "ScaleGammaGradientsBySurface": False,
+        "ScaleGradients": False,
         "gamma_settings": {
             "varying_spread": 0,
             "spreading_uniform": 1,
@@ -243,7 +245,7 @@ def optimize_smash_model(
     model.mysetup.update_setup({"start_time": start_time, "end_time": end_time})
     model.model()
 
-    # optimization
+    # optimization including the warming period
     new_start_time = (
         datetime.datetime.fromisoformat(start_time) - datetime.timedelta(days=warmup_time)
     ).strftime("%Y-%d-%m %H:%M")
@@ -272,26 +274,29 @@ def optimize_smash_model(
         cost_options=cost_options,
     )
 
-    optimized_smash_parameters = model.optimize_model.rr_parameters.copy()
+    # optimized_smash_parameters = model.optimize_model.rr_parameters.copy()
 
-    # last forward run
+    # last forward run on the coalibrated period only
     model.forward_run(warmup=warmup_time)
+
+    model.validate(start_time=val_start_time, end_time=val_end_time, warmup=warmup_time)
 
     model.save_model_container_hdf5(f"{working_path}/{catchment}_calibrated_{s}.hdf5")
     model.save_model_container(f"{working_path}/{catchment}")
 
-    # validation temporelle
-    sbc.newmodel(f"{catchment}_calibrated_validation_{s}")
-    model = getattr(sbc, f"{catchment}_calibrated_validation_{s}")
-    model.generate_mesh()
-    model.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
-    model.mysetup.update_setup({"start_time": val_start_time, "end_time": val_end_time})
-    model.model()
-    model.mysmashmodel.rr_parameters = optimized_smash_parameters
-    model.forward_run(warmup=warmup_time)
+    # validation temporelle => developp a validation model in smashbox with a function validation()
+    # sbc.newmodel(f"{catchment}_calibrated_validation_{s}")
+    # model = getattr(sbc, f"{catchment}_calibrated_validation_{s}")
 
-    model.save_model_container_hdf5(f"{working_path}/{catchment}.hdf5")
-    model.save_model_container(f"{working_path}/{catchment}")
+    # model.generate_mesh()
+    # model.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
+    # model.mysetup.update_setup({"start_time": val_start_time, "end_time": val_end_time})
+    # model.model()
+    # model.mysmashmodel.rr_parameters = optimized_smash_parameters
+    # model.forward_run(warmup=warmup_time)
+
+    # model.save_model_container_hdf5(f"{working_path}/{catchment}.hdf5")
+    # model.save_model_container(f"{working_path}/{catchment}")
 
 
 def optimize_smash_gamma_model(
@@ -358,7 +363,7 @@ def optimize_smash_gamma_model(
             ScaleGradients=scenario[s]["ScaleGradients"],
             ScaleGammaGradientsBySurface=scenario[s]["ScaleGammaGradientsBySurface"],
             optim_type="local",
-            local_optimizer="L-BFGS-B",  # L-BFGS-B | trust-constr | SLSQP | TNC
+            local_optimizer="SLSQP",  # L-BFGS-B | trust-constr | SLSQP | TNC
         )
     )
 
@@ -371,7 +376,7 @@ def optimize_smash_gamma_model(
     model.save_model_container_hdf5(f"{working_path}/{catchment}.hdf5")
     model.save_model_container(f"{working_path}/{catchment}")
 
-    # run on the normal period + side warmup
+    # run on the normal period + do a side warmup
     sbc.newmodel(f"{catchment}_Gamma_calibrated_{s}")
     model = getattr(sbc, f"{catchment}_Gamma_calibrated_{s}")
     model.generate_mesh()
@@ -407,6 +412,7 @@ def optimize_smash_gamma_model(
         model_gamma_warmup.routing_memory.remainder
     )
     model_gamma.routing_memory.states_init = model_gamma_warmup.routing_memory.states
+    model.mysmashmodel.rr_initial_states = model.warmup_model.rr_final_states.copy()
 
     gamma.smashplug.RunCoupledModel(model.mysmashmodel, model_gamma)
 
@@ -456,6 +462,8 @@ def optimize_smash_gamma_model(
     model_gamma_validation.routing_memory.states_init = (
         model_gamma_validation_warmup.routing_memory.states
     )
+    model.mysmashmodel.rr_initial_states = model.warmup_model.rr_final_states.copy()
+
     gamma.smashplug.RunCoupledModel(model.mysmashmodel, model_gamma_validation)
 
     pyhdf5_handler.save_object_to_hdf5file(
@@ -475,10 +483,20 @@ def plot(catchment, s):
     sbc = sb.SmashBox()
     sbc.load_containers(f"{working_path}/{catchment}")
 
+    model_smash = getattr(sbc, f"{catchment}_init")
+
+    model_smash.myplot.multiplot_parameters(
+        fig_settings={
+            "figname": f"{working_path}/figures/{catchment}_init_parameters_{s}.pdf"
+        }
+    )
+
     model_smash = getattr(sbc, f"{catchment}_calibrated_{s}")
 
     model_smash.myplot.multiplot_parameters(
-        fig_settings={"figname": f"{working_path}/figures/{catchment}_parameters_{s}.pdf"}
+        fig_settings={
+            "figname": f"{working_path}/figures/{catchment}_calibrated_parameters_{s}.pdf"
+        }
     )
 
     model_gamma = pyhdf5_handler.read_hdf5file_as_dict(
@@ -529,13 +547,14 @@ def plot(catchment, s):
         fig, f"{working_path}/figures/{catchment}_hydrograph_{s}.pdf", xsize=12, ysize=10
     )
 
-    model_smash_validation = getattr(sbc, f"{catchment}_calibrated_validation_{s}")
+    model_smash_validation = getattr(sbc, f"{catchment}_calibrated_{s}")
     model_gamma_validation = getattr(sbc, f"{catchment}_Gamma_calibrated_validation_{s}")
     fig, ax = gamma.smashplug.plot.plot_hydrograph(
         (
             {
-                "model": model_smash_validation.mysmashmodel,
+                "model": model_smash_validation.validation_model,
                 "fig_settings": {"color": "blue", "label": "Smash validation"},
+                "outlets_name": ["V3524010"],
             },
             {
                 "model": model_gamma_validation.mysmashmodel,
@@ -543,6 +562,7 @@ def plot(catchment, s):
                     "color": "green",
                     "label": "Smash + Gamma validation",
                 },
+                "outlets_name": ["V3524010"],
             },
         )
     )
