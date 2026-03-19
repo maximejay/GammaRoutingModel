@@ -413,7 +413,7 @@ def CopyGammaDischargesToSmashResponse(model_smash, model_gamma):
         model_smash.response.q[position_smash, :] = qg_3600
 
 
-def GammaVectorsToSmashGrid(vector, smash_model, model_gamma):
+def GammaVectorsToSmashGrid(vector, smash_model):
     # Convert vector from gamma model to smash grid
     # vector[nb_nodes]
 

@@ -80,8 +80,11 @@ model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
 )
 
 # Set parameter
-model_gamma.routing_parameters.hydraulics_coefficient = 1.0
-model_gamma.routing_parameters.spreading = 2.0
+model_gamma.routing_parameters_change(hydraulics_coefficient=1.0, spreading=2.0)
+# model_gamma.routing_parameters.hydraulics_coefficient = 1.0
+# model_gamma.routing_parameters.spreading = 2.0
+
+
 model_gamma.routing_mesh.controlled_nodes[1:3] = 0
 model_gamma.routing_mesh.controlled_nodes[0] = model_gamma.routing_mesh.gauge_nodes[
     np.argmax(smash_model.mesh.area[model_gamma.routing_mesh.gauge_name_index - 1])

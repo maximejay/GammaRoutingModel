@@ -13,50 +13,75 @@ import datetime
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-m", "--model_type", type=str)
+parser.add_argument("-m", "--mode", type=str)
 parser.add_argument("-c", "--catchment", type=str)
 parser.add_argument("-s", "--scenario_key", type=str)
 
 args = parser.parse_args()
 
-model_type = args.model_type
+mode = args.mode
 catchment = args.catchment
-scenario_key = args.scenario
+scenario_key = args.scenario_key
 
-model_type = "smash"
-catchment = "Cance"
-scenario_key = "s1"
+# mode = "smash"
+# catchment = "Cance"
+# scenario_key = "s1"
 
 scenarios_gamma = {
     "s1": {
         "control_vector": ["cp", "ct", "hydraulics_coefficient"],
-        "varying_spread": 0,
-        "spreading_uniform": 1,
+        "ScaleGammaGradientsBySurface": True,
+        "ScaleGradients": True,
+        "gamma_settings": {
+            "varying_spread": 0,
+            "spreading_uniform": 1,
+        },
     },
     "s2": {
         "control_vector": ["cp", "ct", "hydraulics_coefficient", "spreading"],
-        "varying_spread": 1,
-        "spreading_uniform": 1,
+        "ScaleGammaGradientsBySurface": True,
+        "ScaleGradients": True,
+        "gamma_settings": {
+            "varying_spread": 1,
+            "spreading_uniform": 1,
+        },
     },
     "s3": {
         "control_vector": ["cp", "ct", "hydraulics_coefficient", "spreading"],
-        "varying_spread": 1,
-        "spreading_uniform": 0,
+        "ScaleGammaGradientsBySurface": True,
+        "ScaleGradients": True,
+        "gamma_settings": {
+            "varying_spread": 1,
+            "spreading_uniform": 0,
+        },
     },
     "s4": {
         "control_vector": ["hydraulics_coefficient"],
-        "varying_spread": 0,
-        "spreading_uniform": 1,
+        "ScaleGammaGradientsBySurface": True,
+        "ScaleGradients": False,
+        "gamma_settings": {
+            "varying_spread": 0,
+            "spreading_uniform": 1,
+        },
     },
     "s5": {
         "control_vector": ["hydraulics_coefficient", "spreading"],
-        "varying_spread": 1,
-        "spreading_uniform": 1,
+        "ScaleGammaGradientsBySurface": True,
+        "ScaleGradients": False,
+        "gamma_settings": {
+            "varying_spread": 1,
+            "spreading_uniform": 1,
+        },
     },
     "s6": {
         "control_vector": ["hydraulics_coefficient", "spreading"],
-        "varying_spread": 1,
-        "spreading_uniform": 0,
+        "ScaleGammaGradientsBySurface": True,
+        "ScaleGradients": False,
+        "scale"
+        "gamma_settings": {
+            "varying_spread": 1,
+            "spreading_uniform": 0,
+        },
     },
 }
 
@@ -80,18 +105,21 @@ bounds = {
     "spreading": [0.5, 5],
 }
 
+working_path = "/home/maxime/DEV/GammaRoutingModel/src/py/exp_cance_ardeche/"
+path_gamma_hdf5 = os.path.join(working_path, "Gamma_hdf5")
+os.makedirs(path_gamma_hdf5, exist_ok=True)
 
 start_time = "2008-01-01 00:00"
 end_time = "2018-01-01 00:00"
 
 start_time = "2014-09-01 00:00"
-end_time = "2014-11-01 00:00"
+end_time = "2014-12-01 00:00"
 
 val_start_time = "2018-01-01 00:00"
 val_end_time = "2025-01-01 00:00"
 
-val_start_time = "2014-11-01 00:00"
-val_end_time = "2015-02-01 00:00"
+val_start_time = "2014-12-01 00:00"
+val_end_time = "2015-03-01 00:00"
 
 gamma_dt = 900.0
 warmup_time = 150
@@ -145,27 +173,43 @@ os.makedirs("./figures", exist_ok=True)
 
 def init_models(sbc, catchment, start_time, end_time, warmup_time):
     # create required base regional model
-    sbc.newmodel(catchment)
-    model = getattr(sbc, catchment)
+    sbc.newmodel(f"{catchment}_init")
+    model = getattr(sbc, f"{catchment}_init")
     model.generate_mesh()
     model.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
     model.mysetup.update_setup({"start_time": start_time, "end_time": end_time})
     model.forward_run(warmup=warmup_time)
 
-    model.save_model_container_hdf5(f"{catchment}.hdf5")
-    model.save_model_container(f"./{catchment}")
+    model.save_model_container_hdf5(f"{working_path}/{catchment}_init.hdf5")
+    model.save_model_container(f"{working_path}/{catchment}")
 
     # Gamma
     # for simul with gamma: create the required base model:
-    sbc.copymodel(catchment, f"{catchment}_Gamma")
-    model = getattr(sbc, f"{catchment}_Gamma")
+    sbc.copymodel(f"{catchment}_init", f"{catchment}_Gamma_init")
+    model = getattr(sbc, f"{catchment}_Gamma_init")
     model.mysetup.update_setup({"routing_module": "zero", "return_opt_grad": "qe"})
     model.model()  # rebuild model because setup has changed but without reading the data
-    sbc.copymodeldata(catchment, f"{catchment}_Gamma")  # copy the data
-    model.forward_run()
+    sbc.copymodeldata(f"{catchment}_init", f"{catchment}_Gamma_init")  # copy the data
+    model.forward_run()  # run anc copy warming states
 
-    model.save_model_container_hdf5(f"{catchment}.hdf5")
+    # configure the Gamma model
+    model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
+        model.mysmashmodel, dt=gamma_dt, **gamma_settings
+    )
+
+    # Set parameter
+    model_gamma.routing_parameters_change(
+        hydraulics_coefficient=1.0,
+        spreading=2.0,
+    )
+
+    gamma.smashplug.RunCoupledModel(model.mysmashmodel, model_gamma)
+
+    model.save_model_container_hdf5(f"{catchment}_Gamma_init.hdf5")
     model.save_model_container(f"./{catchment}")
+    pyhdf5_handler.save_object_to_hdf5file(
+        f"{path_gamma_hdf5}/{catchment}_Gamma_init.hdf5", model_gamma
+    )
 
     model.myplot.plot_mesh(fig_settings={"figname": "./figures/mesh_{catchment}.pdf"})
 
@@ -191,15 +235,18 @@ def optimize_smash_model(
     val_end_time,
 ):
     # sbc.copymodel(catchment, f"{catchment}_{s}")
-    sbc.newmodel(f"{catchment}_{s}")
-    model = getattr(sbc, f"{catchment}_{s}")
+    sbc.newmodel(f"{catchment}_calibrated_{s}")
+    model = getattr(sbc, f"{catchment}_calibrated_{s}")
     model.generate_mesh()
     model.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
+
+    model.mysetup.update_setup({"start_time": start_time, "end_time": end_time})
+    model.model()
+
+    # optimization
     new_start_time = (
         datetime.datetime.fromisoformat(start_time) - datetime.timedelta(days=warmup_time)
     ).strftime("%Y-%d-%m %H:%M")
-    model.mysetup.update_setup({"start_time": new_start_time, "end_time": end_time})
-    model.model()
 
     new_bounds = {}
     for p in scenario[s]["control_vector"]:
@@ -218,27 +265,33 @@ def optimize_smash_model(
         "end_warmup": start_time,
     }
     model.optimize(
+        start_time=new_start_time,
+        end_time=end_time,
         mapping="distributed",
         optimize_options=optimize_options,
         cost_options=cost_options,
     )
-    model.save_model_container_hdf5(f"./{catchment}.hdf5")
-    model.save_model_container(f"./{catchment}")
 
-    optimized_smash_parameters = model.mysmashmodel.rr_parameters.copy()
+    optimized_smash_parameters = model.optimize_model.rr_parameters.copy()
+
+    # last forward run
+    model.forward_run(warmup=warmup_time)
+
+    model.save_model_container_hdf5(f"{working_path}/{catchment}_calibrated_{s}.hdf5")
+    model.save_model_container(f"{working_path}/{catchment}")
 
     # validation temporelle
-    sbc.newmodel("{catchment}_{s}_validation")
-    model = getattr(sbc, f"{catchment}_{s}_validation")
+    sbc.newmodel(f"{catchment}_calibrated_validation_{s}")
+    model = getattr(sbc, f"{catchment}_calibrated_validation_{s}")
     model.generate_mesh()
     model.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
-    model.mysetup.update_setup({"date_start": val_start_time, "date_end": val_end_time})
+    model.mysetup.update_setup({"start_time": val_start_time, "end_time": val_end_time})
     model.model()
     model.mysmashmodel.rr_parameters = optimized_smash_parameters
     model.forward_run(warmup=warmup_time)
 
-    model.save_model_container_hdf5(f"./{catchment}.hdf5")
-    model.save_model_container(f"./{catchment}")
+    model.save_model_container_hdf5(f"{working_path}/{catchment}.hdf5")
+    model.save_model_container(f"{working_path}/{catchment}")
 
 
 def optimize_smash_gamma_model(
@@ -254,19 +307,20 @@ def optimize_smash_gamma_model(
     val_start_time,
     val_end_time,
 ):
-    # sbc.copymodel(f"{catchment}_Gamma", f"{catchment}_Gamma_calibrated_{s}")
 
-    sbc.newmodel(f"{catchment}_Gamma_calibrated_{s}")
-    model = getattr(sbc, f"{catchment}_Gamma_calibrated_{s}")
+    # update gamma settings
+    gamma_settings.update(scenario[s]["gamma_settings"])
+
+    sbc.newmodel(f"{catchment}_Gamma_optimize_{s}")
+    model = getattr(sbc, f"{catchment}_Gamma_optimize_{s}")
     model.generate_mesh()
     model.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
+    model.mysetup.update_setup({"routing_module": "zero", "return_opt_grad": "qe"})
     new_start_time = (
         datetime.datetime.fromisoformat(start_time) - datetime.timedelta(days=warmup_time)
     ).strftime("%Y-%d-%m %H:%M")
     model.mysetup.update_setup({"start_time": new_start_time, "end_time": end_time})
     model.model()
-
-    model = getattr(sbc, f"{catchment}_Gamma_calibrated_{s}")
 
     new_bounds = {}
     for p in scenario[s]["control_vector"]:
@@ -278,8 +332,10 @@ def optimize_smash_gamma_model(
     )
 
     # Set parameter
-    model_gamma.routing_parameters.hydraulics_coefficient = 1.0
-    model_gamma.routing_parameters.spreading = 2.0
+    model_gamma.routing_parameters_change(
+        hydraulics_coefficient=1.0,
+        spreading=2.0,
+    )
 
     gamma.smashplug.RunCoupledModel(model.mysmashmodel, model_gamma)
 
@@ -294,55 +350,95 @@ def optimize_smash_gamma_model(
         gamma.smashplug.OptimizeCoupledModel(
             model.mysmashmodel,
             model_gamma,
-            # GammaGriddedObservation,
             control_parameters_list=scenario[s]["control_vector"],
             bounds=new_bounds,
             maxiter=20,
             maxfun=20,
             tol=1e-6,
-            ScaleGradients=False,
-            ScaleGammaGradientsBySurface=True,
+            ScaleGradients=scenario[s]["ScaleGradients"],
+            ScaleGammaGradientsBySurface=scenario[s]["ScaleGammaGradientsBySurface"],
             optim_type="local",
             local_optimizer="L-BFGS-B",  # L-BFGS-B | trust-constr | SLSQP | TNC
         )
     )
 
     model.mysmashmodel = optimized_smash_model.copy()
-    model.save_model_container_hdf5(f"./{catchment}.hdf5")
-    model.save_model_container(f"./{catchment}")
+    model.forward_run()  # no need to warmup (warmup period included)
 
-    fig, ax = gamma.smashplug.plot.multiplot_parameters(
-        sbc.Cance_Gamma_calibrated, optimized_gamma_model
+    pyhdf5_handler.save_object_to_hdf5file(
+        f"{path_gamma_hdf5}/{catchment}_Gamma_optimize_{s}.hdf5", optimized_gamma_model
     )
-    sbc.plot.plot.save_figure(
-        f"./figures/{catchment}_parameters_{s}.pdf", xsize=12, ysize=10
-    )
+    model.save_model_container_hdf5(f"{working_path}/{catchment}.hdf5")
+    model.save_model_container(f"{working_path}/{catchment}")
 
-    # validation temporelle
-    sbc.newmodel(f"{catchment}_Gamma_{s}_validation")  # , "Cance_Gamma_validation")
-    model = getattr(sbc, f"{catchment}_Gamma_{s}_validation")
+    # run on the normal period + side warmup
+    sbc.newmodel(f"{catchment}_Gamma_calibrated_{s}")
+    model = getattr(sbc, f"{catchment}_Gamma_calibrated_{s}")
     model.generate_mesh()
     model.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
     model.mysetup.update_setup({"routing_module": "zero", "return_opt_grad": "qe"})
-    model.mysetup.update_setup({"date_start": val_start_time, "date_end": val_end_time})
+    model.mysetup.update_setup({"start_time": start_time, "end_time": end_time})
+    model.model()
+    model.optimize_model = optimized_smash_model.copy()
+    model.forward_run(warmup=warmup_time)
+
+    # configure the Gamma model warmup
+    model_gamma_warmup = gamma.smashplug.ConfigureGammaWithSmash(
+        model.warmup_model, dt=gamma_dt, **gamma_settings
+    )
+    # Set parameter
+    model_gamma_warmup.routing_parameters_change(
+        hydraulics_coefficient=optimized_gamma_model.routing_parameters.hydraulics_coefficient,
+        spreading=optimized_gamma_model.routing_parameters.spreading,
+    )
+    gamma.smashplug.RunCoupledModel(model.warmup_model, model_gamma_warmup)
+
+    # configure Gamma model normal period
+    model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
+        model.mysmashmodel, dt=gamma_dt, **gamma_settings
+    )
+    # Set parameter
+    model_gamma.routing_parameters_change(
+        hydraulics_coefficient=optimized_gamma_model.routing_parameters.hydraulics_coefficient,
+        spreading=optimized_gamma_model.routing_parameters.spreading,
+    )
+
+    model_gamma.routing_memory.remainder_init = (
+        model_gamma_warmup.routing_memory.remainder
+    )
+    model_gamma.routing_memory.states_init = model_gamma_warmup.routing_memory.states
+
+    gamma.smashplug.RunCoupledModel(model.mysmashmodel, model_gamma)
+
+    pyhdf5_handler.save_object_to_hdf5file(
+        f"{path_gamma_hdf5}/{catchment}_Gamma_calibrated_{s}.hdf5", model_gamma
+    )
+    model.save_model_container_hdf5(f"{working_path}/{catchment}.hdf5")
+    model.save_model_container(f"{working_path}/{catchment}")
+
+    # validation temporelle
+    sbc.newmodel(
+        f"{catchment}_Gamma_calibrated_validation_{s}"
+    )  # , "Cance_Gamma_validation")
+    model = getattr(sbc, f"{catchment}_Gamma_calibrated_validation_{s}")
+    model.generate_mesh()
+    model.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
+    model.mysetup.update_setup({"routing_module": "zero", "return_opt_grad": "qe"})
+    model.mysetup.update_setup({"start_time": val_start_time, "end_time": val_end_time})
     model.model()
     model.mysmashmodel.rr_parameters = optimized_smash_model.rr_parameters.copy()
     model.forward_run(warmup=warmup_time)
-
-    model.save_model_container_hdf5(f"./{catchment}.hdf5")
-    model.save_model_container(f"./{catchment}")
 
     # configure the Gamma model (warmup)
     model_gamma_validation_warmup = gamma.smashplug.ConfigureGammaWithSmash(
         model.warmup_model, dt=gamma_dt, **gamma_settings
     )
     # Set parameter
-    model_gamma_validation_warmup.routing_parameters.hydraulics_coefficient = (
-        optimized_gamma_model.routing_parameters.hydraulics_coefficient
+    model_gamma_validation_warmup.routing_parameters_change(
+        hydraulics_coefficient=optimized_gamma_model.routing_parameters.hydraulics_coefficient,
+        spreading=optimized_gamma_model.routing_parameters.spreading,
     )
-    model_gamma_validation_warmup.routing_parameters.spreading = (
-        optimized_gamma_model.routing_parameters.spreading
-    )
+
     gamma.smashplug.RunCoupledModel(model.warmup_model, model_gamma_validation_warmup)
 
     # configure the Gamma model for validation only
@@ -350,11 +446,9 @@ def optimize_smash_gamma_model(
         model.mysmashmodel, dt=gamma_dt, **gamma_settings
     )
     # Set parameter
-    model_gamma_validation.routing_parameters.hydraulics_coefficient = (
-        optimized_gamma_model.routing_parameters.hydraulics_coefficient
-    )
-    model_gamma_validation.routing_parameters.spreading = (
-        optimized_gamma_model.routing_parameters.spreading
+    model_gamma_validation.routing_parameters_change(
+        hydraulics_coefficient=optimized_gamma_model.routing_parameters.hydraulics_coefficient,
+        spreading=optimized_gamma_model.routing_parameters.spreading,
     )
     model_gamma_validation.routing_memory.remainder_init = (
         model_gamma_validation_warmup.routing_memory.remainder
@@ -364,45 +458,108 @@ def optimize_smash_gamma_model(
     )
     gamma.smashplug.RunCoupledModel(model.mysmashmodel, model_gamma_validation)
 
-    model_base = getattr(sbc, catchment)
-    model_gamma = getattr(sbc, f"{catchment}_Gamma")
+    pyhdf5_handler.save_object_to_hdf5file(
+        f"{path_gamma_hdf5}/{catchment}_gamma_calibrated_validation_{s}.hdf5",
+        model_gamma_validation,
+    )
+    pyhdf5_handler.save_object_to_hdf5file(
+        f"{path_gamma_hdf5}/{catchment}_gamma_calibrated_validation_warmup_{s}.hdf5",
+        model_gamma_validation_warmup,
+    )
+    model.save_model_container_hdf5(f"{working_path}/{catchment}.hdf5")
+    model.save_model_container(f"{working_path}/{catchment}")
+
+
+# figures
+def plot(catchment, s):
+    sbc = sb.SmashBox()
+    sbc.load_containers(f"{working_path}/{catchment}")
+
+    model_smash = getattr(sbc, f"{catchment}_calibrated_{s}")
+
+    model_smash.myplot.multiplot_parameters(
+        fig_settings={"figname": f"{working_path}/figures/{catchment}_parameters_{s}.pdf"}
+    )
+
+    model_gamma = pyhdf5_handler.read_hdf5file_as_dict(
+        f"{path_gamma_hdf5}/{catchment}_Gamma_optimize_{s}.hdf5"
+    )
+
+    model_smash = getattr(sbc, f"{catchment}_Gamma_calibrated_{s}")
+
+    fig, ax = gamma.smashplug.plot.multiplot_parameters(model_smash, model_gamma)
+    sb.plot.plot.save_figure(
+        fig,
+        f"{working_path}/figures/{catchment}_Gamma_parameters_{s}.pdf",
+        xsize=10,
+        ysize=14,
+    )
+
+    model_smash_init = getattr(sbc, f"{catchment}_init")
+    model_gamma_init = getattr(sbc, f"{catchment}_Gamma_init")
+    model_gamma_calibrated = getattr(sbc, f"{catchment}_Gamma_calibrated_{s}")
+    model_smash_calibrated = getattr(sbc, f"{catchment}_calibrated_{s}")
     fig, ax = gamma.smashplug.plot.plot_hydrograph(
         (
             {
-                "model": model_base.mysmashmodel,
+                "model": model_smash_init.mysmashmodel,
                 "fig_settings": {"color": "blue", "label": "Smash Regional"},
             },
             {
-                "model": model_gamma.mysmashmodel,
+                "model": model_gamma_init.mysmashmodel,
                 "fig_settings": {"color": "green", "label": "Smash Regional + Gamma"},
             },
             {
-                "model": model.mysmashmodel,
+                "model": model_gamma_calibrated.mysmashmodel,
                 "fig_settings": {
                     "color": "red",
-                    "label": "Smash Regional + Gamma-Calibrated",
+                    "label": "Smash + Gamma-Calibrated",
                 },
             },
-            # {
-            #     "model": sbc.Cance.optimize_model,
-            #     "fig_settings": {
-            #         "color": "orange",
-            #         "label": "Smash Rgional + llr-Calibrated",
-            #     },
-            # },
+            {
+                "model": model_smash_calibrated.mysmashmodel,
+                "fig_settings": {
+                    "color": "orange",
+                    "label": "Smash Calibrated",
+                },
+            },
         )
     )
-    sbc.plot.plot.save_figure(
-        f"./figures/{catchment}_hydrograph_{s}.pdf", xsize=12, ysize=10
+    sb.plot.plot.save_figure(
+        fig, f"{working_path}/figures/{catchment}_hydrograph_{s}.pdf", xsize=12, ysize=10
+    )
+
+    model_smash_validation = getattr(sbc, f"{catchment}_calibrated_validation_{s}")
+    model_gamma_validation = getattr(sbc, f"{catchment}_Gamma_calibrated_validation_{s}")
+    fig, ax = gamma.smashplug.plot.plot_hydrograph(
+        (
+            {
+                "model": model_smash_validation.mysmashmodel,
+                "fig_settings": {"color": "blue", "label": "Smash validation"},
+            },
+            {
+                "model": model_gamma_validation.mysmashmodel,
+                "fig_settings": {
+                    "color": "green",
+                    "label": "Smash + Gamma validation",
+                },
+            },
+        )
+    )
+    sb.plot.plot.save_figure(
+        fig,
+        f"{working_path}/figures/{catchment}_hydrograph_validation_{s}.pdf",
+        xsize=12,
+        ysize=10,
     )
 
 
-if model_type == "init":
+if mode == "init":
     init_models(sbc, catchment, start_time, end_time, warmup_time)
 
 # Smash
 # optimize smash model
-if model_type == "smash":
+if mode == "smash":
     optimize_smash_model(
         sbc,
         catchment,
@@ -418,7 +575,7 @@ if model_type == "smash":
 
 
 # Gamma
-if model_type == "smash_gamma":
+if mode == "smash_gamma":
     optimize_smash_gamma_model(
         sbc,
         catchment,
@@ -432,6 +589,10 @@ if model_type == "smash_gamma":
         val_start_time,
         val_end_time,
     )
+
+if mode == "plot":
+    plot(catchment, scenario_key)
+
 
 # save figure
 
