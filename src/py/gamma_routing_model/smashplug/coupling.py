@@ -994,7 +994,15 @@ def ComputeModelGradients(
     #     ] / np.max(model_gamma.routing_mesh.cumulated_surface[:])
 
     if ScaleGradients:
-        scaling_gamma = np.mean(abs(Grad_dCOST_dROUTINGPARAMETERS))
+        # scaling_gamma = np.mean(abs(Grad_dCOST_dROUTINGPARAMETERS))
+
+        scale1 = np.mean(abs(Grad_dCOST_dROUTINGPARAMETERS[0, :]))
+        if model_gamma.routing_setup.varying_spread == 1:
+            scale2 = np.mean(abs(Grad_dCOST_dROUTINGPARAMETERS[1, :]))
+            scaling = 0.5 * (scale1 + scale2)
+        else:
+            scaling_gamma = scale1
+
         scaling_smash = np.mean(abs(LinearizedGradientsForSmash))
 
         Grad_dCOST_dROUTINGPARAMETERS = Grad_dCOST_dROUTINGPARAMETERS / scaling_gamma
