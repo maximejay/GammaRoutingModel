@@ -726,12 +726,18 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
             if ctrl_var == "hydraulics_coefficient":
 
                 if model_gamma.routing_setup.hydraulics_coef_uniform == 1:
-                    model_gamma.routing_parameters.hydraulics_coefficient[:] = (
-                        control_vector["Xt"][k]
+                    # model_gamma.routing_parameters.hydraulics_coefficient[:] = (
+                    #     control_vector["Xt"][k]
+                    # )
+                    model_gamma.routing_parameters_change(
+                        hydraulics_coefficient=control_vector["Xt"][k]
                     )
                 else:
-                    model_gamma.routing_parameters.hydraulics_coefficient[:] = (
-                        control_vector["Xt"][k : k + nb_nodes]
+                    # model_gamma.routing_parameters.hydraulics_coefficient[:] = (
+                    #     control_vector["Xt"][k : k + nb_nodes]
+                    # )
+                    model_gamma.routing_parameters_change(
+                        hydraulics_coefficient=control_vector["Xt"][k : k + nb_nodes]
                     )
 
                 k = k + nb_nodes
@@ -739,11 +745,17 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
             if ctrl_var == "spreading":
 
                 if model_gamma.routing_setup.spreading_uniform == 1:
-                    model_gamma.routing_parameters.spreading[:] = control_vector["Xt"][k]
+                    # model_gamma.routing_parameters.spreading[:] = control_vector["Xt"][k]
+                    model_gamma.routing_parameters_change(
+                        spreading=control_vector["Xt"][k]
+                    )
                 else:
-                    model_gamma.routing_parameters.spreading[:] = control_vector["Xt"][
-                        k : k + nb_nodes
-                    ]
+                    # model_gamma.routing_parameters.spreading[:] = control_vector["Xt"][
+                    #     k : k + nb_nodes
+                    # ]
+                    model_gamma.routing_parameters_change(
+                        spreading=control_vector["Xt"][k : k + nb_nodes]
+                    )
 
                 k = k + nb_nodes
 

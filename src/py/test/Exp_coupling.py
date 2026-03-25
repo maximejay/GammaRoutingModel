@@ -167,7 +167,7 @@ BestControlVector, optimized_smash_model, optimized_gamma_model = (
         GammaGriddedObservation,
         control_parameters_list=control_parameters_list,
         bounds={
-            "cp": [1.0, 1000.0],
+            "cp": [1.0, 2000.0],
             "ct": [1.0, 1000.0],
             "hydraulics_coefficient": [0.3, 5.0],
             # "spreading": [0.5, 5.0],
@@ -175,10 +175,10 @@ BestControlVector, optimized_smash_model, optimized_gamma_model = (
         maxiter=30,
         maxfun=30,
         tol=1e-6,
-        ScaleGradients=True,
-        ScaleGammaGradientsBySurface=True,
+        ScaleGradients=False,
+        ScaleGammaGradientsBySurface=False,
         optim_type="local",
-        local_optimizer="L-BFGS-B",  # L-BFGS-B | trust-constr | SLSQP | TNC
+        local_optimizer="SLSQP",  # L-BFGS-B | trust-constr | SLSQP | TNC
     )
 )
 

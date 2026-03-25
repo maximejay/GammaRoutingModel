@@ -114,17 +114,20 @@ os.makedirs(path_gamma_hdf5, exist_ok=True)
 start_time = "2008-01-01 00:00"
 end_time = "2018-01-01 00:00"
 
-start_time = "2014-09-01 00:00"
-end_time = "2014-12-01 00:00"
+# start_time = "2014-09-01 00:00"
+# end_time = "2014-12-01 00:00"
+
+# start_time = "2014-10-01 00:00"
+# end_time = "2014-11-14 00:00"
 
 val_start_time = "2018-01-01 00:00"
 val_end_time = "2025-01-01 00:00"
 
-val_start_time = "2014-12-01 00:00"
-val_end_time = "2015-03-01 00:00"
+# val_start_time = "2014-12-01 00:00"
+# val_end_time = "2015-03-01 00:00"
 
 gamma_dt = 900.0
-warmup_time = 150
+warmup_time = 450
 
 # pdt_start_optim = int(warmup_time * 24 * 3600 / gamma_dt)
 # end_warmup = (
@@ -137,7 +140,7 @@ gamma_settings = {
     "vmax": 10.0,
     "mode_discretization_step": 0.1,
     "spreading_discretization_step": 0.1,
-    "ponderation_regul": 10.0,
+    "ponderation_regul": 0.0,
     "velocity_computation": "qmm",
     "varying_spread": 1,
     "spreading_uniform": 1,
@@ -323,7 +326,7 @@ def optimize_smash_gamma_model(
     model.mysetup.update_setup({"routing_module": "zero", "return_opt_grad": "qe"})
     new_start_time = (
         datetime.datetime.fromisoformat(start_time) - datetime.timedelta(days=warmup_time)
-    ).strftime("%Y-%d-%m %H:%M")
+    ).strftime("%Y-%m-%d %H:%M")
     model.mysetup.update_setup({"start_time": new_start_time, "end_time": end_time})
     model.model()
 
@@ -336,13 +339,11 @@ def optimize_smash_gamma_model(
         model.mysmashmodel, dt=gamma_dt, **gamma_settings
     )
 
-    # Set parameter
+    # Set parameter (initial guess)
     model_gamma.routing_parameters_change(
         hydraulics_coefficient=1.0,
         spreading=2.0,
     )
-
-    gamma.smashplug.RunCoupledModel(model.mysmashmodel, model_gamma)
 
     model_gamma.routing_mesh.controlled_nodes = 0
     model_gamma.routing_mesh.controlled_nodes[0] = model_gamma.routing_mesh.gauge_nodes[
@@ -350,6 +351,21 @@ def optimize_smash_gamma_model(
             model.mysmashmodel.mesh.area[model_gamma.routing_mesh.gauge_name_index - 1]
         )
     ]
+
+    gamma.smashplug.RunCoupledModel(model.mysmashmodel, model_gamma)
+    # get observed discharges:
+    GammaGriddedObservation = gamma.smashplug.SmashDataVectorsToGrid(
+        model.mysmashmodel.response_data.q,
+        model_gamma,
+        smash_dt=model.mysmashmodel.setup.dt,
+    )
+
+    # compute the initial cost
+    model_gamma.cost_function(
+        GammaGriddedObservation, model_gamma.routing_results.discharges
+    )
+
+    model_gamma.routing_results.costs
 
     BestControlVector, optimized_smash_model, optimized_gamma_model = (
         gamma.smashplug.OptimizeCoupledModel(
