@@ -1011,7 +1011,7 @@ def ComputeModelGradients(
         scale1 = np.mean(abs(Grad_dCOST_dROUTINGPARAMETERS[0, :]))
         if model_gamma.routing_setup.varying_spread == 1:
             scale2 = np.mean(abs(Grad_dCOST_dROUTINGPARAMETERS[1, :]))
-            scaling = 0.5 * (scale1 + scale2)
+            scaling_gamma = 0.5 * (scale1 + scale2)
         else:
             scaling_gamma = scale1
 
