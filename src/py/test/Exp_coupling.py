@@ -12,19 +12,18 @@ import scipy
 # Smash reference model structure gr-a
 setup_cance, mesh_cance = smash.factory.load_dataset("Cance")
 setup_cance["routing_module"] = "zero"
-setup_cance["return_opt_grad"] = "qe"
 smash_model = smash.Model(setup_cance, mesh_cance)
 smash_model.forward_run()
-
+grad, name = smash_model.backward_run(mapping="distributed", grad_mode="qt")
 
 smash_model.response.qac.shape
 
 setup_cance, mesh_cance = smash.factory.load_dataset("Cance")
 smash_optimize = smash.Model(setup_cance, mesh_cance)
 optimize_options = {
-    "parameters": ["cp", "ct", "llr"],
-    # "bounds": {"cp": (1, 1000), "ct": (1, 1000)},
-    "bounds": {"cp": (1, 1000), "ct": (1, 1000), "llr": (1, 1000)},
+    "parameters": ["cp", "ct"],
+    "bounds": {"cp": (1, 1000), "ct": (1, 2000)},
+    # "bounds": {"cp": (1, 2000), "ct": (1, 1000), "llr": (1, 1000)},
     "termination_crit": {
         "maxiter": 30,
         "factr": 1e6,
@@ -58,13 +57,10 @@ gamma.smashplug.functions_smash_plot.plot_image(
 )
 
 
-# smash compilé avec les options de debuggage
-
-
 # configure the Gamma model
 model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
     smash_model,
-    dt=900,
+    dt=3600.0,
     vmin=0.1,
     vmax=10.0,
     mode_discretization_step=0.1,
@@ -75,20 +71,18 @@ model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
     spreading_uniform=1,
     criteria="nse",
     ponderation_cost=10000.0,
-    pdt_start_optim=1600,
-    # pdt_start_optim=int(1600 / 4),
+    # pdt_start_optim=1600,
+    pdt_start_optim=int(1600 / 4),
 )
 
 # Set parameter
 model_gamma.routing_parameters_change(hydraulics_coefficient=1.0, spreading=2.0)
-# model_gamma.routing_parameters.hydraulics_coefficient = 1.0
-# model_gamma.routing_parameters.spreading = 2.0
 
-
-model_gamma.routing_mesh.controlled_nodes[1:3] = 0
-model_gamma.routing_mesh.controlled_nodes[0] = model_gamma.routing_mesh.gauge_nodes[
-    np.argmax(smash_model.mesh.area[model_gamma.routing_mesh.gauge_name_index - 1])
-]
+model_gamma.routing_mesh_set_control(
+    model_gamma.routing_mesh.gauge_nodes[
+        np.argmax(smash_model.mesh.area[model_gamma.routing_mesh.gauge_name_index - 1])
+    ]
+)
 
 # direct run of the coupled model
 gamma.smashplug.RunCoupledModel(smash_model, model_gamma)
@@ -107,11 +101,11 @@ model_gamma.routing_results.costs
 boundaries = gamma.smashplug.get_boundaries(
     model_gamma,
     smash_model,
-    # control_parameters_list=["cp", "ct", "hydraulics_coefficient", "spreading"],
-    control_parameters_list=["hydraulics_coefficient", "spreading"],
+    control_parameters_list=["cp", "ct", "hydraulics_coefficient", "spreading"],
+    # control_parameters_list=["hydraulics_coefficient", "spreading"],
     bounds={
-        # "cp": [0.1, 1000.0],
-        # "ct": [0.1, 1000.0],
+        "cp": [0.1, 1000.0],
+        "ct": [0.1, 2000.0],
         "hydraulics_coefficient": [0.3, 5.0],
         "spreading": [0.5, 5.0],
     },
@@ -121,11 +115,11 @@ boundaries = gamma.smashplug.get_boundaries(
 ControlVector = gamma.smashplug.VectorizeModelParameters(
     smash_model,
     model_gamma,
-    # control_parameters_list=["cp", "ct", "hydraulics_coefficient", "spreading"],
-    control_parameters_list=["hydraulics_coefficient", "spreading"],
+    control_parameters_list=["cp", "ct", "hydraulics_coefficient", "spreading"],
+    # control_parameters_list=["hydraulics_coefficient", "spreading"],
     bounds={
-        # "cp": [0.1, 1000.0],
-        # "ct": [0.1, 1000.0],
+        "cp": [0.1, 1000.0],
+        "ct": [0.1, 2000.0],
         "hydraulics_coefficient": [0.3, 5.0],
         "spreading": [0.5, 5.0],
     },
@@ -135,7 +129,7 @@ ControlVector = gamma.smashplug.VectorizeModelParameters(
 control_vector = gamma.smashplug.normalize_control_vector(ControlVector)
 
 # get the inflows
-GammaInflows = gamma.smashplug.GetGammaInflowFromSmash(smash_model, dt=900)
+GammaInflows = gamma.smashplug.GetGammaInflowFromSmash(smash_model, dt=3600)
 
 
 cost, grad = gamma.smashplug.ComputeCostAndGradients(
@@ -144,8 +138,8 @@ cost, grad = gamma.smashplug.ComputeCostAndGradients(
     smash_model,
     model_gamma,
     GammaGriddedObservation,
-    True,
-    True,
+    False,
+    False,
 )
 # Compute the gradient
 gradient = gamma.smashplug.ComputeModelGradients(
@@ -156,8 +150,8 @@ gradient = gamma.smashplug.ComputeModelGradients(
 # Here smash parameter are not normalized. That cause slow convergence. We try some gradient normalisation technics : ScaleGradientsByBounds and ScaleGammaGradients
 # the spreading coefficient will uniformly calibrated => the gradient of this variable is scaled by the nb of nodes !
 
-control_parameters_list = ["cp", "ct", "hydraulics_coefficient"]
-# control_parameters_list = ["cp", "ct", "spreading"]
+# control_parameters_list = ["cp", "ct", "hydraulics_coefficient"]
+control_parameters_list = ["cp", "ct"]
 # control_parameters_list = ["cp", "ct", "hydraulics_coefficient", "spreading"]
 
 BestControlVector, optimized_smash_model, optimized_gamma_model = (
@@ -169,7 +163,7 @@ BestControlVector, optimized_smash_model, optimized_gamma_model = (
         bounds={
             "cp": [1.0, 2000.0],
             "ct": [1.0, 1000.0],
-            "hydraulics_coefficient": [0.3, 5.0],
+            # "hydraulics_coefficient": [0.3, 5.0],
             # "spreading": [0.5, 5.0],
         },
         maxiter=30,
@@ -178,7 +172,7 @@ BestControlVector, optimized_smash_model, optimized_gamma_model = (
         ScaleGradients=False,
         ScaleGammaGradientsBySurface=False,
         optim_type="local",
-        local_optimizer="SLSQP",  # L-BFGS-B | trust-constr | SLSQP | TNC
+        local_optimizer="L-BFGS-B",  # L-BFGS-B | trust-constr | SLSQP | TNC
     )
 )
 

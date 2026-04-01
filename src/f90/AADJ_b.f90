@@ -322,10 +322,10 @@ CONTAINS
       DEALLOCATE(routing_memory%states)
     END IF
     IF (ALLOCATED(routing_memory%remainder_init)) THEN
-      DEALLOCATE(routing_memory%remainder)
+      DEALLOCATE(routing_memory%remainder_init)
     END IF
     IF (ALLOCATED(routing_memory%states_init)) THEN
-      DEALLOCATE(routing_memory%states)
+      DEALLOCATE(routing_memory%states_init)
     END IF
     ALLOCATE(routing_memory%remainder(INT(MAXVAL(routing_states%&
 &   window_length)), routing_mesh%nb_nodes))
@@ -1676,8 +1676,8 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B0(routing_setup, routing_mesh, &
 !Here we should denormalise parameter if nedeed:
 !if routing_setup_normalized=True:
 !   call denormalized(routing_parameter)
-  remainder = routing_memory%remainder
-  states = routing_memory%states
+  remainder = routing_memory%remainder_init
+  states = routing_memory%states_init
   DO i=1,routing_setup%npdt
     qmesh = 0.
     inflow = inflows(i, 1:routing_mesh%nb_nodes)
@@ -1828,8 +1828,8 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_B(routing_setup, routing_mesh, &
 !Here we should denormalise parameter if nedeed:
 !if routing_setup_normalized=True:
 !   call denormalized(routing_parameter)
-  remainder = routing_memory%remainder
-  states = routing_memory%states
+  remainder = routing_memory%remainder_init
+  states = routing_memory%states_init
   DO i=1,routing_setup%npdt
     qmesh = 0.
     inflow = inflows(i, 1:routing_mesh%nb_nodes)
@@ -1961,8 +1961,8 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF(routing_setup, routing_mesh&
 !Here we should denormalise parameter if nedeed:
 !if routing_setup_normalized=True:
 !   call denormalized(routing_parameter)
-  remainder = routing_memory%remainder
-  states = routing_memory%states
+  remainder = routing_memory%remainder_init
+  states = routing_memory%states_init
   DO i=1,routing_setup%npdt
     velocities = 0.
     qmesh = 0.
@@ -2055,7 +2055,6 @@ SUBROUTINE COST_FUNCTION_B(routing_setup, routing_mesh, &
   nb_controlled_nodes = SIZE(routing_mesh%controlled_nodes)
   SELECT CASE  (TRIM(routing_setup%criteria)) 
   CASE ('rmse') 
-!~         do j=1,routing_mesh%nb_nodes
     DO j=1,nb_controlled_nodes
       CALL PUSHINTEGER4(k)
       k = routing_mesh%controlled_nodes(j)
@@ -2074,7 +2073,6 @@ SUBROUTINE COST_FUNCTION_B(routing_setup, routing_mesh, &
     END DO
     CALL PUSHCONTROL2B(1)
   CASE ('nse') 
-!~         do j=1,routing_mesh%nb_nodes
     DO j=1,nb_controlled_nodes
       k = routing_mesh%controlled_nodes(j)
       IF (k .GT. 0 .AND. k .LE. routing_mesh%nb_nodes) THEN
@@ -2219,24 +2217,17 @@ SUBROUTINE COST_FUNCTION_NODIFF(routing_setup, routing_mesh, &
   SELECT CASE  (TRIM(routing_setup%criteria)) 
   CASE ('rmse') 
     cost = 0.
-!~         do j=1,routing_mesh%nb_nodes
     DO j=1,nb_controlled_nodes
       k = routing_mesh%controlled_nodes(j)
       IF (k .GT. 0 .AND. k .LE. routing_mesh%nb_nodes) THEN
         DO i=routing_setup%pdt_start_optim,routing_setup%npdt
-          IF (observations(i, k) .GE. 0.) THEN
-!write(*,*) i,k,(observations(i,k)-qnetwork(i,k))**2.,observations(i,k),qnetwork(i,k)
-!~                     if (observations(i,k).ne.qnetwork(i,k))then
-!~                         write(*,*) i,k,(observations(i,k)-qnetwork(i,k))**2.,observations(i,k),qnetwork(i,k)
-!~                     end if
-            cost = cost + (observations(i, k)-qnetwork(i, k))**2.
-          END IF
+          IF (observations(i, k) .GE. 0.) cost = cost + (observations(i&
+&             , k)-qnetwork(i, k))**2.
         END DO
       END IF
     END DO
   CASE ('nse') 
     cost = 0.
-!~         do j=1,routing_mesh%nb_nodes
     DO j=1,nb_controlled_nodes
       k = routing_mesh%controlled_nodes(j)
       IF (k .GT. 0 .AND. k .LE. routing_mesh%nb_nodes) THEN

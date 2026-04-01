@@ -18,6 +18,7 @@ import traceback
 import os
 import numpy as np
 import copy
+import scipy
 
 from gamma_routing_model.libfgamma import (
     Mod_Gamma_Routing_Setup,
@@ -224,6 +225,7 @@ class Model(object):
             self.routing_states,
         )
 
+        # routing_memory is initialized inside this function
         Mod_Gamma_Interface.routing_gamma_precomputation(
             self.routing_setup,
             self.routing_mesh,
@@ -245,7 +247,14 @@ class Model(object):
 
     def routing_mesh_set_control(self, nodes):
 
-        ncontrol = len(nodes)
+        if isinstance(nodes, int | list | tuple):
+            nodes = np.array(nodes)
+
+        ncontrol = nodes.size
+        if ncontrol > self.routing_mesh.nb_nodes:
+            raise ValueError(
+                f"The number of controlled nodes {ncontrol} cannot be greater than the number of model nodes {self.mesh.nb_nodes}"
+            )
 
         Mod_Gamma_Routing_Mesh.routing_mesh_set_control(
             self.routing_mesh, ncontrol, nodes
@@ -283,7 +292,7 @@ class Model(object):
         if states_init:
             self.routing_states_init()
 
-        # reset discharges states to zeros
+        # reset discharges states to its initial value (time-step 1)
         if memory_reset:
             self.routing_memory_reset()
 
@@ -329,6 +338,91 @@ class Model(object):
             self.routing_memory,
             self.routing_results,
         )
+
+    def calibration_inflows(
+        self, inflows, observations, states_init=True, memory_reset=True
+    ):
+
+        # first initialise states
+        # initialise states
+        if states_init:
+            self.routing_states_init()
+
+        # reset discharges states to zeros
+        if memory_reset:
+            self.routing_memory_reset()
+
+        # initialise routing_results
+        self.routing_results_init()
+
+        Finflows = np.zeros(shape=(inflows.size))
+        k = 0
+        for i in range(inflows.shape[0]):
+            Finflows[k : k + inflows.shape[1]] = inflows[i, :]
+            k = k + inflows.shape[1]
+
+        bounds = np.zeros(shape=(Finflows.size, 2))
+        bounds[:, 0] = 0.0
+        bounds[:, 1] = 100.0
+
+        res = scipy.optimize.minimize(
+            self.run_backward_djdq,
+            Finflows,
+            args=(
+                inflows,
+                observations,
+            ),
+            method="SLSQP",  # "L-BFGS-B",
+            jac=True,
+            bounds=bounds,
+            options={
+                "disp": True,
+                "maxiter": 30,
+                "verbose": 1,
+                "maxfun": 30,
+            },
+        )
+
+        return res
+
+    def run_backward_djdq(self, X, inflows, observations):
+
+        if X is None:
+            X = inflows.flatten()
+
+        k = 0
+        for i in range(inflows.shape[0]):
+            inflows[i, :] = X[k : k + inflows.shape[1]]
+            k = k + inflows.shape[1]
+
+        self.run(inflows, states_init=False, memory_reset=True)
+        self.cost_function(observations, self.routing_results.discharges)
+        cost = self.routing_results.costs[0]
+
+        inflows = np.array(inflows, order="F", dtype="float32")
+        observations = np.array(observations, order="F", dtype="float32")
+
+        # Gradients of COST with respect to inflows (interpolated_inflows)
+        gradients = np.zeros(
+            shape=(self.routing_setup.npdt, self.routing_mesh.nb_nodes),
+            order="F",
+            dtype="float32",
+        )
+
+        Mod_Gamma_Interface.routing_gamma_forward_adjoint_b0(
+            self.routing_setup,
+            self.routing_mesh,
+            self.routing_parameters,
+            inflows,
+            observations,
+            self.routing_states,
+            self.routing_memory,
+            self.routing_results,
+            gradients,
+        )
+
+        print(f"cost={self.routing_results.costs[0]}")
+        return cost, np.array(gradients.flatten(), dtype="float64")
 
     def cost_function(self, observations, qnetwork):
 

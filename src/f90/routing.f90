@@ -67,6 +67,8 @@ program routing
     type(type_routing_parameter) :: routing_parameter
     type(type_routing_parameter) :: routing_parameter_3D
     
+    integer, dimension(1) :: gauges_nodes
+    
     real :: alpha,beta
     
     write(*,*) "hello Gamma-routing"
@@ -91,8 +93,10 @@ program routing
     write(*,*) "routing_mesh_self_initialisation..."
     write(*,*) ""
     call routing_mesh_self_initialisation(routing_mesh,nb_nodes=10,nb_upstream_nodes=1)
-    routing_mesh%controlled_nodes(1)=10
-    call mesh_update(routing_mesh)
+    
+    gauges_nodes(1)=10
+    call routing_mesh_set_control(routing_mesh, 1, gauges_nodes)
+!~     call mesh_update(routing_mesh)
         
     write(*,*) "routing_parameter_self_initialisation..."
     write(*,*) ""
@@ -139,8 +143,6 @@ program routing
     filename="out/tabulated_gamma_coefficient_3D_pdf.txt"
     call write_tabulated_coefficients_3D(routing_states%tabulated_routing_coef(:,:,:,1),routing_states%quantile,filename)
     
-    pause
-    
     write(*,*) "routing_results_self_initialisation..."
     call routing_results_self_initialisation(routing_setup,routing_mesh,routing_results)
     
@@ -148,11 +150,6 @@ program routing
     !inputs : initialisation
     inflows=0.0
     inflows(1,1)=10.
-    
-    write(*,*) ""
-    write(*,*) "routing_parameter%hydraulics_coefficient=",routing_parameter%hydraulics_coefficient
-    write(*,*) "routing_parameter%spreading=",routing_parameter%spreading
-    write(*,*) ""
     
     write(*,*) "routing_gamma_run..."
     call routing_gamma_run(routing_setup,routing_mesh,routing_parameter,inflows,&
@@ -212,15 +209,31 @@ program routing
     write(*,*) ""
     call routing_memory_self_initialisation(routing_mesh,routing_states,routing_memory)
     
+    write(*,*) "routing_results_self_initialisation..."
+    call routing_results_self_initialisation(routing_setup,routing_mesh,routing_results)
+    
+    allocate(inflows(routing_setup%npdt,routing_mesh%nb_nodes))
+    inflows=0.0
+    inflows(1,1)=10.
+    
+    write(*,*) "routing_gamma_run..."
+    call routing_gamma_run(routing_setup,routing_mesh,routing_parameter,inflows,&
+    &routing_states,routing_memory,routing_results)
+    
+    write(*,*) routing_results%discharges(:,10)
+    
     filename="out/tabulated_gamma_coefficient_3600s_pdf.txt"
     call write_tabulated_coefficients_3D(routing_states%tabulated_routing_coef(:,:,:,1),routing_states%quantile,filename)
-    
+
     call routing_setup_clear(routing_setup)
     call routing_states_clear(routing_states)
     call routing_memory_clear(routing_memory)
     call routing_mesh_clear(routing_mesh)
     call routing_parameter_clear(routing_parameter)
+    call routing_results_clear(routing_results)
+    deallocate(inflows)
     
+    pause
     
     !dx=250m
     
@@ -263,7 +276,7 @@ program routing
     call routing_parameter_clear(routing_parameter)
     
     
-    !dx=4000m
+!~     !dx=4000m
     
     write(*,*) "routing_setup_self_initialisation..."
     write(*,*) ""
@@ -292,7 +305,6 @@ program routing
     write(*,*) "routing_memory_self_initialisation..."
     write(*,*) ""
     call routing_memory_self_initialisation(routing_mesh,routing_states,routing_memory)
-    
     
     filename="out/tabulated_gamma_coefficient_3600s250m_pdf.txt"
     call write_tabulated_coefficients_3D(routing_states%tabulated_routing_coef(:,:,:,1),routing_states%quantile,filename)
@@ -336,7 +348,8 @@ program routing
     routing_mesh%surface=(/1,1,1,1/)
     routing_mesh%dx=(/1000.0,7000.0,2000.0,1000./)
     
-    routing_mesh%controlled_nodes(1)=4
+    gauges_nodes(1)=4
+    call routing_mesh_set_control(routing_mesh, 1, gauges_nodes)
     
     !update and auto compute mesh...
     write(*,*) "mesh_update_new..."
@@ -345,7 +358,6 @@ program routing
     
     
     allocate(inflows(routing_setup%npdt,routing_mesh%nb_nodes))
-    allocate(inflow(routing_mesh%nb_nodes))
     allocate(qmesh(routing_mesh%nb_nodes))
     allocate(velocities(routing_mesh%nb_nodes))
     allocate(qnetwork(routing_setup%npdt,routing_mesh%nb_nodes))
@@ -366,7 +378,7 @@ program routing
     write(*,*) ""
     call routing_parameter_self_initialisation(routing_parameter=routing_parameter,routing_setup=routing_setup,&
     &routing_mesh=routing_mesh,&
-    &hydraulics_coefficient=1.0,spreading=1.)
+    &hydraulics_coefficient=1.0,spreading=1.0)
     
     
     write(*,*) "routing_state_self_initialisation..."
@@ -411,6 +423,7 @@ program routing
     
     
     observations=routing_results%discharges
+    write(*,*) observations
     
     filename="out/qnetwork_jonction.txt"
     call write_matrix(routing_setup%npdt,routing_mesh%nb_nodes,routing_results%discharges,filename)
@@ -425,16 +438,19 @@ program routing
     call routing_gamma_change_parameters(routing_parameter,routing_states,routing_memory,routing_setup,&
     &routing_mesh,hydraulics_coefficient=0.5,spreading=1.4)
     
+    write(*,*) routing_parameter%hydraulics_coefficient
+    write(*,*) routing_parameter%spreading
+    pause
     
     write(*,*) "routing_hydrogram_forward..."
     write(*,*) ""
-!~     call routing_states_reset(routing_states)
     call routing_memory_reset(routing_memory)
     call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,&
     &routing_states,routing_memory,routing_results,cost)
     
-!~     write(*,*) cost
-!~     pause
+    write(*,*) routing_results%discharges
+    write(*,*) cost
+    pause
     
     filename="out/qnetwork_initial.txt"
     call write_matrix(routing_setup%npdt,routing_mesh%nb_nodes,routing_results%discharges,filename)
@@ -459,7 +475,7 @@ program routing
     call write_matrix(routing_setup%npdt,routing_mesh%nb_nodes,routing_results%velocities,filename)
     
     
-    deallocate(inflows,qnetwork,vnetwork,inflow,qmesh,velocities)
+    deallocate(inflows,qnetwork,vnetwork,qmesh,velocities)
     call routing_setup_clear(routing_setup)
     call routing_mesh_clear(routing_mesh)
     call routing_states_clear(routing_states)

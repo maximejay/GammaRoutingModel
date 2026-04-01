@@ -59,10 +59,10 @@ module mod_gamma_routing_memory
             deallocate(routing_memory%states)
         end if
         if (allocated(routing_memory%remainder_init)) then
-            deallocate(routing_memory%remainder)
+            deallocate(routing_memory%remainder_init)
         end if
         if (allocated(routing_memory%states_init)) then
-            deallocate(routing_memory%states)
+            deallocate(routing_memory%states_init)
         end if
         
         allocate(routing_memory%remainder(int(maxval(routing_states%window_length)),routing_mesh%nb_nodes))

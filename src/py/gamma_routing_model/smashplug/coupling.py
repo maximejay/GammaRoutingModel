@@ -219,10 +219,6 @@ def ConfigureGammaWithSmash(smash_model, dt=None, **kwargs):
         print("Warnings: you must set smash_model.setup.routing_module to zero")
         smash_model.setup.structure = "zero"
 
-    if smash_model.setup.return_opt_grad == "none":
-        print("Warnings: you must set smash_model.setup.return_opt_grad to qe")
-        smash_model.setup.return_opt_grad = "qe"
-
     # initialise the gamma model object
     model_gamma = gamma.Model()
 
@@ -716,7 +712,7 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
 
             smash_model.set_rr_initial_states(ctrl_var, MatrixStates)
 
-    # Upgrade for Gamma only
+    # Update for Gamma only
     nb_nodes = control_vector["NbNodes"]
 
     for ctrl_var in control_vector["ParamList"]:
@@ -726,16 +722,10 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
             if ctrl_var == "hydraulics_coefficient":
 
                 if model_gamma.routing_setup.hydraulics_coef_uniform == 1:
-                    # model_gamma.routing_parameters.hydraulics_coefficient[:] = (
-                    #     control_vector["Xt"][k]
-                    # )
                     model_gamma.routing_parameters_change(
                         hydraulics_coefficient=control_vector["Xt"][k]
                     )
                 else:
-                    # model_gamma.routing_parameters.hydraulics_coefficient[:] = (
-                    #     control_vector["Xt"][k : k + nb_nodes]
-                    # )
                     model_gamma.routing_parameters_change(
                         hydraulics_coefficient=control_vector["Xt"][k : k + nb_nodes]
                     )
@@ -745,14 +735,10 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
             if ctrl_var == "spreading":
 
                 if model_gamma.routing_setup.spreading_uniform == 1:
-                    # model_gamma.routing_parameters.spreading[:] = control_vector["Xt"][k]
                     model_gamma.routing_parameters_change(
                         spreading=control_vector["Xt"][k]
                     )
                 else:
-                    # model_gamma.routing_parameters.spreading[:] = control_vector["Xt"][
-                    #     k : k + nb_nodes
-                    # ]
                     model_gamma.routing_parameters_change(
                         spreading=control_vector["Xt"][k : k + nb_nodes]
                     )
@@ -856,8 +842,8 @@ def ComputeModelGradients(
     interpolated_inflows,
     observations,
     set_param=False,
-    ScaleGammaGradientsBySurface=True,
-    ScaleGradients=True,
+    ScaleGammaGradientsBySurface=False,
+    ScaleGradients=False,
 ):
     # Compute the Gradients dCost/dX for model M(X)=M(Xgamma,Xsmash)
     # That computation required:
@@ -867,17 +853,6 @@ def ComputeModelGradients(
     # This function return a single vector with all aggregated gradient in the following order:
     # - Gradient of Smash in the order of the control_vector
     # - Gradient of Gamma : 1st hydraulics_coefficient, 2nd spreading
-
-    # Update model with the control vector if required
-    # ~ if set_param:
-    # ~ SetVectorizedModelParameters(control_vector,smash_model,model_gamma)
-
-    # Gamma Side gradients computation :
-
-    # Here we should normalize parameters
-    # (p-lb) / (ub-lb)
-    # set gamma_model.routing_setup.denormalize_parameter=1
-    # implement in forward this condition to denormalize parameter
 
     # Gradients of COST with respect to routing_parameters
     Grad_dCOST_dROUTINGPARAMETERS = np.zeros(
@@ -903,11 +878,11 @@ def ComputeModelGradients(
     )
     print(
         "hydraulics_coefficient:",
-        np.mean(abs(Grad_dCOST_dROUTINGPARAMETERS[0, :])),
+        np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[0, :] ** 2.0)),
     )
     print(
         "spreading:             ",
-        np.mean(abs(Grad_dCOST_dROUTINGPARAMETERS[1, :])),
+        np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[1, :] ** 2.0)),
     )
 
     # Gradients of COST with respect to inflows (interpolated_inflows)
@@ -929,16 +904,17 @@ def ComputeModelGradients(
         Grad_dCOST_dINFLOWS,
     )
 
-    # Intégratioon over the time for Gradients of COST with respect to inflows (interpolated_inflows): Cost and Inflows have not the same dimension. Inflows vary in time but not Cost as it is alrady integrated. Thus Tapenade compte the gradients for all time step. We need to integrate it manually. Added 2025: start at model_gamma.routing_setup.pdt_start_optim !
+    # Intégratioon over the time for Gradients of COST with respect to inflows (interpolated_inflows): Cost and Inflows have not the same dimension. Inflows vary in time but not Cost as it is alrady integrated. Thus Tapenade compute the gradients for all time step. We need to integrate it manually. Added 2025: start at model_gamma.routing_setup.pdt_start_optim !
     Int_Grad_dCOST_dINFLOWS = np.zeros(Grad_dCOST_dINFLOWS.shape[1])
     for i in range(Grad_dCOST_dINFLOWS.shape[1]):
-        Int_Grad_dCOST_dINFLOWS[i] = np.mean(
-            Grad_dCOST_dINFLOWS[model_gamma.routing_setup.pdt_start_optim :, i]
-        )
+        # Int_Grad_dCOST_dINFLOWS[i] = np.sum(
+        #     Grad_dCOST_dINFLOWS[model_gamma.routing_setup.pdt_start_optim :, i]
+        # )
+        Int_Grad_dCOST_dINFLOWS[i] = np.sum(Grad_dCOST_dINFLOWS[:, i])
 
     print(
         "qin:                   ",
-        np.mean(abs(Int_Grad_dCOST_dINFLOWS)),
+        np.sqrt(np.sum((Int_Grad_dCOST_dINFLOWS) ** 2.0)),
     )
 
     control_smash = copy.deepcopy(control_vector)
@@ -958,7 +934,16 @@ def ComputeModelGradients(
                 if p in value.keys():
                     del control_smash[key][p]
 
-    SmashGradients = _get_smash_gradient(smash_model, control_smash)
+    # SmashGradients = _get_smash_gradient(smash_model, control_smash)
+
+    SmashGradients, name = smash_model.backward_run(
+        mapping="distributed",
+        grad_mode="qt",
+        optimize_options={
+            "parameters": control_smash["ParamList"],
+            "bounds": control_smash["bounds"],
+        },
+    )
 
     nb_param_smash = len(control_smash["ParamList"])
     LinearizedGradientsForSmash = np.zeros(
@@ -971,13 +956,18 @@ def ComputeModelGradients(
         LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] = (
             SmashGradients[i * nbnode : nbnode + i * nbnode] * Int_Grad_dCOST_dINFLOWS[:]
         )
-        Proj_grad_smash[i] = np.mean(
-            abs(LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode])
+
+        Proj_grad_smash[i] = np.sqrt(
+            np.sum(LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] ** 2.0)
         )
 
         print(
             f"{control_smash['ParamList'][i]}:                    ",
-            np.mean(LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] ** 2.0),
+            np.sqrt(
+                np.sum(
+                    LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] ** 2.0
+                )
+            ),
         )
 
     # At this step we own all gradients given by Tapenade.
@@ -1028,19 +1018,21 @@ def ComputeModelGradients(
         )
         print(
             "hydraulics_coefficient:",
-            np.mean(abs(Grad_dCOST_dROUTINGPARAMETERS[0, :])),
+            np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[0, :] ** 2.0)),
         )
         print(
             "spreading:             ",
-            np.mean(abs(Grad_dCOST_dROUTINGPARAMETERS[1, :])),
+            np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[1, :] ** 2.0)),
         )
         for i in range(nb_param_smash):
-            Proj_grad_smash[i] = np.mean(
-                abs(LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode])
+            Proj_grad_smash[i] = np.sqrt(
+                np.sum(
+                    LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] ** 2.0
+                )
             )
             print(
                 f"{control_smash['ParamList'][i]}:                    ",
-                abs(Proj_grad_smash[i]),
+                Proj_grad_smash[i],
             )
 
     # Finally we aggregate all computed gradients in a single vector given the control_vector
@@ -1092,32 +1084,9 @@ def ComputeModelGradients(
 
                 position = position + control_vector["NbNodes"]
 
-    # # Normalize the output gradients with respect to the boundaries
-    # if ("bounds" in control_vector) and (ScaleGradientsByBounds == True):
-
-    #     position = 0
-    #     max_amplitude = 0.0
-    #     # sum_amplitude=0.
-    #     for param in control_vector["ParamList"]:
-
-    #         amplitude = (
-    #             control_vector["bounds"][param][1] - control_vector["bounds"][param][0]
-    #         )
-
-    #         if amplitude > max_amplitude:
-    #             max_amplitude = amplitude
-    #             # sum_amplitude=sum_amplitude+amplitude
-
-    #         if amplitude > 0:
-    #             OutputsGradients[position : position + control_vector["NbNodes"]] = (
-    #                 OutputsGradients[position : position + control_vector["NbNodes"]]
-    #                 / amplitude
-    #             )
-
-    #         position = position + control_vector["NbNodes"]
-
-    #     OutputsGradients = OutputsGradients * max_amplitude
-    #     # OutputsGradients=OutputsGradients* sum_amplitude / len(control_vector["ParamList"])
+    # ScalingNormGrad = np.sqrt(np.sum(OutputsGradients**2.0))
+    # OutputsGradients = OutputsGradients / np.sqrt(ScalingNormGrad)
+    # print(f"NewNorm={np.sqrt(np.sum(OutputsGradients**2.0))}")
 
     return OutputsGradients
 
@@ -1362,9 +1331,7 @@ def OptimizeCoupledModel(
                 ScaleGammaGradientsBySurface,
                 ScaleGradients,
             ),
-            # method="L-BFGS-B",
             method=local_optimizer,
-            # method="Newton-CG",
             jac=True,
             bounds=bounds,
             tol=tol,

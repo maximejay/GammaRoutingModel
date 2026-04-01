@@ -33,7 +33,7 @@ model.routing_setup_init(
     spreading_discretization_step=0.2,
     ponderation_regul=10000.0,
     velocity_computation="qm3",
-    varying_spread=0,
+    varying_spread=1,
 )
 
 # creation du maillage (Manual): Gamma have no meshing capabilities, you can use the interface to smash to build a mesh from a regular grid
@@ -57,14 +57,14 @@ model.routing_mesh.dx = np.array(
 )  # Distance vers le noeud aval. A long bief slows the model (Tabulation of the Gamma routing coefficients is long because the delay is big...). For better performances, we should split the bief.
 
 # The controlloed nodes where obeervations are available : only one downstream control : node 4
-model.routing_mesh.controlled_nodes[0] = 4
+model.routing_mesh_set_control(4)
 
 # Create the mesh
 model.routing_mesh_update()
 
 # Testing combinaison of differents routing parameters
 Xi = [0.5, 1.5]  # hydraulics coef
-S = [0.5, 2]  # spreading coef
+S = [1.0, 2.0]  # spreading coef
 
 for i in range(2):
 
@@ -115,7 +115,17 @@ for i in range(2):
 
 
 # Simple twin experiment:
+# creating an array of inflow
+inflows = np.zeros(shape=(model.routing_setup.npdt, model.routing_mesh.nb_nodes))
+inflows[0:2, 0] = 2.0
+inflows[0:2, 1] = 4.0
 # Store the simulated discharge in an array: consider that is the true discharges, i.e our observation vector
+# Initilaise the parameters
+model.routing_parameters_init(hydraulics_coefficient=1.0, spreading=1.0)
+model.routing_parameters_change(hydraulics_coefficient=1.0, spreading=1.0)
+# run the model (direct run)
+model.run(inflows)
+
 observations = np.zeros(shape=model.routing_results.discharges.shape)
 observations[:, :] = model.routing_results.discharges[:, :]
 
@@ -133,10 +143,8 @@ ax.plot(model.routing_results.velocities)
 fig.show()
 
 
-# model.routing_parameters_change(hydraulics_coefficient=1.0,spreading=900.)
 # changing parameters
-model.routing_parameters.hydraulics_coefficient = 0.7
-model.routing_parameters.spreading = 1.4
+model.routing_parameters_change(hydraulics_coefficient=0.7, spreading=1.4)
 
 # run the model
 model.run(inflows, states_init=0)

@@ -77,12 +77,8 @@ subroutine routing_hydrogram_forward(routing_setup,routing_mesh,routing_paramete
         end do
     end if
     
-    !Here we should denormalise parameter if nedeed:
-    !if routing_setup_normalized=True:
-    !   call denormalized(routing_parameter)
-    
-    remainder=routing_memory%remainder
-    states=routing_memory%states
+    remainder=routing_memory%remainder_init
+    states=routing_memory%states_init
     
     do i=1,routing_setup%npdt
         velocities=0.

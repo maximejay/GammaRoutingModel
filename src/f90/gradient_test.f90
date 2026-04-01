@@ -70,6 +70,7 @@ subroutine manual_gradient_test()
         REAL, dimension(4) :: dx_tab2 !Tableau Perturbation de l element
 
         REAL, dimension(2) :: grad !Tableau des gradients de l'adjoint
+        integer, dimension(1) :: gauges_nodes
         
         integer :: var_spread
 
@@ -102,8 +103,11 @@ subroutine manual_gradient_test()
         write(*,*) ""
         call routing_mesh_self_initialisation(routing_mesh,nb_nodes=5,nb_upstream_nodes=1)
         
-        routing_mesh%controlled_nodes(1)=5
-        call mesh_update(routing_mesh)
+        
+        gauges_nodes(1)=5
+        call routing_mesh_set_control(routing_mesh, 1, gauges_nodes)
+        
+!~         call mesh_update(routing_mesh)
         
 !~         write(*,*) routing_mesh%upstream_to_downstream_nodes
 !~         write(*,*) routing_mesh%nodes_linker

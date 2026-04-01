@@ -79,7 +79,6 @@ scenarios_gamma = {
         "control_vector": ["hydraulics_coefficient", "spreading"],
         "ScaleGammaGradientsBySurface": True,
         "ScaleGradients": False,
-        "scale"
         "gamma_settings": {
             "varying_spread": 1,
             "spreading_uniform": 0,
@@ -169,11 +168,11 @@ sbc.myparam.set_param(
         "coord_y": "Y_L93",
         "area": "SURF",
         "id": "CODE_SITE",
-        "id_shapefile": "CODE_BNBV",
+        "id_shapefile": "code",
     },
 )
 
-os.makedirs("./figures", exist_ok=True)
+os.makedirs(os.path.join(working_path, "figures"), exist_ok=True)
 
 
 def init_models(sbc, catchment, start_time, end_time, warmup_time):

@@ -483,7 +483,7 @@ mod_gamma_routing_setup = Mod_Gamma_Routing_Setup()
 class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     """
     Module mod_gamma_routing_mesh
-    Defined at mod_routing_mesh.f90 lines 8-248
+    Defined at mod_routing_mesh.f90 lines 8-247
     """
     @f90wrap.runtime.register_class("libfgamma.type_routing_mesh")
     class type_routing_mesh(f90wrap.runtime.FortranDerivedType):
@@ -981,7 +981,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
         nb_upstream_nodes=None, dx=None, interface_call=False):
         """
         routing_mesh_self_initialisation(self[, nb_nodes, nb_upstream_nodes, dx])
-        Defined at mod_routing_mesh.f90 lines 28-83
+        Defined at mod_routing_mesh.f90 lines 28-82
         
         Parameters
         ----------
@@ -997,7 +997,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def routing_mesh_set_control(self, ncontrol, nodes, interface_call=False):
         """
         routing_mesh_set_control(self, ncontrol, nodes)
-        Defined at mod_routing_mesh.f90 lines 85-106
+        Defined at mod_routing_mesh.f90 lines 84-105
         
         Parameters
         ----------
@@ -1012,7 +1012,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def routing_mesh_clear(self, interface_call=False):
         """
         routing_mesh_clear(self)
-        Defined at mod_routing_mesh.f90 lines 108-122
+        Defined at mod_routing_mesh.f90 lines 107-121
         
         Parameters
         ----------
@@ -1024,7 +1024,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def mesh_update(self, interface_call=False):
         """
         mesh_update(self)
-        Defined at mod_routing_mesh.f90 lines 124-140
+        Defined at mod_routing_mesh.f90 lines 123-139
         
         Parameters
         ----------
@@ -1036,7 +1036,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def mesh_compute_cumulated_surface(self, interface_call=False):
         """
         mesh_compute_cumulated_surface(self)
-        Defined at mod_routing_mesh.f90 lines 142-170
+        Defined at mod_routing_mesh.f90 lines 141-169
         
         Parameters
         ----------
@@ -1048,7 +1048,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def mesh_compute_cumulated_node_index(self, interface_call=False):
         """
         mesh_compute_cumulated_node_index(self)
-        Defined at mod_routing_mesh.f90 lines 172-200
+        Defined at mod_routing_mesh.f90 lines 171-199
         
         Parameters
         ----------
@@ -1060,7 +1060,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def mesh_uniq_dx(self, interface_call=False):
         """
         mesh_uniq_dx(self)
-        Defined at mod_routing_mesh.f90 lines 202-243
+        Defined at mod_routing_mesh.f90 lines 201-242
         
         Parameters
         ----------
@@ -1072,7 +1072,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def routing_mesh_copy(self, interface_call=False):
         """
         object_copy = routing_mesh_copy(self)
-        Defined at mod_routing_mesh.f90 lines 245-248
+        Defined at mod_routing_mesh.f90 lines 244-247
         
         Parameters
         ----------

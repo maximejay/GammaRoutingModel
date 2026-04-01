@@ -85,7 +85,6 @@ module mod_gamma_routing_mesh
         allocate(routing_mesh%nodes_indexes(routing_mesh%nb_nodes))
         allocate(routing_mesh%nodes_names(routing_mesh%nb_nodes))
         
-!~         allocate(routing_mesh%controlled_nodes(routing_mesh%nb_nodes))
         allocate(routing_mesh%controlled_nodes(0))
         allocate(routing_mesh%gauge_nodes(0))
         allocate(routing_mesh%gauge_name_index(0))
@@ -97,7 +96,6 @@ module mod_gamma_routing_mesh
         routing_mesh%upstream_to_downstream_nodes=(/ (i, i=1,routing_mesh%nb_nodes) /)
         routing_mesh%nodes_linker=0
         routing_mesh%nodes_linker(1,:)=(/ (i, i=0,routing_mesh%nb_nodes-1) /)
-        routing_mesh%controlled_nodes=-1
         
         call mesh_uniq_dx(routing_mesh)
         call mesh_compute_cumulated_surface(routing_mesh)
