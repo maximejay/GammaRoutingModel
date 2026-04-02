@@ -361,6 +361,8 @@ class Model(object):
             Finflows[k : k + inflows.shape[1]] = inflows[i, :]
             k = k + inflows.shape[1]
 
+        inflows_copy = inflows.copy()
+
         bounds = np.zeros(shape=(Finflows.size, 2))
         bounds[:, 0] = 0.0
         bounds[:, 1] = 100.0
@@ -369,7 +371,7 @@ class Model(object):
             self.run_backward_djdq,
             Finflows,
             args=(
-                inflows,
+                inflows_copy,
                 observations,
             ),
             method="SLSQP",  # "L-BFGS-B",

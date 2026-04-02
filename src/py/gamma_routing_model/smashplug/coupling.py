@@ -1137,7 +1137,7 @@ def ComputeCostAndGradients(
 
     # run the model
     print("Run the Gamma model")
-    model_gamma.run(interpolated_inflows, states_init=False, memory_reset=False)
+    model_gamma.run(interpolated_inflows, states_init=False, memory_reset=True)
 
     print("Compute the cost")
     model_gamma.cost_function(observations, model_gamma.routing_results.discharges)
