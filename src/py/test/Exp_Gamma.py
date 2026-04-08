@@ -65,7 +65,7 @@ model.routing_mesh_update()
 
 # Testing combinaison of differents routing parameters
 Xi = [0.5, 1.5]  # hydraulics coef
-S = [1.0, 2.0]  # spreading coef
+S = [1.0, 2.0]  # sc coef
 
 dir_results = os.path.join("src", "py", "test", "figures")
 os.makedirs(dir_results, exist_ok=True)
@@ -77,7 +77,7 @@ for i in range(2):
         param_xi = Xi[i]
         param_S = S[j]
         # Initilaise the parameters
-        model.routing_parameters_init(hydraulics_coefficient=param_xi, spreading=param_S)
+        model.routing_parameters_init(hc=param_xi, sc=param_S)
 
         # creating an array of inflow
         inflows = np.zeros(shape=(model.routing_setup.npdt, model.routing_mesh.nb_nodes))
@@ -110,7 +110,7 @@ for i in range(2):
         ax.axes.grid(True, alpha=0.7, ls="--")
         ax.axes.set_xlabel("Time-Step (hours)")
         ax.axes.set_ylabel("Discharges (m^3/s)")
-        ax.set_title(f"Hydraulics Coef={Xi[i]}, Spreading={S[j]}")
+        ax.set_title(f"Hydraulics Coef={Xi[i]}, sc={S[j]}")
         fig.show()
         plot = (fig, ax)
         functions_smash_plot.save_figure(
@@ -129,20 +129,20 @@ inflows[0:2, 0] = 2.0
 inflows[0:2, 1] = 4.0
 # Store the simulated discharge in an array: consider that is the true discharges, i.e our observation vector
 # Initilaise the parameters
-model.routing_parameters_init(hydraulics_coefficient=1.0, spreading=2.0)
+model.routing_parameters_init(hc=1.0, sc=2.0)
 # run the model (direct run)
 model.run(inflows)
 
 observations = np.zeros(shape=model.routing_results.discharges.shape)
 observations[:, :] = model.routing_results.discharges[:, :]
-true_hc = model.routing_parameters.hydraulics_coefficient.copy()
-true_sp = model.routing_parameters.spreading.copy()
+true_hc = model.routing_parameters.hc.copy()
+true_sp = model.routing_parameters.sc.copy()
 
 
 # changing parameters
-model.routing_parameters_change(hydraulics_coefficient=0.7, spreading=1.4)
-back_hc = model.routing_parameters.hydraulics_coefficient.copy()
-back_sp = model.routing_parameters.spreading.copy()
+model.routing_parameters_change(hc=0.7, sc=1.4)
+back_hc = model.routing_parameters.hc.copy()
+back_sp = model.routing_parameters.sc.copy()
 
 # run the model
 model.run(inflows, states_init=0)
@@ -160,8 +160,8 @@ model.calibration(inflows, observations, states_init=0)
 optimal_discharges = model.routing_results.discharges.copy()
 
 cost_final = model.routing_results.costs.copy()
-optimal_hc = model.routing_parameters.hydraulics_coefficient.copy()
-optimal_sp = model.routing_parameters.spreading.copy()
+optimal_hc = model.routing_parameters.hc.copy()
+optimal_sp = model.routing_parameters.sc.copy()
 
 
 from matplotlib.gridspec import GridSpec

@@ -114,7 +114,7 @@ module module_generic_gamma_function
         end do
     end subroutine generic_gamma_elongation_cells
     
-    subroutine generic_tabulated_gamma_function_3D(dx,dt,vmax,epsilon,quantile,window_shift, max_mode, max_spreading, &
+    subroutine generic_tabulated_gamma_function_3D(dx,dt,vmax,epsilon,quantile,window_shift, max_mode, max_sc, &
     &frequency_mode,frequency_spreading, density_function, tabulated_gamma_coefficient)
         real,intent(in) :: dx
         real,intent(in) :: dt
@@ -123,7 +123,7 @@ module module_generic_gamma_function
         real,dimension(:), intent(in) :: quantile
         real, intent(in) :: window_shift
         real, intent(in) :: max_mode
-        real, intent(in) :: max_spreading
+        real, intent(in) :: max_sc
         real, intent(in) :: frequency_mode
         real, intent(in) :: frequency_spreading
         character(3),intent(in) :: density_function
@@ -135,7 +135,7 @@ module module_generic_gamma_function
         real, dimension(size(quantile)) :: gamma_coefficient
                     
         nb_mode=ceiling((max_mode+1.0)/frequency_mode)
-        nb_spreads=ceiling(max_spreading/frequency_spreading)
+        nb_spreads=ceiling(max_sc/frequency_spreading)
         
         
         if (allocated(tabulated_gamma_coefficient)) then
@@ -287,7 +287,7 @@ module module_generic_gamma_function
         
     end subroutine generic_tabulated_routing_coefficients_2D
     
-    subroutine generic_tabulated_routing_coefficients_3D(dx,dt,vmax,epsilon,quantile,window_shift, max_mode, max_spreading, &
+    subroutine generic_tabulated_routing_coefficients_3D(dx,dt,vmax,epsilon,quantile,window_shift, max_mode, max_sc, &
     &frequency_mode,frequency_spreading, density_function, tabulated_gamma_coefficient)
         real,intent(in) :: dx
         real,intent(in) :: dt
@@ -296,7 +296,7 @@ module module_generic_gamma_function
         real,dimension(:), intent(in) :: quantile
         real, intent(in) :: window_shift
         real, intent(in) :: max_mode
-        real, intent(in) :: max_spreading
+        real, intent(in) :: max_sc
         real, intent(in) :: frequency_mode
         real, intent(in) :: frequency_spreading
         character(3),intent(in) :: density_function
@@ -308,7 +308,7 @@ module module_generic_gamma_function
         real, dimension(size(quantile)) :: gamma_coefficient
                     
         nb_mode=ceiling((max_mode+1.0)/frequency_mode)
-        nb_spreads=ceiling(max_spreading/frequency_spreading)
+        nb_spreads=ceiling(max_sc/frequency_spreading)
         
         
         if (allocated(tabulated_gamma_coefficient)) then

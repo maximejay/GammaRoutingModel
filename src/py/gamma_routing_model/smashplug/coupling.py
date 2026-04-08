@@ -12,6 +12,16 @@ import numpy as np
 import scipy
 import copy
 
+from gamma_routing_model.libfgamma import (
+    Mod_Gamma_Routing_Setup,
+    Mod_Gamma_Routing_Mesh,
+    Mod_Gamma_Routing_Parameters,
+    Mod_Gamma_Routing_States,
+    Mod_Gamma_Routing_Memory,
+    Mod_Gamma_Routing_Results,
+    Mod_Gamma_Interface,
+)
+
 # ~ GammaRouting is a conceptual flow propagation model
 # ~ Copyright 2022, 2023 Hydris-hydrologie, Maxime Jay-Allemand
 
@@ -254,7 +264,7 @@ def ConfigureGammaWithSmash(smash_model, dt=None, **kwargs):
     return model_gamma
 
 
-def GetGammaInflowFromSmash(smash_model, dt=None):
+def GetGammaInflowFromSmash(smash_model, returns_smash_options, dt=None):
     # Get the current inflow from Smash outflow
     # Interpolate if dt gamma is lower
     # return the the matrix 'interpolated_inflows' ready to run the gamma model with gamma.run(interpolated_inflows)
@@ -269,7 +279,10 @@ def GetGammaInflowFromSmash(smash_model, dt=None):
 
     # interface inflows
     # inflows_smash = smash_model.output.qsim_domain.copy()
-    inflows_smash = smash_model.response.qac.copy()
+    # inflows_smash = smash_model.response.qac.copy()
+    inflows_smash = smash_time_grid_to_time_vector_active_cells(
+        returns_smash_options.q_domain, smash_model
+    )
     # inflows_domain = np.zeros(shape=(smash_model.setup.ntime_step, nb_nodes))
     inflows_domain = inflows_smash.transpose()
 
@@ -447,6 +460,40 @@ def SmashGridToGammaVectors(grid, smash_model, model_gamma):
     return vector
 
 
+def smash_grid_to_vector_active_cells(grid, smash_model):
+
+    vector = np.zeros(smash_model.mesh.nac)
+
+    k = 0
+    for col in range(smash_model.mesh.ncol):
+
+        for row in range(smash_model.mesh.nrow):
+
+            if smash_model.mesh.active_cell[row, col] > 0:
+
+                vector[k] = grid[row, col]
+                k = k + 1
+
+    return vector
+
+
+def smash_time_grid_to_time_vector_active_cells(grid, smash_model):
+
+    vector = np.zeros(shape=(smash_model.mesh.nac, smash_model.setup.ntime_step))
+
+    k = 0
+    for col in range(smash_model.mesh.ncol):
+
+        for row in range(smash_model.mesh.nrow):
+
+            if smash_model.mesh.active_cell[row, col] > 0:
+
+                vector[k, :] = grid[row, col, :]
+                k = k + 1
+
+    return vector
+
+
 def SmashDataVectorsToGrid(observations, model_gamma, smash_dt):
     # observations[nb_gauge,npdt]
     # gridded_observation[npdt,nb_cells]
@@ -542,8 +589,8 @@ def VectorizeModelParameters(
     bounds={
         "cp": [0.1, 1000.0],
         "ct": [0.1, 1000.0],
-        "hydraulics_coefficient": [0.3, 5.0],
-        "spreading": [0.5, 3.0],
+        "hc": [0.3, 5.0],
+        "sc": [0.5, 3.0],
     },
 ):
     # Get all controlled parameters from Smash and Gamma and vectorize them
@@ -553,7 +600,7 @@ def VectorizeModelParameters(
     #'NbNodes' : the number of active cells/nodes for each controlloed parameter
     # X has the following order:
     # - Gradient of Smash in the order of the control_vector
-    # - Gradient of Gamma : 1st hydraulics_coefficient, 2nd spreading
+    # - Gradient of Gamma : 1st hc, 2nd sc
     boundaries = gamma.smashplug.get_boundaries(
         model_gamma,
         smash_model,
@@ -568,9 +615,9 @@ def VectorizeModelParameters(
             smash._constant.STRUCTURE_RR_PARAMETERS[smash_model.setup.structure]
         )
 
-        control_parameters_list.append("hydraulics_coefficient")
+        control_parameters_list.append("hc")
         if model_gamma.setup.varying_spread == True:
-            control_parameters_list.append("spreading")
+            control_parameters_list.append("sc")
 
     else:
 
@@ -626,17 +673,17 @@ def VectorizeModelParameters(
 
         if hasattr(model_gamma.routing_parameters, ctrl_var):
 
-            if ctrl_var == "hydraulics_coefficient":
+            if ctrl_var == "hc":
 
                 LinearizedParameters[k : k + nb_nodes] = (
-                    model_gamma.routing_parameters.hydraulics_coefficient[:]
+                    model_gamma.routing_parameters.hc[:]
                 )
                 k = k + nb_nodes
 
-            if ctrl_var == "spreading":
+            if ctrl_var == "sc":
 
                 LinearizedParameters[k : k + nb_nodes] = (
-                    model_gamma.routing_parameters.spreading[:]
+                    model_gamma.routing_parameters.sc[:]
                 )
                 k = k + nb_nodes
 
@@ -656,7 +703,7 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
     # Update the smash model object and the gamma model object from the control_vector dictionary
     # control_vector['X'] has the following order:
     # - Gradient of Smash in the order of the control_vector["ParamList"]
-    # - Gradient of Gamma : 1st hydraulics_coefficient, 2nd spreading
+    # - Gradient of Gamma : 1st hc, 2nd sc
 
     control_vector = unormalize_control_vector(control_vector)
 
@@ -719,28 +766,24 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
 
         if hasattr(model_gamma.routing_parameters, ctrl_var):
 
-            if ctrl_var == "hydraulics_coefficient":
+            if ctrl_var == "hc":
 
                 if model_gamma.routing_setup.hydraulics_coef_uniform == 1:
-                    model_gamma.routing_parameters_change(
-                        hydraulics_coefficient=control_vector["Xt"][k]
-                    )
+                    model_gamma.routing_parameters_change(hc=control_vector["Xt"][k])
                 else:
                     model_gamma.routing_parameters_change(
-                        hydraulics_coefficient=control_vector["Xt"][k : k + nb_nodes]
+                        hc=control_vector["Xt"][k : k + nb_nodes]
                     )
 
                 k = k + nb_nodes
 
-            if ctrl_var == "spreading":
+            if ctrl_var == "sc":
 
                 if model_gamma.routing_setup.spreading_uniform == 1:
-                    model_gamma.routing_parameters_change(
-                        spreading=control_vector["Xt"][k]
-                    )
+                    model_gamma.routing_parameters_change(sc=control_vector["Xt"][k])
                 else:
                     model_gamma.routing_parameters_change(
-                        spreading=control_vector["Xt"][k : k + nb_nodes]
+                        sc=control_vector["Xt"][k : k + nb_nodes]
                     )
 
                 k = k + nb_nodes
@@ -852,7 +895,7 @@ def ComputeModelGradients(
     # 3)dYsmash/dXsmash
     # This function return a single vector with all aggregated gradient in the following order:
     # - Gradient of Smash in the order of the control_vector
-    # - Gradient of Gamma : 1st hydraulics_coefficient, 2nd spreading
+    # - Gradient of Gamma : 1st hc, 2nd sc
 
     # Gradients of COST with respect to routing_parameters
     Grad_dCOST_dROUTINGPARAMETERS = np.zeros(
@@ -877,11 +920,11 @@ def ComputeModelGradients(
           """
     )
     print(
-        "hydraulics_coefficient:",
+        "hc:",
         np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[0, :] ** 2.0)),
     )
     print(
-        "spreading:             ",
+        "sc:             ",
         np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[1, :] ** 2.0)),
     )
 
@@ -918,7 +961,7 @@ def ComputeModelGradients(
     )
 
     control_smash = copy.deepcopy(control_vector)
-    param_gamma = ["hydraulics_coefficient", "spreading"]
+    param_gamma = ["hc", "sc"]
 
     for key, value in control_vector.items():
         for p in param_gamma:
@@ -1017,11 +1060,11 @@ def ComputeModelGradients(
               """
         )
         print(
-            "hydraulics_coefficient:",
+            "hc:",
             np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[0, :] ** 2.0)),
         )
         print(
-            "spreading:             ",
+            "sc:             ",
             np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[1, :] ** 2.0)),
         )
         for i in range(nb_param_smash):
@@ -1037,10 +1080,10 @@ def ComputeModelGradients(
 
     # Finally we aggregate all computed gradients in a single vector given the control_vector
     NbControledGammaParameter = 0
-    if "hydraulics_coefficient" in control_vector["ParamList"]:
+    if "hc" in control_vector["ParamList"]:
         NbControledGammaParameter = NbControledGammaParameter + 1
 
-    if "spreading" in control_vector["ParamList"]:
+    if "sc" in control_vector["ParamList"]:
         NbControledGammaParameter = NbControledGammaParameter + 1
 
     OutputsGradients = np.zeros(
@@ -1056,7 +1099,7 @@ def ComputeModelGradients(
 
         if hasattr(model_gamma.routing_parameters, ctrl_var):
 
-            if ctrl_var == "hydraulics_coefficient":
+            if ctrl_var == "hc":
 
                 if model_gamma.routing_setup.hydraulics_coef_uniform == 1:
                     OutputsGradients[position : position + control_vector["NbNodes"]] = (
@@ -1070,7 +1113,7 @@ def ComputeModelGradients(
 
                 position = position + control_vector["NbNodes"]
 
-            if ctrl_var == "spreading":
+            if ctrl_var == "sc":
 
                 if model_gamma.routing_setup.spreading_uniform == 1:
                     OutputsGradients[position : position + control_vector["NbNodes"]] = (
@@ -1095,10 +1138,12 @@ def RunCoupledModel(smash_model, model_gamma, memory_reset=True):
     # Run the direct problem of the coupled model Smash and Gamma
 
     print("</> Run of the Smash model")
-    smash_model.forward_run()
+    ret = smash_model.forward_run(
+        return_options={"q_domain": True, "q_domain_kind_qt": True}
+    )
 
     interpolated_inflows = GetGammaInflowFromSmash(
-        smash_model, dt=model_gamma.routing_setup.dt
+        smash_model, returns_smash_options=ret, dt=model_gamma.routing_setup.dt
     )
 
     # run the model
@@ -1128,11 +1173,13 @@ def ComputeCostAndGradients(
     SetVectorizedModelParameters(control_vector, smash_model, model_gamma)
 
     print("Run the smash model")  # => will normalize param inside the model
-    smash_model.forward_run()
+    ret = smash_model.forward_run(
+        return_options={"q_domain": True, "q_domain_kind_qt": True}
+    )
 
     print("Interolate inflows")
     interpolated_inflows = GetGammaInflowFromSmash(
-        smash_model, dt=model_gamma.routing_setup.dt
+        smash_model, returns_smash_options=ret, dt=model_gamma.routing_setup.dt
     )
 
     # run the model
@@ -1165,11 +1212,11 @@ def ComputeCostAndGradients(
 def get_boundaries(
     model_gamma,
     model_smash,
-    control_parameters_list=["cp", "hydraulics_coefficient", "spreading"],
+    control_parameters_list=["cp", "hc", "sc"],
     bounds={
         "cp": [0.1, 1000.0],
-        "hydraulics_coefficient": [0.5, 10],
-        "spreading": [1.0, 3.0],
+        "hc": [0.5, 10],
+        "sc": [1.0, 3.0],
     },
 ):
 
@@ -1214,54 +1261,46 @@ def get_boundaries(
         # set only gamma boundaries
         if hasattr(model_gamma.routing_parameters, control):
 
-            if control == "hydraulics_coefficient":
+            if control == "hc":
 
-                if not "hydraulics_coefficient" in bounds:
+                if not "hc" in bounds:
                     raise ValueError(
-                        f"Error: The controlled variable hydraulics_coefficient is not in the boundaries definition"
+                        f"Error: The controlled variable hc is not in the boundaries definition"
                     )
 
-                model_gamma.routing_states.param_normalisation[0] = bounds[
-                    "hydraulics_coefficient"
-                ][1]
+                # ~ model_gamma.routing_states.param_normalisation[0] = bounds[
+                # ~ "hc"
+                # ~ ][1]
 
-                # bounds["hydraulics_coefficient"] = (
-                #     np.array(bounds["hydraulics_coefficient"])
-                #     / bounds["hydraulics_coefficient"][1]
+                # bounds["hc"] = (
+                #     np.array(bounds["hc"])
+                #     / bounds["hc"][1]
                 # )
 
-                boundaries[position : position + nnodes, 0] = bounds[
-                    "hydraulics_coefficient"
-                ][0]
-                boundaries[position : position + nnodes, 1] = bounds[
-                    "hydraulics_coefficient"
-                ][1]
+                boundaries[position : position + nnodes, 0] = bounds["hc"][0]
+                boundaries[position : position + nnodes, 1] = bounds["hc"][1]
 
-                model_gamma.routing_parameters.hydraulics_coefficient = (
-                    model_gamma.routing_parameters.hydraulics_coefficient
-                )
+                model_gamma.routing_parameters.hc = model_gamma.routing_parameters.hc
 
                 position = position + nnodes
 
-            if control == "spreading":
+            if control == "sc":
 
-                if not "spreading" in bounds:
+                if not "sc" in bounds:
                     raise ValueError(
-                        f"Error: The controlled variable spreading is not in the boundaries definition"
+                        f"Error: The controlled variable sc is not in the boundaries definition"
                     )
 
-                model_gamma.routing_states.param_normalisation[1] = bounds["spreading"][1]
+                # ~ model_gamma.routing_states.param_normalisation[1] = bounds["sc"][1]
 
-                # bounds["spreading"] = (
-                #     np.array(bounds["spreading"]) / bounds["spreading"][1]
+                # bounds["sc"] = (
+                #     np.array(bounds["sc"]) / bounds["sc"][1]
                 # )
 
-                boundaries[position : position + nnodes, 0] = bounds["spreading"][0]
-                boundaries[position : position + nnodes, 1] = bounds["spreading"][1]
+                boundaries[position : position + nnodes, 0] = bounds["sc"][0]
+                boundaries[position : position + nnodes, 1] = bounds["sc"][1]
 
-                model_gamma.routing_parameters.spreading = (
-                    model_gamma.routing_parameters.spreading
-                )
+                model_gamma.routing_parameters.sc = model_gamma.routing_parameters.sc
 
                 position = position + nnodes
 
@@ -1272,11 +1311,11 @@ def OptimizeCoupledModel(
     smash_model,
     model_gamma,
     observations=None,
-    control_parameters_list=["cp", "hydraulics_coefficient", "spreading"],
+    control_parameters_list=["cp", "hc", "sc"],
     bounds={
         "cp": [0.1, 1000.0],
-        "hydraulics_coefficient": [0.5, 10],
-        "spreading": [1.0, 3.0],
+        "hc": [0.5, 10],
+        "sc": [1.0, 3.0],
     },
     maxiter=10,
     maxfun=20,
@@ -1392,3 +1431,134 @@ def OptimizeCoupledModel(
 
     if inplace == False:
         return (ControlVector, optimized_smash, optimized_gamma)
+
+
+def calibration_parameters_smash(
+    model_smash,
+    model_gamma,
+    observations,
+    bounds,
+    states_init=True,
+    memory_reset=True,
+):
+
+    pos_cp = np.where(model_smash.rr_parameters.keys == "cp")
+    pos_ct = np.where(model_smash.rr_parameters.keys == "ct")
+    X = np.concatenate(
+        (
+            (
+                model_smash.rr_parameters.values[:, :, pos_cp[0][0]].flatten()
+                - bounds["cp"][0]
+            )
+            / (bounds["cp"][1] - bounds["cp"][0]),
+            (
+                model_smash.rr_parameters.values[:, :, pos_ct[0][0]].flatten()
+                - bounds["ct"][0]
+            )
+            / (bounds["ct"][1] - bounds["ct"][0]),
+        ),
+        axis=0,
+    )
+    # first initialise states
+    # initialise states
+    if states_init:
+        model_gamma.routing_states_init()
+
+    # reset discharges states to zeros
+    if memory_reset:
+        model_gamma.routing_memory_reset()
+
+    # initialise routing_results
+    model_gamma.routing_results_init()
+
+    normalized_bounds = np.zeros(shape=(X.size, 2))
+    normalized_bounds[:, 0] = 0.0
+    normalized_bounds[:, 1] = 1.0
+
+    res = scipy.optimize.minimize(
+        run_backward_djdx,
+        X,
+        args=(model_smash, model_gamma, observations, bounds),
+        method="L-BFGS-B",  # "L-BFGS-B", SLSQP
+        jac=True,
+        bounds=normalized_bounds,
+        options={
+            "disp": True,
+            "maxiter": 30,
+            "verbose": 1,
+            "maxfun": 30,
+        },
+    )
+
+    return res
+
+
+def run_backward_djdx(X, model_smash, model_gamma, observations, bounds):
+
+    pos_cp = np.where(model_smash.rr_parameters.keys == "cp")
+    pos_ct = np.where(model_smash.rr_parameters.keys == "ct")
+    shape_param = model_smash.rr_parameters.values.shape
+    newX = np.reshape(X, shape=(shape_param[0], shape_param[1], 2))
+
+    model_smash.rr_parameters.values[:, :, pos_cp[0][0]] = (
+        newX[:, :, 0] * (bounds["cp"][1] - bounds["cp"][0]) + bounds["cp"][0]
+    )
+    model_smash.rr_parameters.values[:, :, pos_ct[0][0]] = (
+        newX[:, :, 1] * (bounds["ct"][1] - bounds["ct"][0]) + bounds["ct"][0]
+    )
+
+    return_var = model_smash.forward_run(
+        return_options={"q_domain": True, "q_domain_kind_qt": True}
+    )
+
+    inflows = smash_time_grid_to_time_vector_active_cells(
+        return_var.q_domain, model_smash
+    )
+    model_gamma.run(inflows.transpose(), states_init=False, memory_reset=True)
+
+    model_gamma.cost_function(observations, model_gamma.routing_results.discharges)
+    cost = model_gamma.routing_results.costs[0]
+
+    inflows_trans = np.array(inflows.transpose(), order="F", dtype="float32")
+    observations = np.array(observations, order="F", dtype="float32")
+
+    # Gradients of COST with respect to qt
+    gamma_gradients = np.zeros(
+        shape=(model_gamma.routing_setup.npdt, model_gamma.routing_mesh.nb_nodes),
+        order="F",
+        dtype="float32",
+    )
+
+    Mod_Gamma_Interface.routing_gamma_forward_adjoint_b0(
+        model_gamma.routing_setup,
+        model_gamma.routing_mesh,
+        model_gamma.routing_parameters,
+        inflows_trans,
+        observations,
+        model_gamma.routing_states,
+        model_gamma.routing_memory,
+        model_gamma.routing_results,
+        gamma_gradients,
+    )
+
+    int_gamma_gradient = np.sum(gamma_gradients, axis=0)
+
+    SmashGradients, name = model_smash.backward_run(
+        mapping="distributed",
+        grad_mode="qt",
+        optimize_options={
+            "parameters": ["cp", "ct"],
+            "bounds": bounds,
+        },
+    )
+
+    gradients_cp = (
+        int_gamma_gradient[:] * SmashGradients[0 : model_gamma.routing_mesh.nb_nodes]
+    )
+    gradients_ct = (
+        int_gamma_gradient[:] * SmashGradients[model_gamma.routing_mesh.nb_nodes :]
+    )
+    gradients = np.concatenate((gradients_cp, gradients_ct), axis=0)
+
+    print(f"cost={model_gamma.routing_results.costs}")
+    return cost, np.array(gradients, dtype="float64")

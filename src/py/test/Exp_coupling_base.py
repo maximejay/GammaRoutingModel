@@ -16,6 +16,9 @@ import os
 import rasterio
 import re
 
+dir_results = os.path.join("src", "py", "test", "figures")
+os.makedirs(dir_results, exist_ok=True)
+
 
 def read_ascii_data(filename):
     ascii_data = {}
@@ -87,7 +90,6 @@ mesh = smash.factory.generate_mesh(
 
 setup = {}
 setup["hydrological_module"] = "gr4"
-setup["routing_module"] = "zero"
 setup["routing_module"] = "lr"
 setup["qobs_directory"] = "/home/maxime/DATA/QOBS_60min"
 setup["prcp_directory"] = "/home/maxime/DATA/PLUIE"
@@ -101,12 +103,21 @@ setup["dt"] = 3600
 setup["start_time"] = "2014-01-01 00:00"
 setup["end_time"] = "2014-01-02 00:00"
 
+model_smash_lr = smash.Model(setup, mesh)
+
+setup["routing_module"] = "zero"
 model_smash = smash.Model(setup, mesh)
 
 prcp = np.zeros(shape=(1, 9, model_smash.setup.ntime_step))
-prcp[0:5, 0:10] = 1000.0
+prcp[0, 0:5, 0:10] = 100.0
 model_smash.atmos_data.prcp = prcp
+model_smash_lr.atmos_data.prcp = prcp
+model_smash.atmos_data.pet = 0.0
+model_smash_lr.atmos_data.pet = 0.0
+
+
 model_smash.rr_initial_states.values = 0.5
+model_smash_lr.rr_initial_states.values = 0.5
 
 model = gamma.Model()
 
@@ -130,13 +141,88 @@ model.routing_mesh_set_control(9)
 model.routing_mesh.dx = 1000.0
 model.routing_mesh_update()
 
-model.routing_parameters_init(hydraulics_coefficient=1.0, spreading=2.0)
+model.routing_parameters_init(hc=1.0, sc=2.0)
 
-return_var = model_smash.forward_run(return_options={"q_domain_kind": "qt"})
+model_smash_lr.rr_parameters.values[:, :, 4] = 35
+model_smash_lr.forward_run()
 
-qt = model_smash.response.qac.copy()
+return_var = model_smash.forward_run(
+    return_options={"q_domain": True, "q_domain_kind_qt": True}
+)
 
+
+def smash_time_grid_to_time_vector_active_cells(grid, smash_model):
+
+    vector = np.zeros(shape=(smash_model.mesh.nac, smash_model.setup.ntime_step))
+
+    k = 0
+    for col in range(smash_model.mesh.ncol):
+
+        for row in range(smash_model.mesh.nrow):
+
+            if smash_model.mesh.active_cell[row, col] > 0:
+
+                vector[k, :] = grid[row, col, :]
+                k = k + 1
+
+    return vector
+
+
+qt = smash_time_grid_to_time_vector_active_cells(return_var.q_domain, model_smash)
 
 model.run(qt.transpose())
 
+
+model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
+    model_smash, dt=3600.0, velocity_computation="qm3"
+)
+model_gamma.routing_parameters_change(hc=1.0, sc=2.0)
+gamma.smashplug.RunCoupledModel(model_smash, model_gamma)
+# model_gamma.run(qt.transpose())
+
 plt.plot(model.routing_results.discharges[:, 8])
+plt.plot(model_gamma.routing_results.discharges[:, 8])
+plt.plot(model_smash_lr.response.q[0, :])
+
+fig = plt.figure(layout="constrained")
+fig, axes = plt.subplots(ncols=3, nrows=1, figsize=(10, 5))
+ax0, ax1, ax2 = axes[0], axes[1], axes[2]
+
+cax0 = ax0.matshow(prcp.transpose(), cmap="viridis", vmin=np.min(prcp), vmax=np.max(prcp))
+fig.colorbar(cax0, ax=ax0, fraction=0.046, pad=0.04, label="Prcp (mm)")
+
+cax1 = ax1.matshow(qt.transpose(), cmap="viridis", vmin=np.min(qt), vmax=np.max(qt))
+fig.colorbar(cax1, ax=ax1, fraction=0.046, pad=0.04, label="Inflows (m3/s)")
+
+ax0.set_title("Prcp (mm)")  # TODO: Remplacer par votre titre
+ax0.set_xlabel("X (upstream->downstream cells)", fontsize=10)
+ax0.set_ylabel("Time-step (3600s)", fontsize=10)
+
+ax1.set_title("Qt - Gamma Inflows")  # TODO: Remplacer par votre titre
+ax1.set_xlabel("X (upstream->downstream cells)", fontsize=10)
+ax1.set_ylabel("Time-step (3600s)", fontsize=10)
+
+time = np.arange(model_smash_lr.response.q.shape[1])
+ax2.plot(
+    time,
+    model.routing_results.discharges[:, 8],
+    label="Gamma discharges (manual interface)",
+    marker="o",
+    lw=3,
+)
+ax2.plot(
+    time,
+    model_gamma.routing_results.discharges[:, 8],
+    label="Gamma  discharges (Smashplug module)",
+)
+ax2.plot(time, model_smash_lr.response.q[0, :], label="Smash discharges with llr")
+ax2.set_title("Downstream discharges")
+ax2.set_xlabel("Time-step (3600s)")
+ax2.set_ylabel("Discharges")
+ax2.legend()
+ax2.grid(True)
+plt.subplots_adjust(wspace=0.5)
+
+plt.show()
+
+fig.savefig(os.path.join(dir_results, "Exp_coupling_base.pdf"), bbox_inches="tight")

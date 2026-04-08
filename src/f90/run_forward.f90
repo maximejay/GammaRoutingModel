@@ -68,12 +68,14 @@ subroutine routing_hydrogram_forward(routing_setup,routing_mesh,routing_paramete
     
     if (routing_setup%hydraulics_coef_uniform==1) then
         do i=1,routing_mesh%nb_nodes
-            routing_parameter%hydraulics_coefficient(i)=routing_parameter%hydraulics_coefficient(1)
+            routing_parameter%hc(i)=routing_parameter%hc(1)
+            routing_parameter%hc_n(i)=routing_parameter%hc_n(1)
         end do
     end if
     if (routing_setup%spreading_uniform==1) then
         do i=1,routing_mesh%nb_nodes
-            routing_parameter%spreading(i)=routing_parameter%spreading(1)
+            routing_parameter%sc(i)=routing_parameter%sc(1)
+            routing_parameter%sc_n(i)=routing_parameter%sc_n(1)
         end do
     end if
     

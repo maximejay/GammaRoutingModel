@@ -34,7 +34,7 @@ model.routing_mesh_set_control(10)
 model.routing_mesh.dx = 1000.0
 model.routing_mesh_update()
 
-model.routing_parameters_init(hydraulics_coefficient=1.0, spreading=2.0)
+model.routing_parameters_init(hc=1.0, sc=2.0)
 
 inflows_origin = np.zeros(shape=(model.routing_setup.npdt, model.routing_mesh.nb_nodes))
 
@@ -138,15 +138,15 @@ ax3.set_title("Optimal inflows")  # TODO: Remplacer par votre titre
 ax1.set_xlabel(
     "X (upstream->downstream cells)", fontsize=10
 )  # TODO: Remplacer par votre légende
-ax1.set_ylabel("Time-step (900q)", fontsize=10)  # TODO: Remplacer par votre légende
+ax1.set_ylabel("Time-step (900s)", fontsize=10)  # TODO: Remplacer par votre légende
 ax2.set_xlabel(
     "X (upstream->downstream cells)", fontsize=10
 )  # TODO: Remplacer par votre légende
-ax2.set_ylabel("Time-step (900q)", fontsize=10)  # TODO: Remplacer par votre légende
+ax2.set_ylabel("Time-step (900s)", fontsize=10)  # TODO: Remplacer par votre légende
 ax3.set_xlabel(
     "X (upstream->downstream cells)", fontsize=10
 )  # TODO: Remplacer par votre légende
-ax3.set_ylabel("Time-step (900q)", fontsize=10)  # TODO: Remplacer par votre légende
+ax3.set_ylabel("Time-step (900s)", fontsize=10)  # TODO: Remplacer par votre légende
 
 time = np.arange(discharges_origin.shape[0])
 # 4. Tracer les 3 courbes temporelles sur ax3

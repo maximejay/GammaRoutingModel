@@ -14,11 +14,16 @@
 
 module mod_gamma_routing_parameters
     
+    use mod_gamma_routing_setup
+    use mod_gamma_routing_mesh
+    
     implicit none
     
     type type_routing_parameter
-        real, dimension(:), allocatable :: hydraulics_coefficient 
-        real, dimension(:), allocatable :: spreading ! damping coefficient in seconds (s/m): spreading of the Gamma law
+        real, dimension(:), allocatable :: hc 
+        real, dimension(:), allocatable :: sc ! damping coefficient in seconds (s/m): spreading of the Gamma law
+        real, dimension(:), allocatable :: hc_n 
+        real, dimension(:), allocatable :: sc_n ! damping coefficient in seconds (s/m): spreading of the Gamma law
         integer :: normalized
     end type type_routing_parameter
     
@@ -26,11 +31,11 @@ module mod_gamma_routing_parameters
     
     
     subroutine routing_parameter_self_initialisation(routing_parameter,routing_setup,routing_mesh,&
-    &hydraulics_coefficient,spreading)
+    &hc,sc)
         
         ! Notes
         ! -----
-        ! **routing_parameter_self_initialisation(routing_parameter,routing_setup,routing_mesh,hydraulics_coefficient,spreading)** :
+        ! **routing_parameter_self_initialisation(routing_parameter,routing_setup,routing_mesh,hc,sc)** :
         !
         ! - Initialise the routing_parameter derived type with user values, allocate all components and set user values for all nodes
         !        
@@ -40,58 +45,104 @@ module mod_gamma_routing_parameters
         ! ``routing_parameter``                   routing_parameter Derived Type (inout)
         ! ``routing_setup``                       routing_setup Derived Type (inout)
         ! ``routing_mesh``                        Routing_mesh Derived Type (inout)
-        ! ``hydraulics_coefficient=1.``           Value of the hydraulic coefficient (optional)
-        ! ``spreading=dt./dx.``                   Value of the spreading coefficient, default is set to dt (in second/m)(optional)
+        ! ``hc=1.``                               Value of the hydraulic coefficient (optional)
+        ! ``sc=dt./dx.``                          Value of the spreading coefficient, default is set to dt (in second/m)(optional)
         ! =============================           ===================================
-        
-        
-        use mod_gamma_routing_setup
-        use mod_gamma_routing_mesh
         
         implicit none
         
         type(type_routing_parameter), intent(inout) :: routing_parameter
         type(type_routing_setup), intent(in) :: routing_setup
         type(type_routing_mesh), intent(in) :: routing_mesh
-        real,optional,intent(in) :: hydraulics_coefficient
-        real,optional,intent(in) :: spreading
+        real,optional,intent(in) :: hc
+        real,optional,intent(in) :: sc
         
         integer :: i
+        real :: hc_copy, sc_copy
         
-        if (.not.allocated(routing_parameter%hydraulics_coefficient)) then
-            allocate(routing_parameter%hydraulics_coefficient(routing_mesh%nb_nodes))
+        if (.not.allocated(routing_parameter%hc)) then
+            allocate(routing_parameter%hc(routing_mesh%nb_nodes))
         end if
-        if (.not.allocated(routing_parameter%spreading)) then
-            allocate(routing_parameter%spreading(routing_mesh%nb_nodes))
+        if (.not.allocated(routing_parameter%sc)) then
+            allocate(routing_parameter%sc(routing_mesh%nb_nodes))
+        end if
+        if (.not.allocated(routing_parameter%hc_n)) then
+            allocate(routing_parameter%hc_n(routing_mesh%nb_nodes))
+        end if
+        if (.not.allocated(routing_parameter%sc_n)) then
+            allocate(routing_parameter%sc_n(routing_mesh%nb_nodes))
         end if
         
-        if (present(hydraulics_coefficient) .AND. hydraulics_coefficient>0.0) then
-            
-            routing_parameter%hydraulics_coefficient=hydraulics_coefficient
+        hc_copy=-99.
+        sc_copy=-99.
+        if (present(hc)) then
+            hc_copy=hc
+            if (hc_copy<routing_setup%hydrau_coef_boundaries(1)) then
+            hc_copy=routing_setup%hydrau_coef_boundaries(1)
+            end if
+            if (hc_copy>routing_setup%hydrau_coef_boundaries(2)) then
+                hc_copy=routing_setup%hydrau_coef_boundaries(2)
+            end if
+        end if
+        if (present(sc)) then
+            sc_copy=sc
+            if (sc_copy<routing_setup%spreading_boundaries(1)) then
+            sc_copy=routing_setup%spreading_boundaries(1)
+            end if
+            if (sc_copy>routing_setup%spreading_boundaries(2)) then
+                sc_copy=routing_setup%spreading_boundaries(2)
+            end if
+        end if
+        
+        if (hc_copy>0.0) then
+            routing_parameter%hc=hc_copy
         else
-            routing_parameter%hydraulics_coefficient=1.0 !default value
+            routing_parameter%hc=1.0 !default value
         end if
         
-        if (present(spreading) .AND. spreading>0.0) then
-            
-            routing_parameter%spreading=spreading ! given in s/m 
+        if (sc_copy>0.0) then
+            routing_parameter%sc=sc_copy ! given in s/m 
         else
-            
             do i=1,routing_mesh%nb_nodes
-                routing_parameter%spreading(i)=routing_setup%dt/routing_mesh%dx(i)  !default value
+                routing_parameter%sc(i)=routing_setup%dt/routing_mesh%dx(i)  !default value
             end do
-            
         end if
         
-        routing_parameter%normalized = 0
-        
-        !reading parameter
-        
-        !setting parameter
+        call normalize_routing_parameters(routing_parameter, routing_setup, routing_mesh)
         
     end subroutine routing_parameter_self_initialisation
     
+    subroutine normalize_routing_parameters(routing_parameter, routing_setup, routing_mesh)
+        
+        type(type_routing_parameter), intent(inout) :: routing_parameter
+        type(type_routing_setup), intent(in) :: routing_setup
+        type(type_routing_mesh), intent(in) :: routing_mesh
+        
+        routing_parameter%hc_n=(routing_parameter%hc -&
+        & routing_setup%hydrau_coef_boundaries(1)) /&
+        &(routing_setup%hydrau_coef_boundaries(2)-routing_setup%hydrau_coef_boundaries(1))
+        
+        routing_parameter%sc_n=(routing_parameter%sc -&
+        & routing_setup%spreading_boundaries(1)) /&
+        &(routing_setup%spreading_boundaries(2)-routing_setup%spreading_boundaries(1))
+
+    end subroutine normalize_routing_parameters
     
+    subroutine unnormalize_routing_parameters(routing_parameter, routing_setup, routing_mesh)
+        
+        type(type_routing_parameter), intent(inout) :: routing_parameter
+        type(type_routing_setup), intent(in) :: routing_setup
+        type(type_routing_mesh), intent(in) :: routing_mesh
+        
+        routing_parameter%hc=routing_parameter%hc_n*&
+        &(routing_setup%hydrau_coef_boundaries(2)-routing_setup%hydrau_coef_boundaries(1))&
+        &+routing_setup%hydrau_coef_boundaries(1)
+        
+        routing_parameter%sc=routing_parameter%sc_n*&
+        &(routing_setup%spreading_boundaries(2)-routing_setup%spreading_boundaries(1))&
+        &+routing_setup%spreading_boundaries(1)
+        
+    end subroutine unnormalize_routing_parameters
     
     subroutine routing_parameter_clear(routing_parameter)
         
@@ -112,6 +163,7 @@ module mod_gamma_routing_parameters
         type(type_routing_parameter) :: routing_parameter_new
         
         routing_parameter=routing_parameter_new
+        
     endsubroutine routing_parameter_clear
     
     subroutine routing_parameter_copy(routing_parameter,object_copy)

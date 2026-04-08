@@ -205,11 +205,35 @@ class Model(object):
             options = {}
 
         for key, value in options.items():
-            if key == "hydraulics_coefficient":
-                self.routing_parameters.hydraulics_coefficient = value
+            if key == "hc":
+                self.routing_parameters.hc = value
+            elif key == "sc":
+                self.routing_parameters.sc = value
+            else:
+                raise ValueError(f"Wrong parameter name {key}.")
+        Mod_Gamma_Routing_Parameters.normalize_routing_parameters(
+            self.routing_parameters, self.routing_setup, self.routing_mesh
+        )
 
-            if key == "spreading":
-                self.routing_parameters.spreading = value
+        self.routing_states_init()
+
+    def routing_parameters_normalized_change(self, **kwargs):
+
+        options = kwargs
+
+        if options is None:
+            options = {}
+
+        for key, value in options.items():
+            if key == "hc_n":
+                self.routing_parameters.hc_n = value
+            elif key == "sc_n":
+                self.routing_parameters.sc_n = value
+            else:
+                raise ValueError(f"Wrong parameter name {key}.")
+        Mod_Gamma_Routing_Parameters.unnormalize_routing_parameters(
+            self.routing_parameters, self.routing_setup, self.routing_mesh
+        )
 
         self.routing_states_init()
 
@@ -265,19 +289,20 @@ class Model(object):
         # first check if we need to force states_init
         if self.routing_setup.varying_spread == 1:
 
-            max_spreading = self.routing_setup.spreading_boundaries[1]
+            max_sc = self.routing_setup.spreading_boundaries[1]
 
             nb_spreads = (
-                int(max_spreading / self.routing_setup.spreading_discretization_step) + 1
+                int(max_sc / self.routing_setup.spreading_discretization_step) + 1
             )
 
         else:
-            max_spreading = np.max(self.routing_parameters.spreading)
+
+            max_sc = np.max(self.routing_parameters.sc)
             nb_spreads = 1
 
-        if max_spreading != self.routing_states.max_spreading:
+        if max_sc != self.routing_states.max_sc:
             print(
-                f"Force states_init, reason change of max_spreading {max_spreading} != {self.routing_states.max_spreading}"
+                f"Force states_init, reason change of max_sc {max_sc} != {self.routing_states.max_sc}"
             )
             states_init = True
 
@@ -387,6 +412,53 @@ class Model(object):
 
         return res
 
+    def calibration_parameters(
+        self, inflows, observations, states_init=True, memory_reset=True
+    ):
+
+        X = np.concatenate(
+            (
+                self.routing_parameters.hc_n,
+                self.routing_parameters.sc_n,
+            ),
+            axis=0,
+        )
+        # first initialise states
+        # initialise states
+        if states_init:
+            self.routing_states_init()
+
+        # reset discharges states to zeros
+        if memory_reset:
+            self.routing_memory_reset()
+
+        # initialise routing_results
+        self.routing_results_init()
+
+        bounds = np.zeros(shape=(X.size, 2))
+        bounds[:, 0] = 0.0
+        bounds[:, 1] = 1.0
+
+        res = scipy.optimize.minimize(
+            self.run_backward_djdx,
+            X,
+            args=(
+                inflows,
+                observations,
+            ),
+            method="L-BFGS-B",  # "L-BFGS-B", SLSQP
+            jac=True,
+            bounds=bounds,
+            options={
+                "disp": True,
+                "maxiter": 30,
+                "verbose": 1,
+                "maxfun": 30,
+            },
+        )
+
+        return res
+
     def run_backward_djdq(self, X, inflows, observations):
 
         if X is None:
@@ -424,6 +496,43 @@ class Model(object):
         )
 
         print(f"cost={self.routing_results.costs[0]}")
+        return cost, np.array(gradients.flatten(), dtype="float64")
+
+    def run_backward_djdx(self, X, inflows, observations):
+
+        self.routing_parameters_normalized_change(
+            hc_n=X[0 : self.routing_mesh.nb_nodes],
+            sc_n=X[self.routing_mesh.nb_nodes :],
+        )
+
+        self.run(inflows, states_init=False, memory_reset=True)
+
+        self.cost_function(observations, self.routing_results.discharges)
+        cost = self.routing_results.costs[0]
+
+        inflows = np.array(inflows, order="F", dtype="float32")
+        observations = np.array(observations, order="F", dtype="float32")
+
+        # Gradients of COST with respect to X (parameters)
+        gradients = np.zeros(
+            shape=(2, self.routing_mesh.nb_nodes),
+            order="F",
+            dtype="float32",
+        )
+
+        Mod_Gamma_Interface.routing_gamma_forward_adjoint_b(
+            self.routing_setup,
+            self.routing_mesh,
+            self.routing_parameters,
+            inflows,
+            observations,
+            self.routing_states,
+            self.routing_memory,
+            self.routing_results,
+            gradients,
+        )
+
+        print(f"cost={self.routing_results.costs}")
         return cost, np.array(gradients.flatten(), dtype="float64")
 
     def cost_function(self, observations, qnetwork):

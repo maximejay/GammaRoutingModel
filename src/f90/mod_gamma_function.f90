@@ -128,10 +128,6 @@ module mod_gamma_function
         
         real :: scale_coef
         !should be array of nbnodes
-        real :: mu_min
-        real :: mu_min_gamma
-        real :: rate
-        real :: delta_x
         integer :: i
         
         
@@ -140,15 +136,7 @@ module mod_gamma_function
         do i=1,size(routing_mesh%varying_dx)
         
             call compute_gamma_scale_coef(dx=routing_mesh%varying_dx(i),dt=routing_setup%dt,vmax=routing_setup%vmax,&
-            &spread_coef=routing_states%max_spreading,epsilon_coef=routing_setup%spreading_gamma_threshold,scale_coef=scale_coef)
-            
-!~             delta_x=routing_states%max_spreading*routing_mesh%varying_dx(i)/routing_setup%dt
-            
-!~             mu_min=routing_mesh%varying_dx(i)/(routing_setup%vmax*routing_setup%dt)
-            
-!~             mu_min_gamma=mu_min+1.0 !On caclul Gamma sur l'interval MU E [1:L+1]  et on calcul les coefficients sur Tau E [0:L]
-            
-!~             rate=(log(routing_setup%spreading_gamma_threshold)/(mu_min_gamma*log((mu_min_gamma+delta_x)/mu_min_gamma)-delta_x)) !Attention scale=1/Rate Rate=Beta
+            &spread_coef=routing_states%max_sc,epsilon_coef=routing_setup%spreading_gamma_threshold,scale_coef=scale_coef)
             
             if (scale_coef < 0.1) then
                 !this condition is reached for spreading <= dt
@@ -160,8 +148,8 @@ module mod_gamma_function
         end do
         
         !valid for spreading cst and dx cst only
-!~         delta_x=routing_states%max_spreading*minval(routing_mesh%dx)/routing_setup%dt
-!~         !delta_x=routing_states%max_spreading*minval(routing_mesh%dx)**0.9/routing_setup%dt
+!~         delta_x=routing_states%max_sc*minval(routing_mesh%dx)/routing_setup%dt
+!~         !delta_x=routing_states%max_sc*minval(routing_mesh%dx)**0.9/routing_setup%dt
         
 !~         mu_min=minval(routing_mesh%dx)/(routing_setup%vmax*routing_setup%dt)
 !~         mu_min_gamma=mu_min+1.0 !On caclul Gamma sur l'interval MU E [1:L+1]  et on calcul les coefficients sur Tau E [0:L]
@@ -209,16 +197,15 @@ module mod_gamma_function
         real :: spreading
         integer :: i,j
         integer :: index_scale_coef
-        real :: scale
         
-        !spreading=routing_states%max_spreading*minval(routing_mesh%dx)/routing_setup%dt !spread is the spreading of the gamma law in  seconds / m
-        !spreading=routing_states%max_spreading*minval(routing_mesh%dx)**0.9/routing_setup%dt !spread is the spreading of the gamma law in seconds
+        !spreading=routing_states%max_sc*minval(routing_mesh%dx)/routing_setup%dt !spread is the spreading of the gamma law in  seconds / m
+        !spreading=routing_states%max_sc*minval(routing_mesh%dx)**0.9/routing_setup%dt !spread is the spreading of the gamma law in seconds
         
         do j=1,routing_mesh%nb_nodes
         
             index_scale_coef=routing_mesh%index_varying_dx(j)
             
-            spreading=routing_states%max_spreading*routing_mesh%dx(j)/routing_setup%dt !spread is the spreading of the gamma law in  seconds / m
+            spreading=routing_states%max_sc*routing_mesh%dx(j)/routing_setup%dt !spread is the spreading of the gamma law in  seconds / m
             
             
             
@@ -559,67 +546,64 @@ module mod_gamma_function
         
     end subroutine tabulated_routing_coefficients_2D
     
-    
-    
-    
-    subroutine tabulated_gamma_function_2D(routing_setup,routing_mesh,routing_states,&
-    &density_function)
+!~     subroutine tabulated_gamma_function_2D(routing_setup,routing_mesh,routing_states,&
+!~     &density_function)
         
-        ! Notes
-        ! -----
-        ! **tabulated_gamma_function_2D(routing_setup,routing_mesh,routing_states,density_function)** :
-        !
-        ! - Compute the tabulated Gamma function for a range of mode
-        !        
-        ! =============================           ===================================
-        ! Parameters                              Description
-        ! =============================           ===================================
-        ! ``routing_setup``                       routing_setup Derived Type (in)
-        ! ``routing_mesh``                        routing_mesh Derived Type (in)
-        ! ``routing_states``                      Routing_mesh Derived Type (inout)
-        ! ``density_function``                    String 'pdf' or 'cdf, please use 'cdf' (in)
-        ! =============================           ==================================
+!~         ! Notes
+!~         ! -----
+!~         ! **tabulated_gamma_function_2D(routing_setup,routing_mesh,routing_states,density_function)** :
+!~         !
+!~         ! - Compute the tabulated Gamma function for a range of mode
+!~         !        
+!~         ! =============================           ===================================
+!~         ! Parameters                              Description
+!~         ! =============================           ===================================
+!~         ! ``routing_setup``                       routing_setup Derived Type (in)
+!~         ! ``routing_mesh``                        routing_mesh Derived Type (in)
+!~         ! ``routing_states``                      Routing_mesh Derived Type (inout)
+!~         ! ``density_function``                    String 'pdf' or 'cdf, please use 'cdf' (in)
+!~         ! =============================           ==================================
         
-         implicit none
-        type(type_routing_setup), intent(in) :: routing_setup
-        type(type_routing_mesh), intent(in) :: routing_mesh
-        type(type_routing_states), intent(inout) :: routing_states
-        character(3),intent(in) :: density_function
+!~          implicit none
+!~         type(type_routing_setup), intent(in) :: routing_setup
+!~         type(type_routing_mesh), intent(in) :: routing_mesh
+!~         type(type_routing_states), intent(inout) :: routing_states
+!~         character(3),intent(in) :: density_function
         
-        integer :: i,j
-        real :: mode
-        real, dimension(size(routing_states%quantile)) :: gamma_coefficient
+!~         integer :: i,j
+!~         real :: mode
+!~         real, dimension(size(routing_states%quantile)) :: gamma_coefficient
         
-        if (allocated(routing_states%tabulated_routing_coef)) then
-            deallocate(routing_states%tabulated_routing_coef)
-        end if
+!~         if (allocated(routing_states%tabulated_routing_coef)) then
+!~             deallocate(routing_states%tabulated_routing_coef)
+!~         end if
         
-        allocate(routing_states%tabulated_routing_coef(size(routing_states%quantile),&
-        &routing_states%nb_mode,1,size(routing_mesh%varying_dx)))
-        routing_states%tabulated_routing_coef=0.0
+!~         allocate(routing_states%tabulated_routing_coef(size(routing_states%quantile),&
+!~         &routing_states%nb_mode,1,size(routing_mesh%varying_dx)))
+!~         routing_states%tabulated_routing_coef=0.0
         
-        gamma_coefficient=0.0
-        mode=0.0
+!~         gamma_coefficient=0.0
+!~         mode=0.0
         
-        do j=1,size(routing_mesh%varying_dx)
+!~         do j=1,size(routing_mesh%varying_dx)
         
-            do i=1,routing_states%nb_mode
+!~             do i=1,routing_states%nb_mode
                 
-                call compute_gamma_routing_coefficient(routing_states%scale_coef(j),mode,routing_states%quantile,&
-                &routing_states%window_shift,density_function,gamma_coefficient)
+!~                 call compute_gamma_routing_coefficient(routing_states%scale_coef(j),mode,routing_states%quantile,&
+!~                 &routing_states%window_shift,density_function,gamma_coefficient)
                 
-                routing_states%tabulated_routing_coef(:,i,1,j)=gamma_coefficient
-                mode=mode+routing_setup%mode_discretization_step
+!~                 routing_states%tabulated_routing_coef(:,i,1,j)=gamma_coefficient
+!~                 mode=mode+routing_setup%mode_discretization_step
                 
-            end do
+!~             end do
         
-        end do
+!~         end do
         
         
-        call tabulated_delay_for_gamma(routing_states%nb_mode&
-        &,routing_setup%mode_discretization_step,routing_states%tabulated_delay)
+!~         call tabulated_delay_for_gamma(routing_states%nb_mode&
+!~         &,routing_setup%mode_discretization_step,routing_states%tabulated_delay)
         
-    end subroutine tabulated_gamma_function_2D
+!~     end subroutine tabulated_gamma_function_2D
     
     
     subroutine tabulated_delay_for_gamma(nb_mode,frequency,tabulated_delay)
@@ -725,7 +709,7 @@ module mod_gamma_function
         spread_coef=0.0
         
         if (routing_setup%varying_spread==0) then
-            spreading_step=routing_states%max_spreading
+            spreading_step=routing_states%max_sc
         end if
         if (routing_setup%varying_spread>0) then
             spreading_step=routing_setup%spreading_discretization_step
@@ -804,7 +788,7 @@ module mod_gamma_function
         
         integer :: i
         
-        !nb_spreads=ceiling(max_spreading/frequency_spreading)+1
+        !nb_spreads=ceiling(max_sc/frequency_spreading)+1
         
         if (allocated(tabulated_spreading)) then
             deallocate(tabulated_spreading)

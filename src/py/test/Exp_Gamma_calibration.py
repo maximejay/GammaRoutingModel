@@ -45,21 +45,21 @@ inflows[0:2, 0] = 4.0
 # Store the simulated discharge in an array: consider that is the true discharges, i.e our observation vector
 
 # Initilaise the parameters
-model.routing_parameters_init(hydraulics_coefficient=1.0, spreading=2.0)
+model.routing_parameters_init(hc=1.0, sc=2.0)
 
 # run the model (direct run)
 model.run(inflows)
 
 observations = np.zeros(shape=model.routing_results.discharges.shape)
 observations[:, :] = model.routing_results.discharges[:, :].copy()
-true_hc = model.routing_parameters.hydraulics_coefficient.copy()
-true_sp = model.routing_parameters.spreading.copy()
+true_hc = model.routing_parameters.hc.copy()
+true_sp = model.routing_parameters.sc.copy()
 
 
 # changing parameters
-model.routing_parameters_change(hydraulics_coefficient=0.7, spreading=1.5)
-back_hc = model.routing_parameters.hydraulics_coefficient.copy()
-back_sp = model.routing_parameters.spreading.copy()
+model.routing_parameters_change(hc=0.7, sc=1.5)
+back_hc = model.routing_parameters.hc.copy()
+back_sp = model.routing_parameters.sc.copy()
 
 # run the model
 model.run(inflows, states_init=0)
@@ -72,11 +72,12 @@ cost_initial = model.routing_results.costs.copy()
 
 # calibrate the parameters to fit the "observed" discharges
 model.calibration(inflows, observations, states_init=0)
+res = model.calibration_parameters(inflows, observations, states_init=0)
 
 optimal_discharges = model.routing_results.discharges.copy()
 cost_final = model.routing_results.costs.copy()
-optimal_hc = model.routing_parameters.hydraulics_coefficient.copy()
-optimal_sp = model.routing_parameters.spreading.copy()
+optimal_hc = model.routing_parameters.hc.copy()
+optimal_sp = model.routing_parameters.sc.copy()
 
 dir_results = os.path.join("src", "py", "test", "figures")
 os.makedirs(dir_results, exist_ok=True)

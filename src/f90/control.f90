@@ -101,32 +101,19 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
 !   MODEL VARIABLES ---
     
     !store initial parameters
-    routing_results%initial_hydraulic_coef=routing_parameter%hydraulics_coefficient
-    routing_results%initial_spreading=routing_parameter%spreading
+    routing_results%initial_hydraulic_coef=routing_parameter%hc
+    routing_results%initial_spreading=routing_parameter%sc
     
-    
-    !--------------- Normalisation des paramètres et des bornes -----------------------
-!~     routing_states%param_normalisation(1)=routing_setup%hydrau_coef_boundaries(2)
-!~     routing_states%param_normalisation(2)=routing_setup%spreading_boundaries(2)
-    
-!~     routing_parameter%hydraulics_coefficient=routing_parameter%hydraulics_coefficient/routing_states%param_normalisation(1)
-!~     routing_parameter%spreading=routing_parameter%spreading/routing_states%param_normalisation(2)
-    
-!~     spreading_bounds=routing_setup%spreading_boundaries/routing_setup%spreading_boundaries(2)
-!~     hydrau_coef_bounds=routing_setup%hydrau_coef_boundaries/routing_setup%hydrau_coef_boundaries(2)
-    ! --------------------------------------------------------------------------------
-    
-    call normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
     hydrau_coef_bounds(1)=0.
     hydrau_coef_bounds(2)=1.
     spreading_bounds(1)=0.
     spreading_bounds(2)=1.
     
     call routing_parameter_self_initialisation(routing_parameter=routing_parameter_initial,routing_setup=routing_setup,&
-    &routing_mesh=routing_mesh,hydraulics_coefficient=0.,spreading=0.)
+    &routing_mesh=routing_mesh,hc=0.,sc=0.)
     
     call routing_parameter_self_initialisation(routing_parameter=routing_parameterb,routing_setup=routing_setup,&
-    &routing_mesh=routing_mesh,hydraulics_coefficient=0.,spreading=0.)
+    &routing_mesh=routing_mesh,hc=0.,sc=0.)
     
     allocate(qnetworkb(routing_setup%npdt,routing_mesh%nb_nodes))
     
@@ -177,10 +164,7 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
         
         call affect_bound(hydrau_coef_bounds,spreading_bounds,routing_mesh,nbd,l,u)
         
-        
         cost=0.
-        
-!~         call routing_states_reset(routing_states)
         call routing_memory_reset(routing_memory)
         call routing_hydrogram_forward(routing_setup,routing_mesh,routing_parameter,inflows,observations,&
         &routing_states,routing_memory,routing_results,cost)
@@ -210,11 +194,10 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
              if (task(1:2) .eq. 'FG') then
                 
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameterb,&
-                &routing_setup=routing_setup,routing_mesh=routing_mesh,hydraulics_coefficient=0.,spreading=0.)
+                &routing_setup=routing_setup,routing_mesh=routing_mesh,hc=0.,sc=0.)
                 
                 cost=0.
                 costb=1.
-!~                 call routing_states_reset(routing_states)
                 call routing_memory_reset(routing_memory)
                 
                 call routing_hydrogram_forward_b(routing_setup, &
@@ -223,11 +206,11 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
                 &   costb)
                 
                 !store all gradients
-                routing_results%allgrads_hydraulic_coef(iter,:)=routing_parameterb%hydraulics_coefficient
-                routing_results%allgrads_spreading(iter,:)=routing_parameterb%spreading
+                routing_results%allgrads_hydraulic_coef(iter,:)=routing_parameterb%hc_n
+                routing_results%allgrads_spreading(iter,:)=routing_parameterb%sc_n
                 
-                routing_results%gradients_hydraulic_coef=routing_parameterb%hydraulics_coefficient
-                routing_results%gradients_spreading=routing_parameterb%spreading
+                routing_results%gradients_hydraulic_coef=routing_parameterb%hc_n
+                routing_results%gradients_spreading=routing_parameterb%sc_n
                 
                 write(*,*) "New Cost = ",cost
                 
@@ -317,24 +300,19 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
     &isave(30),isave(34),isave(36),dsave(13)
     close(101)
     
-    ! ---------------- Un-Normalisation des paramètres -------------------------------
-!~     routing_parameter%hydraulics_coefficient=routing_parameter%hydraulics_coefficient*routing_states%param_normalisation(1)
-!~     routing_parameter%spreading=routing_parameter%spreading*routing_states%param_normalisation(2)
-!~     routing_states%param_normalisation(1)=1.
-!~     routing_states%param_normalisation(2)=1.
     ! --------------------------------------------------------------------------------
-    call unnormalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
+    call unnormalize_routing_parameters(routing_parameter, routing_setup, routing_mesh)
     
     !store final parameters
-    routing_results%final_hydraulic_coef=routing_parameter%hydraulics_coefficient
-    routing_results%final_spreading=routing_parameter%spreading
+    routing_results%final_hydraulic_coef=routing_parameter%hc
+    routing_results%final_spreading=routing_parameter%sc
     
     write(*,*) "--------- Final estimation ----------"
     write(*,*) ""
     write(*,*) "Hydraulics parameters:"
-    write (*,'((1x,1p, 6(1x,d11.4)))') (routing_parameter%hydraulics_coefficient(i),i = 1,routing_mesh%nb_nodes)
+    write (*,'((1x,1p, 6(1x,d11.4)))') (routing_parameter%hc(i),i = 1,routing_mesh%nb_nodes)
     write(*,*) "spreading coefficients:"
-    write (*,'((1x,1p, 6(1x,d11.4)))') (routing_parameter%spreading(i),i = 1,routing_mesh%nb_nodes)
+    write (*,'((1x,1p, 6(1x,d11.4)))') (routing_parameter%sc(i),i = 1,routing_mesh%nb_nodes)
     write(*,*) ""
     write(*,*) "-------------------------------------"
     
@@ -381,8 +359,8 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
         double precision,dimension(nmax), intent(inout) :: x
         
         x=real(0.,kind(x))
-        x(1:routing_mesh%nb_nodes)=real(routing_parameter%hydraulics_coefficient,kind(x))
-        x(routing_mesh%nb_nodes+1:2*routing_mesh%nb_nodes)=real(routing_parameter%spreading,kind(x))
+        x(1:routing_mesh%nb_nodes)=real(routing_parameter%hc_n,kind(x))
+        x(routing_mesh%nb_nodes+1:2*routing_mesh%nb_nodes)=real(routing_parameter%sc_n,kind(x))
         
     endsubroutine linearise_control_vector
     
@@ -393,9 +371,9 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
         double precision,dimension(nmax), intent(in) :: x
         type(type_routing_parameter), intent(inout) :: routing_parameter
         
-        routing_parameter%hydraulics_coefficient=real(x(1:routing_mesh%nb_nodes),kind(routing_parameter%hydraulics_coefficient))
-        routing_parameter%spreading=real(x(routing_mesh%nb_nodes+1:2*routing_mesh%nb_nodes),&
-        &kind(routing_parameter%spreading))
+        routing_parameter%hc_n=real(x(1:routing_mesh%nb_nodes),kind(routing_parameter%hc_n))
+        routing_parameter%sc_n=real(x(routing_mesh%nb_nodes+1:2*routing_mesh%nb_nodes),&
+        &kind(routing_parameter%sc_n))
         
     endsubroutine unlinearise_control_vector
     
@@ -407,8 +385,8 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
         double precision,dimension(nmax), intent(inout) :: g
         
         g=real(0.,kind(g))
-        g(1:routing_mesh%nb_nodes)=real(routing_parameterb%hydraulics_coefficient,kind(g))
-        g(routing_mesh%nb_nodes+1:2*routing_mesh%nb_nodes)=real(routing_parameterb%spreading,kind(g))
+        g(1:routing_mesh%nb_nodes)=real(routing_parameterb%hc_n,kind(g))
+        g(routing_mesh%nb_nodes+1:2*routing_mesh%nb_nodes)=real(routing_parameterb%sc_n,kind(g))
         
     endsubroutine make_gradient_vector
     

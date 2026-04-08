@@ -47,13 +47,11 @@ def multiplot_parameters(
 ):
 
     if isinstance(gammamodel, dict):
-        hydraulics_coefficient = gammamodel["routing_parameters"][
-            "hydraulics_coefficient"
-        ]
-        spreading = gammamodel["routing_parameters"]["spreading"]
+        hc = gammamodel["routing_parameters"]["hc"]
+        sc = gammamodel["routing_parameters"]["sc"]
     else:
-        hydraulics_coefficient = gammamodel.routing_parameters.hydraulics_coefficient
-        spreading = gammamodel.routing_parameters.spreading
+        hc = gammamodel.routing_parameters.hc
+        sc = gammamodel.routing_parameters.sc
 
     default_fig_settings = plot.fig_properties(xsize=8, ysize=8)
     default_fig_settings.update(**fig_settings)
@@ -106,13 +104,13 @@ def multiplot_parameters(
 
             if p == "Hy":
                 matrice = gamma.smashplug.GammaVectorsToSmashGrid(
-                    hydraulics_coefficient,
+                    hc,
                     sbcontainer.mysmashmodel,
                 )
             elif p == "Sp":
 
                 matrice = gamma.smashplug.GammaVectorsToSmashGrid(
-                    spreading,
+                    sc,
                     sbcontainer.mysmashmodel,
                 )
             else:

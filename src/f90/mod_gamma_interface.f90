@@ -134,11 +134,11 @@ module mod_gamma_interface
     
     
     subroutine routing_gamma_change_parameters(routing_parameter,routing_states,routing_memory,routing_setup,routing_mesh,&
-    &hydraulics_coefficient,spreading)
+    &hc,sc)
         
         ! Notes
         ! -----
-        ! **routing_gamma_change_parameters(routing_parameter,routing_states,routing_setup,routing_mesh,hydraulics_coefficient,spreading)** :
+        ! **routing_gamma_change_parameters(routing_parameter,routing_states,routing_setup,routing_mesh,hc,sc)** :
         !
         ! - Change the parameters (routing_parameter) and update routing_states if necessary
         !        
@@ -150,8 +150,8 @@ module mod_gamma_interface
         ! ``routing_memory``                      routing_memory Derived Type (inout)
         ! ``routing_setup``                       routing_setup Derived Type (in)
         ! ``routing_mesh``                        Routing_mesh Derived Type (in)
-        ! ``hydraulics_coefficient``              Hydraulic coefficient, real (in)
-        ! ``spreading``                           Spreading coefficient (in)
+        ! ``hc``                                  Hydraulic coefficient, real (in)
+        ! ``sc``                                  Spreading coefficient (in)
         ! =============================           ===================================
         
         
@@ -162,23 +162,23 @@ module mod_gamma_interface
         type(type_routing_memory), intent(inout) :: routing_memory
         type(type_routing_setup), intent(in) :: routing_setup
         type(type_routing_mesh), intent(in) :: routing_mesh
-        real,optional,intent(in) :: hydraulics_coefficient
-        real,optional,intent(in) :: spreading
+        real,optional,intent(in) :: hc
+        real,optional,intent(in) :: sc
         
-        if (present(hydraulics_coefficient)) then
-            routing_parameter%hydraulics_coefficient=hydraulics_coefficient
+        if (present(hc)) then
+            routing_parameter%hc=hc
         end if
         
-        if (present(spreading)) then
+        if (present(sc)) then
         
-            routing_parameter%spreading=spreading
+            routing_parameter%sc=sc
             
             if (routing_setup%varying_spread>0) then
-                routing_states%max_spreading=routing_setup%spreading_boundaries(2)
-                routing_states%nb_spreads=int(routing_states%max_spreading/routing_setup%spreading_discretization_step)+1
+                routing_states%max_sc=routing_setup%spreading_boundaries(2)
+                routing_states%nb_spreads=int(routing_states%max_sc/routing_setup%spreading_discretization_step)+1
             else
                 routing_states%nb_spreads=1
-                routing_states%max_spreading=maxval(routing_parameter%spreading)
+                routing_states%max_sc=maxval(routing_parameter%sc)
             end if
             
             !recompute and reallocate some variables in routing states
@@ -186,6 +186,8 @@ module mod_gamma_interface
             call routing_memory_self_initialisation(routing_mesh, routing_states, routing_memory)
             
         end if
+        
+        call normalize_routing_parameters(routing_parameter, routing_setup, routing_mesh)
         
     end subroutine routing_gamma_change_parameters
     
@@ -254,49 +256,7 @@ module mod_gamma_interface
     end subroutine routing_states_update
     
     
-    subroutine normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
     
-        type(type_routing_setup), intent(in) :: routing_setup
-        type(type_routing_mesh), intent(in) :: routing_mesh
-        type(type_routing_parameter), intent(inout) :: routing_parameter
-        
-        if (routing_parameter%normalized==0) then
-        
-            routing_parameter%hydraulics_coefficient=(routing_parameter%hydraulics_coefficient -&
-            & routing_setup%hydrau_coef_boundaries(1)) /&
-            &(routing_setup%hydrau_coef_boundaries(2)-routing_setup%hydrau_coef_boundaries(1))
-            
-            routing_parameter%spreading=(routing_parameter%spreading -&
-            & routing_setup%spreading_boundaries(1)) /&
-            &(routing_setup%spreading_boundaries(2)-routing_setup%spreading_boundaries(1))
-        
-            routing_parameter%normalized=1
-            
-        end if
-        
-    end subroutine normalize_routing_parameters
-    
-    subroutine unnormalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
-        
-        type(type_routing_setup), intent(in) :: routing_setup
-        type(type_routing_mesh), intent(in) :: routing_mesh
-        type(type_routing_parameter), intent(inout) :: routing_parameter
-        
-        if (routing_parameter%normalized==1) then
-        
-            routing_parameter%hydraulics_coefficient=routing_parameter%hydraulics_coefficient*&
-            &(routing_setup%hydrau_coef_boundaries(2)-routing_setup%hydrau_coef_boundaries(1))&
-            &+routing_setup%hydrau_coef_boundaries(1)
-            
-            routing_parameter%spreading=routing_parameter%spreading*&
-            &(routing_setup%spreading_boundaries(2)-routing_setup%spreading_boundaries(1))&
-            &+routing_setup%spreading_boundaries(1)
-            
-            routing_parameter%normalized=0
-            
-        end if
-        
-    end subroutine unnormalize_routing_parameters
 
     subroutine routing_gamma_run(routing_setup,routing_mesh,routing_parameter,&
     &inflows,routing_states, routing_memory,routing_results)
@@ -330,12 +290,12 @@ module mod_gamma_interface
         !real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(inout) :: qnetwork
         !real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(inout) :: vnetwork
         
-        call normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
+        call normalize_routing_parameters(routing_parameter, routing_setup, routing_mesh)
 
         call routing_hydrogram(routing_setup,routing_mesh,routing_parameter,&
         &inflows,routing_states, routing_memory, routing_results)
         
-        call unnormalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
+        call unnormalize_routing_parameters(routing_parameter, routing_setup, routing_mesh)
         
     end subroutine routing_gamma_run
     
@@ -403,11 +363,15 @@ module mod_gamma_interface
         real :: costb
         
         call routing_parameter_self_initialisation(routing_parameter=routing_parameterb,&
-                &routing_setup=routing_setup,routing_mesh=routing_mesh,hydraulics_coefficient=0.,spreading=0.)
+                &routing_setup=routing_setup,routing_mesh=routing_mesh,hc=0.,sc=0.)
+        
+        !force value to 0.
+        routing_parameterb%hc=0.
+        routing_parameterb%sc=0.
+        routing_parameterb%hc_n=0.
+        routing_parameterb%sc_n=0.
         
         call routing_memory_reset(routing_memory)
-        
-        call normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
         
         gradients=0.
         cost=0.
@@ -417,10 +381,8 @@ module mod_gamma_interface
                 &   observations, routing_states, routing_memory, routing_results, cost, &
                 &   costb)
         
-        gradients(1,:)=routing_parameterb%hydraulics_coefficient
-        gradients(2,:)=routing_parameterb%spreading
-        
-        call unnormalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
+        gradients(1,:)=routing_parameterb%hc_n
+        gradients(2,:)=routing_parameterb%sc_n
         
     end subroutine routing_gamma_forward_adjoint_b
     
@@ -447,11 +409,15 @@ module mod_gamma_interface
         real :: costb
         
         call routing_parameter_self_initialisation(routing_parameter=routing_parameterb,&
-                &routing_setup=routing_setup,routing_mesh=routing_mesh,hydraulics_coefficient=0.,spreading=0.)
+                &routing_setup=routing_setup,routing_mesh=routing_mesh,hc=0.,sc=0.)
+        
+        !force value to 0.
+        routing_parameterb%hc=0.
+        routing_parameterb%sc=0.
+        routing_parameterb%hc_n=0.
+        routing_parameterb%sc_n=0.
         
         call routing_memory_reset(routing_memory)
-        
-        call normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
         
         gradients=0.
         cost=0.
@@ -463,8 +429,6 @@ module mod_gamma_interface
                 &   costb)
         
         gradients=inflowsb
-        
-        call unnormalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
         
     end subroutine routing_gamma_forward_adjoint_b0
     
@@ -499,15 +463,11 @@ module mod_gamma_interface
         real, dimension(3) :: tab_cost
         real :: cost
         
-        call normalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
-        
         cost=0.
         tab_cost=0.
         call cost_function(routing_setup,routing_mesh,routing_parameter,observations,qnetwork,tab_cost,cost)
         
         routing_results%costs=tab_cost
-        
-        call unnormalize_routing_parameters(routing_setup, routing_mesh, routing_parameter)
         
     end subroutine routing_gamma_cost_function
     

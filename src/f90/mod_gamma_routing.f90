@@ -26,18 +26,13 @@ module mod_gamma_routing
     
     contains
     
-    function x_unn(flag,lb,ub,x)
-        integer :: flag
+    function x_unn(lb,ub,x)
         real :: x_unn
         real, intent(in) :: lb
         real, intent(in) :: ub
         real, intent(in) :: x
         
-        if (flag == 1) then
-            x_unn=x*(ub-lb)+lb
-        else 
-            x_unn=x
-        endif
+        x_unn=x*(ub-lb)+lb
         
     end function x_unn
     
@@ -159,8 +154,8 @@ module mod_gamma_routing
             qnetwork(current_node)=qcell
             
             !write(*,*) i,current_node,qcell
-            hydro_param_unn=x_unn(routing_parameter%normalized,routing_setup%hydrau_coef_boundaries(1),&
-            &routing_setup%hydrau_coef_boundaries(2),routing_parameter%hydraulics_coefficient(current_node))
+            hydro_param_unn=x_unn(routing_setup%hydrau_coef_boundaries(1),&
+            &routing_setup%hydrau_coef_boundaries(2),routing_parameter%hc_n(current_node))
             
             call compute_velocity(hydro_param_unn,&
             &routing_setup,routing_mesh,routing_states,current_node,qcell,velocity)
@@ -173,8 +168,8 @@ module mod_gamma_routing
             
             if (routing_setup%varying_spread==1) then
                 
-                spreading_unn=x_unn(routing_parameter%normalized,routing_setup%spreading_boundaries(1),&
-                &routing_setup%spreading_boundaries(2),routing_parameter%spreading(current_node))
+                spreading_unn=x_unn(routing_setup%spreading_boundaries(1),&
+                &routing_setup%spreading_boundaries(2),routing_parameter%sc_n(current_node))
                 call interpolated_routing_coefficients_bilinear(mode,spreading_unn,&
                 &index_varying_dx,routing_states,gamma_coefficient)
 !~                 call interpolated_routing_coefficients_bicubic(mode,spreading_unn,&
@@ -254,19 +249,19 @@ module mod_gamma_routing
     endsubroutine get_discharges
     
     
-    pure subroutine compute_velocity(hydraulics_coefficient,routing_setup,routing_mesh,routing_states,current_node,&
+    pure subroutine compute_velocity(hc,routing_setup,routing_mesh,routing_states,current_node,&
     &incoming_discharges,velocity)
         
         ! Notes
         ! -----
-        ! **compute_velocity(hydraulics_coefficient,routing_setup,routing_mesh,routing_states,current_node,incoming_discharges,velocity)** :
+        ! **compute_velocity(hc,routing_setup,routing_mesh,routing_states,current_node,incoming_discharges,velocity)** :
         !
         ! - Compute the flow velocity for the current node. The velocity is computed with the specific discharge (mm) or with the discharge (m3/s)
         !        
         ! =============================           ===================================
         ! Parameters                              Description
         ! =============================           ===================================
-        ! ``hydraulics_coefficient``              Hydraulic coefficient (in)
+        ! ``hc``                                  Hydraulic coefficient (in)
         ! ``routing_setup``                       routing_setup Derived Type (in)
         ! ``routing_mesh``                        routing_mesh Derived Type (in)
         ! ``routing_states``                      Routing_mesh Derived Type (in)
@@ -276,7 +271,7 @@ module mod_gamma_routing
         ! =============================           ===================================
         
         implicit none
-        real, intent(in) :: hydraulics_coefficient
+        real, intent(in) :: hc
         type(type_routing_setup), intent(in) :: routing_setup
         type(type_routing_mesh), intent(in) :: routing_mesh
         type(type_routing_states), intent(in) :: routing_states
@@ -296,13 +291,13 @@ module mod_gamma_routing
         velocity=routing_setup%vmax
         
         if (routing_setup%velocity_computation.eq."qmm") then
-            velocity =  hydraulics_coefficient * &
+            velocity =  hc * &
             &( incoming_discharges * routing_setup%dt * 1000. / &
             &(routing_mesh%cumulated_surface(current_node) * 1000.0**2.) )**0.4
         end if
         
         if (routing_setup%velocity_computation.eq."qm3") then
-            velocity =  hydraulics_coefficient * incoming_discharges**0.4
+            velocity =  hc * incoming_discharges**0.4
         end if
         
         
@@ -465,7 +460,6 @@ module mod_gamma_routing
         real :: t, u
         real, dimension(4) :: px, py
         real, dimension(4,4) :: f
-        real :: cubic_interp
 
         !-------------------------------
         ! Clip mode and spreading to bounds

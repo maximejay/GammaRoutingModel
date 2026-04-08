@@ -49,6 +49,7 @@ subroutine manual_gradient_test()
         type(type_routing_parameter) :: routing_parameterb
         real, dimension(:,:), allocatable :: qnetworkb
         real :: costb
+        real :: normalize_pdx
         
        
         
@@ -98,6 +99,11 @@ subroutine manual_gradient_test()
         &elongation_factor=1.0,mode_discretization_step=0.1,spreading_discretization_step=0.1&
         &,velocity_computation="qmm",varying_spread=1)
         
+        !Set bounds between 0 and 5
+        routing_setup%hydrau_coef_boundaries(1)=0.
+        routing_setup%spreading_boundaries(1)=0.
+        routing_setup%hydrau_coef_boundaries(2)=5.
+        routing_setup%spreading_boundaries(2)=5.
         
         write(*,*) "routing_mesh_self_initialisation..."
         write(*,*) ""
@@ -136,16 +142,18 @@ subroutine manual_gradient_test()
         if (ni.eq.1) then
             call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
             &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-            &hydraulics_coefficient=0.5,spreading=1.5)
+            &hc=0.5,sc=1.5)
         elseif(ni.eq.2)then
             call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
             &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-            &hydraulics_coefficient=0.5,spreading=1.5)
+            &hc=0.5,sc=1.5)
         endif
         
-!~         write(*,*) routing_parameter%hydraulics_coefficient
-!~         write(*,*) routing_parameter%spreading
-!~         pause
+        write(*,*) routing_parameter%hc
+        write(*,*) routing_parameter%sc
+        write(*,*) routing_parameter%hc_n
+        write(*,*) routing_parameter%sc_n
+        pause
         
         
         write(*,*) "routing_state_self_initialisation..."
@@ -167,9 +175,8 @@ subroutine manual_gradient_test()
 !~         write(*,*) "routing_states%scale_coef=",routing_states%scale_coef
 !~         write(*,*) "routing_states%window_length=",routing_states%window_length    
 !~         write(*,*) "routing_states%nb_spreads=",routing_states%nb_spreads    
-!~         write(*,*) "routing_states%max_spreading=",routing_states%max_spreading
+!~         write(*,*) "routing_states%max_sc=",routing_states%max_sc
 !~         write(*,*) "routing_states%window_shift=",routing_states%window_shift 
-!~         write(*,*) "routing_states%param_normalisation=",routing_states%param_normalisation
 !~         write(*,*) "routing_states%quantile=",routing_states%quantile
 !~         pause
 !~         write(*,*) "routing_states%tabulated_delay=",routing_states%tabulated_delay
@@ -207,7 +214,7 @@ subroutine manual_gradient_test()
             call routing_memory_reset(routing_memory)
             call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
             &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-            &hydraulics_coefficient=1.0,spreading=1.)
+            &hc=1.0,sc=1.0)
                
             ! run grd accoring spatial parameters  param and spatial time-varying states 
             cost=0.
@@ -226,13 +233,13 @@ subroutine manual_gradient_test()
             if (ni.eq.1) then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0+pdx,spreading=1.)
+                &hc=1.0+pdx,sc=1.)
             elseif(ni.eq.2)then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0,spreading=1.+pdx)
+                &hc=1.0,sc=1.+pdx)
             endif
-            call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
+            !call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
 
            ! run gamma accoring spatial parameters  param and spatial time-varying states 
             cost=0.
@@ -251,12 +258,13 @@ subroutine manual_gradient_test()
             if (ni.eq.1) then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0-pdx,spreading=1.)
+                &hc=1.0-pdx,sc=1.)
             elseif(ni.eq.2)then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0,spreading=1.-pdx)
+                &hc=1.0,sc=1.-pdx)
             endif
+            !call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
            
            
 
@@ -267,10 +275,15 @@ subroutine manual_gradient_test()
             COST_F(3)=cost
             write(*,*) "cost -pdx=",COST_F(3)
             
-                        
-            
+            if (ni .eq. 1) then
+                normalize_pdx=(pdx-routing_setup%hydrau_coef_boundaries(1))/&
+                &(routing_setup%hydrau_coef_boundaries(2)-routing_setup%hydrau_coef_boundaries(1))
+            else if (ni .eq. 2) then
+                normalize_pdx=(pdx-routing_setup%spreading_boundaries(1))/&
+                &(routing_setup%spreading_boundaries(2)-routing_setup%spreading_boundaries(1))
+            end if
             !Calcul de la variation du cout:
-            WRITE(*,*) "Direct Model, derivative = ", (COST_F(2)-COST_F(3))/2.0/pdx
+            WRITE(*,*) "Direct Model, derivative = ", (COST_F(2)-COST_F(3))/2.0/normalize_pdx
             WRITE(*,*) ""
 
 
@@ -285,22 +298,26 @@ subroutine manual_gradient_test()
             if (ni.eq.1) then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0,spreading=1.0)
+                &hc=1.0,sc=1.0)
                 
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameterd,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=pdx*1.0,spreading=0.0)
-                routing_parameterd%spreading=0.0 !!! Attention routing_parameter_self_initialisation n'accepte pas des valeurs de 0.0
+                &hc=pdx*1.0,sc=0.0)
+                routing_parameterd%sc=0.0 !!! Attention routing_parameter_self_initialisation n'accepte pas des valeurs de 0.0
+                routing_parameterd%sc_n=0.0 !!! Attention routing_parameter_self_initialisation n'accepte pas des valeurs de 0.0
+                routing_parameterd%hc_n=normalize_pdx*1.0
                 
             elseif(ni.eq.2)then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0,spreading=1.0)
+                &hc=1.0,sc=1.0)
                 
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameterd,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=0.0,spreading=pdx*1.0)
-                routing_parameterd%hydraulics_coefficient=0.0 !!! Attention routing_parameter_self_initialisation n'accepte pas des valeurs de 0.0
+                &hc=0.0,sc=pdx*1.0)
+                routing_parameterd%hc=0.0 !!! Attention routing_parameter_self_initialisation n'accepte pas des valeurs de 0.0
+                routing_parameterd%hc_n=0.0 !!! Attention routing_parameter_self_initialisation n'accepte pas des valeurs de 0.0
+                routing_parameterd%sc_n=normalize_pdx*1.0
             endif
             
             ! run gamma accoring spatial parameters  param and spatial time-varying states 
@@ -313,7 +330,7 @@ subroutine manual_gradient_test()
             &   costd)
             write(*,*) "New Cost = ",cost
             
-            WRITE(*,*) "Lineaire Tangent Cost_D = ", costd/pdx !/(pdx*1.0), costd*(pdx*1.0), costd ! Ecriture de la variation du cout par le lineaire tangent :
+            WRITE(*,*) "Lineaire Tangent Cost_D = ", costd/normalize_pdx!/normalize_pdx !/(pdx*1.0), costd*(pdx*1.0), costd ! Ecriture de la variation du cout par le lineaire tangent :
 
 
             WRITE(*,*) ""
@@ -325,20 +342,28 @@ subroutine manual_gradient_test()
             if (ni.eq.1) then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0,spreading=1.0)
+                &hc=1.0,sc=1.0)
                 
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameterb,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=0.,spreading=0.)
+                &hc=0.,sc=0.)
+                routing_parameterb%hc=0.0
+                routing_parameterb%sc=0.0
+                routing_parameterb%hc_n=0.0
+                routing_parameterb%sc_n=0.0
                 
             elseif(ni.eq.2)then
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameter,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=1.0,spreading=1.0)
+                &hc=1.0,sc=1.0)
                 
                 call routing_parameter_self_initialisation(routing_parameter=routing_parameterb,&
                 &routing_setup=routing_setup,routing_mesh=routing_mesh,&
-                &hydraulics_coefficient=0.,spreading=0.)
+                &hc=0.,sc=0.)
+                routing_parameterb%hc=0.0
+                routing_parameterb%sc=0.0
+                routing_parameterb%hc_n=0.0
+                routing_parameterb%sc_n=0.0
             endif
             
             !call adjoint
@@ -351,30 +376,30 @@ subroutine manual_gradient_test()
             &   costb)
             
             write(*,*) "New Cost = ",cost
-            grad(1)=sum(routing_parameterb%hydraulics_coefficient)
-            grad(2)=sum(routing_parameterb%spreading)
+            grad(1)=sum(routing_parameterb%hc_n)
+            grad(2)=sum(routing_parameterb%sc_n)
             write(*,*)"Adjoint Gradient = ",grad
 
 
             WRITE(*,*) ""
 
-            if (abs((COST_F(2)-COST_F(3))/2.0/pdx-costd/pdx).le.THRESHOLD_GRAD_VALIDATION .AND. &
-            & abs(costd/pdx-grad(ni)).le.THRESHOLD_GRAD_VALIDATION .AND. &
-            & abs((COST_F(2)-COST_F(3))/2.0/pdx-grad(ni)).le.THRESHOLD_GRAD_VALIDATION) then
+            if (abs((COST_F(2)-COST_F(3))/2.0/normalize_pdx-costd/normalize_pdx).le.THRESHOLD_GRAD_VALIDATION .AND. &
+            & abs(costd/normalize_pdx-grad(ni)).le.THRESHOLD_GRAD_VALIDATION .AND. &
+            & abs((COST_F(2)-COST_F(3))/2.0/normalize_pdx-grad(ni)).le.THRESHOLD_GRAD_VALIDATION) then
                 write(*,*) "Gradient test OK"
                 VALIDATION=1
             else
                 write(*,*) "Gradient test failed"
                 write(*,*) "Threshold = ",THRESHOLD_GRAD_VALIDATION
                 VALIDATION=0
-                if (abs((COST_F(2)-COST_F(3))/2.0/pdx-costd/pdx).gt.THRESHOLD_GRAD_VALIDATION) then
-                    write(*,*) "Delta COST - Cost_d = ", abs((COST_F(2)-COST_F(3))/2.0/pdx-costd/pdx)
+                if (abs((COST_F(2)-COST_F(3))/2.0/normalize_pdx-costd/normalize_pdx).gt.THRESHOLD_GRAD_VALIDATION) then
+                    write(*,*) "Delta COST - Cost_d = ", abs((COST_F(2)-COST_F(3))/2.0/normalize_pdx-costd/normalize_pdx)
                 endif
                  if (abs(costd/pdx-grad(ni)).gt.THRESHOLD_GRAD_VALIDATION) then
                     write(*,*) "Cost_d - Adjoint_Gradient = ", abs(costd-grad(ni))
                 endif
-                 if (abs((COST_F(2)-COST_F(3))/2.0/pdx-grad(ni)).gt.THRESHOLD_GRAD_VALIDATION) then
-                    write(*,*) "Delta COST - Adjoint_Gradient = ", abs((COST_F(2)-COST_F(3))/2.0/pdx-grad(ni))
+                 if (abs((COST_F(2)-COST_F(3))/2.0/normalize_pdx-grad(ni)).gt.THRESHOLD_GRAD_VALIDATION) then
+                    write(*,*) "Delta COST - Adjoint_Gradient = ", abs((COST_F(2)-COST_F(3))/2.0/normalize_pdx-grad(ni))
                 endif
             endif
 
@@ -388,7 +413,7 @@ subroutine manual_gradient_test()
             else
                 open(10,FILE=trim(filename),access='append')
             endif
-            write(10,*) iter,pdx,(COST_F(2)-COST_F(3))/2.0/pdx,costd/pdx,grad(ni),VALIDATION
+            write(10,*) iter,pdx,normalize_pdx,(COST_F(2)-COST_F(3))/2.0/normalize_pdx,costd/normalize_pdx,grad(ni),VALIDATION
             close(10)
 
         enddo

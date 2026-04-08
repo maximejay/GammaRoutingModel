@@ -483,7 +483,7 @@ mod_gamma_routing_setup = Mod_Gamma_Routing_Setup()
 class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     """
     Module mod_gamma_routing_mesh
-    Defined at mod_routing_mesh.f90 lines 8-247
+    Defined at mod_routing_mesh.f90 lines 8-246
     """
     @f90wrap.runtime.register_class("libfgamma.type_routing_mesh")
     class type_routing_mesh(f90wrap.runtime.FortranDerivedType):
@@ -981,7 +981,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
         nb_upstream_nodes=None, dx=None, interface_call=False):
         """
         routing_mesh_self_initialisation(self[, nb_nodes, nb_upstream_nodes, dx])
-        Defined at mod_routing_mesh.f90 lines 28-82
+        Defined at mod_routing_mesh.f90 lines 28-81
         
         Parameters
         ----------
@@ -997,7 +997,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def routing_mesh_set_control(self, ncontrol, nodes, interface_call=False):
         """
         routing_mesh_set_control(self, ncontrol, nodes)
-        Defined at mod_routing_mesh.f90 lines 84-105
+        Defined at mod_routing_mesh.f90 lines 83-104
         
         Parameters
         ----------
@@ -1012,7 +1012,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def routing_mesh_clear(self, interface_call=False):
         """
         routing_mesh_clear(self)
-        Defined at mod_routing_mesh.f90 lines 107-121
+        Defined at mod_routing_mesh.f90 lines 106-120
         
         Parameters
         ----------
@@ -1024,7 +1024,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def mesh_update(self, interface_call=False):
         """
         mesh_update(self)
-        Defined at mod_routing_mesh.f90 lines 123-139
+        Defined at mod_routing_mesh.f90 lines 122-138
         
         Parameters
         ----------
@@ -1036,7 +1036,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def mesh_compute_cumulated_surface(self, interface_call=False):
         """
         mesh_compute_cumulated_surface(self)
-        Defined at mod_routing_mesh.f90 lines 141-169
+        Defined at mod_routing_mesh.f90 lines 140-168
         
         Parameters
         ----------
@@ -1048,7 +1048,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def mesh_compute_cumulated_node_index(self, interface_call=False):
         """
         mesh_compute_cumulated_node_index(self)
-        Defined at mod_routing_mesh.f90 lines 171-199
+        Defined at mod_routing_mesh.f90 lines 170-198
         
         Parameters
         ----------
@@ -1060,7 +1060,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def mesh_uniq_dx(self, interface_call=False):
         """
         mesh_uniq_dx(self)
-        Defined at mod_routing_mesh.f90 lines 201-242
+        Defined at mod_routing_mesh.f90 lines 200-241
         
         Parameters
         ----------
@@ -1072,7 +1072,7 @@ class Mod_Gamma_Routing_Mesh(f90wrap.runtime.FortranModule):
     def routing_mesh_copy(self, interface_call=False):
         """
         object_copy = routing_mesh_copy(self)
-        Defined at mod_routing_mesh.f90 lines 244-247
+        Defined at mod_routing_mesh.f90 lines 243-246
         
         Parameters
         ----------
@@ -1099,20 +1099,20 @@ mod_gamma_routing_mesh = Mod_Gamma_Routing_Mesh()
 class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
     """
     Module mod_gamma_routing_parameters
-    Defined at mod_routing_parameters.f90 lines 8-83
+    Defined at mod_routing_parameters.f90 lines 8-132
     """
     @f90wrap.runtime.register_class("libfgamma.type_routing_parameter")
     class type_routing_parameter(f90wrap.runtime.FortranDerivedType):
         """
         Type(name=type_routing_parameter)
-        Defined at mod_routing_parameters.f90 lines 10-13
+        Defined at mod_routing_parameters.f90 lines 12-17
         """
         def __init__(self, handle=None):
             """
             Automatically generated constructor for type_routing_parameter
             
             self = Type_Routing_Parameter()
-            Defined at mod_routing_parameters.f90 lines 10-13
+            Defined at mod_routing_parameters.f90 lines 12-17
             
             Returns
             -------
@@ -1140,71 +1140,126 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
                 self._finalizer = weakref.finalize(self, destructor, self._handle)
         
         @property
-        def hydraulics_coefficient(self):
+        def hc(self):
             """
-            Element hydraulics_coefficient ftype=real pytype=float array
-            Defined at mod_routing_parameters.f90 line 11
+            Element hc ftype=real pytype=float array
+            Defined at mod_routing_parameters.f90 line 13
             """
             array_ndim, array_type, array_shape, array_handle = \
-                _libfgamma.f90wrap_type_routing_parameter__array__hydraulics_coefficient(self._handle)
+                _libfgamma.f90wrap_type_routing_parameter__array__hc(self._handle)
             array_hash = hash((array_ndim, array_type, tuple(array_shape), array_handle))
-            hydraulics_coefficient = self._arrays.get(array_hash)
-            if hydraulics_coefficient is not None:
+            hc = self._arrays.get(array_hash)
+            if hc is not None:
                 # Validate cached array: check data pointer matches current handle (issue #222)
                 # Arrays can be deallocated and reallocated at same address, invalidating cache
-                if hydraulics_coefficient.ctypes.data != array_handle:
-                    hydraulics_coefficient = None
-            if hydraulics_coefficient is None:
+                if hc.ctypes.data != array_handle:
+                    hc = None
+            if hc is None:
                 try:
-                    hydraulics_coefficient = \
-                        f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
+                    hc = f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
                                             self._handle,
-                                            _libfgamma.f90wrap_type_routing_parameter__array__hydraulics_coefficient)
+                                            _libfgamma.f90wrap_type_routing_parameter__array__hc)
                 except TypeError:
-                    hydraulics_coefficient = f90wrap.runtime.direct_c_array(array_type, array_shape, \
-                        array_handle)
-                self._arrays[array_hash] = hydraulics_coefficient
-            return hydraulics_coefficient
+                    hc = f90wrap.runtime.direct_c_array(array_type, array_shape, array_handle)
+                self._arrays[array_hash] = hc
+            return hc
         
-        @hydraulics_coefficient.setter
-        def hydraulics_coefficient(self, hydraulics_coefficient):
-            self.hydraulics_coefficient[...] = hydraulics_coefficient
+        @hc.setter
+        def hc(self, hc):
+            self.hc[...] = hc
         
         @property
-        def spreading(self):
+        def sc(self):
             """
-            Element spreading ftype=real pytype=float array
-            Defined at mod_routing_parameters.f90 line 12
+            Element sc ftype=real pytype=float array
+            Defined at mod_routing_parameters.f90 line 14
             """
             array_ndim, array_type, array_shape, array_handle = \
-                _libfgamma.f90wrap_type_routing_parameter__array__spreading(self._handle)
+                _libfgamma.f90wrap_type_routing_parameter__array__sc(self._handle)
             array_hash = hash((array_ndim, array_type, tuple(array_shape), array_handle))
-            spreading = self._arrays.get(array_hash)
-            if spreading is not None:
+            sc = self._arrays.get(array_hash)
+            if sc is not None:
                 # Validate cached array: check data pointer matches current handle (issue #222)
                 # Arrays can be deallocated and reallocated at same address, invalidating cache
-                if spreading.ctypes.data != array_handle:
-                    spreading = None
-            if spreading is None:
+                if sc.ctypes.data != array_handle:
+                    sc = None
+            if sc is None:
                 try:
-                    spreading = f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
+                    sc = f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
                                             self._handle,
-                                            _libfgamma.f90wrap_type_routing_parameter__array__spreading)
+                                            _libfgamma.f90wrap_type_routing_parameter__array__sc)
                 except TypeError:
-                    spreading = f90wrap.runtime.direct_c_array(array_type, array_shape, \
-                        array_handle)
-                self._arrays[array_hash] = spreading
-            return spreading
+                    sc = f90wrap.runtime.direct_c_array(array_type, array_shape, array_handle)
+                self._arrays[array_hash] = sc
+            return sc
         
-        @spreading.setter
-        def spreading(self, spreading):
-            self.spreading[...] = spreading
+        @sc.setter
+        def sc(self, sc):
+            self.sc[...] = sc
+        
+        @property
+        def hc_n(self):
+            """
+            Element hc_n ftype=real pytype=float array
+            Defined at mod_routing_parameters.f90 line 15
+            """
+            array_ndim, array_type, array_shape, array_handle = \
+                _libfgamma.f90wrap_type_routing_parameter__array__hc_n(self._handle)
+            array_hash = hash((array_ndim, array_type, tuple(array_shape), array_handle))
+            hc_n = self._arrays.get(array_hash)
+            if hc_n is not None:
+                # Validate cached array: check data pointer matches current handle (issue #222)
+                # Arrays can be deallocated and reallocated at same address, invalidating cache
+                if hc_n.ctypes.data != array_handle:
+                    hc_n = None
+            if hc_n is None:
+                try:
+                    hc_n = f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
+                                            self._handle,
+                                            _libfgamma.f90wrap_type_routing_parameter__array__hc_n)
+                except TypeError:
+                    hc_n = f90wrap.runtime.direct_c_array(array_type, array_shape, array_handle)
+                self._arrays[array_hash] = hc_n
+            return hc_n
+        
+        @hc_n.setter
+        def hc_n(self, hc_n):
+            self.hc_n[...] = hc_n
+        
+        @property
+        def sc_n(self):
+            """
+            Element sc_n ftype=real pytype=float array
+            Defined at mod_routing_parameters.f90 line 16
+            """
+            array_ndim, array_type, array_shape, array_handle = \
+                _libfgamma.f90wrap_type_routing_parameter__array__sc_n(self._handle)
+            array_hash = hash((array_ndim, array_type, tuple(array_shape), array_handle))
+            sc_n = self._arrays.get(array_hash)
+            if sc_n is not None:
+                # Validate cached array: check data pointer matches current handle (issue #222)
+                # Arrays can be deallocated and reallocated at same address, invalidating cache
+                if sc_n.ctypes.data != array_handle:
+                    sc_n = None
+            if sc_n is None:
+                try:
+                    sc_n = f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
+                                            self._handle,
+                                            _libfgamma.f90wrap_type_routing_parameter__array__sc_n)
+                except TypeError:
+                    sc_n = f90wrap.runtime.direct_c_array(array_type, array_shape, array_handle)
+                self._arrays[array_hash] = sc_n
+            return sc_n
+        
+        @sc_n.setter
+        def sc_n(self, sc_n):
+            self.sc_n[...] = sc_n
         
         @property
         def normalized(self):
             """
             Element normalized ftype=integer  pytype=int32
-            Defined at mod_routing_parameters.f90 line 13
+            Defined at mod_routing_parameters.f90 line 17
             """
             return _libfgamma.f90wrap_type_routing_parameter__get__normalized(self._handle)
         
@@ -1215,10 +1270,14 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
         
         def __str__(self):
             ret = ['<type_routing_parameter>{\n']
-            ret.append('    hydraulics_coefficient : ')
-            ret.append(repr(self.hydraulics_coefficient))
-            ret.append(',\n    spreading : ')
-            ret.append(repr(self.spreading))
+            ret.append('    hc : ')
+            ret.append(repr(self.hc))
+            ret.append(',\n    sc : ')
+            ret.append(repr(self.sc))
+            ret.append(',\n    hc_n : ')
+            ret.append(repr(self.hc_n))
+            ret.append(',\n    sc_n : ')
+            ret.append(repr(self.sc_n))
             ret.append(',\n    normalized : ')
             ret.append(repr(self.normalized))
             ret.append('}')
@@ -1229,29 +1288,61 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
     
     @staticmethod
     def routing_parameter_self_initialisation(self, routing_setup, routing_mesh, \
-        hydraulics_coefficient=None, spreading=None, interface_call=False):
+        hc=None, sc=None, interface_call=False):
         """
-        routing_parameter_self_initialisation(self, routing_setup, routing_mesh[, \
-            hydraulics_coefficient, spreading])
-        Defined at mod_routing_parameters.f90 lines 17-62
+        routing_parameter_self_initialisation(self, routing_setup, routing_mesh[, hc, \
+            sc])
+        Defined at mod_routing_parameters.f90 lines 21-89
         
         Parameters
         ----------
         routing_parameter : Type_Routing_Parameter
         routing_setup : Type_Routing_Setup
         routing_mesh : Type_Routing_Mesh
-        hydraulics_coefficient : float32
-        spreading : float32
+        hc : float32
+        sc : float32
         """
         _libfgamma.f90wrap_mod_gamma_routing_parameters__routing_parameter_selcac8(routing_parameter=self._handle, \
             routing_setup=routing_setup._handle, routing_mesh=routing_mesh._handle, \
-            hydraulics_coefficient=hydraulics_coefficient, spreading=spreading)
+            hc=hc, sc=sc)
+    
+    @staticmethod
+    def normalize_routing_parameters(self, routing_setup, routing_mesh, \
+        interface_call=False):
+        """
+        normalize_routing_parameters(self, routing_setup, routing_mesh)
+        Defined at mod_routing_parameters.f90 lines 91-100
+        
+        Parameters
+        ----------
+        routing_parameter : Type_Routing_Parameter
+        routing_setup : Type_Routing_Setup
+        routing_mesh : Type_Routing_Mesh
+        """
+        _libfgamma.f90wrap_mod_gamma_routing_parameters__normalize_routing_par73a0(routing_parameter=self._handle, \
+            routing_setup=routing_setup._handle, routing_mesh=routing_mesh._handle)
+    
+    @staticmethod
+    def unnormalize_routing_parameters(self, routing_setup, routing_mesh, \
+        interface_call=False):
+        """
+        unnormalize_routing_parameters(self, routing_setup, routing_mesh)
+        Defined at mod_routing_parameters.f90 lines 102-111
+        
+        Parameters
+        ----------
+        routing_parameter : Type_Routing_Parameter
+        routing_setup : Type_Routing_Setup
+        routing_mesh : Type_Routing_Mesh
+        """
+        _libfgamma.f90wrap_mod_gamma_routing_parameters__unnormalize_routing_pe5bc(routing_parameter=self._handle, \
+            routing_setup=routing_setup._handle, routing_mesh=routing_mesh._handle)
     
     @staticmethod
     def routing_parameter_clear(self, interface_call=False):
         """
         routing_parameter_clear(self)
-        Defined at mod_routing_parameters.f90 lines 64-78
+        Defined at mod_routing_parameters.f90 lines 113-127
         
         Parameters
         ----------
@@ -1263,7 +1354,7 @@ class Mod_Gamma_Routing_Parameters(f90wrap.runtime.FortranModule):
     def routing_parameter_copy(self, interface_call=False):
         """
         object_copy = routing_parameter_copy(self)
-        Defined at mod_routing_parameters.f90 lines 80-83
+        Defined at mod_routing_parameters.f90 lines 129-132
         
         Parameters
         ----------
@@ -1290,20 +1381,20 @@ mod_gamma_routing_parameters = Mod_Gamma_Routing_Parameters()
 class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
     """
     Module mod_gamma_routing_states
-    Defined at mod_routing_states.f90 lines 8-126
+    Defined at mod_routing_states.f90 lines 8-113
     """
     @f90wrap.runtime.register_class("libfgamma.type_routing_states")
     class type_routing_states(f90wrap.runtime.FortranDerivedType):
         """
         Type(name=type_routing_states)
-        Defined at mod_routing_states.f90 lines 10-27
+        Defined at mod_routing_states.f90 lines 10-23
         """
         def __init__(self, handle=None):
             """
             Automatically generated constructor for type_routing_states
             
             self = Type_Routing_States()
-            Defined at mod_routing_states.f90 lines 10-27
+            Defined at mod_routing_states.f90 lines 10-23
             
             Returns
             -------
@@ -1410,17 +1501,16 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
             _libfgamma.f90wrap_type_routing_states__set__min_mode(self._handle, min_mode)
         
         @property
-        def max_spreading(self):
+        def max_sc(self):
             """
-            Element max_spreading ftype=real  pytype=float32
+            Element max_sc ftype=real  pytype=float32
             Defined at mod_routing_states.f90 line 16
             """
-            return _libfgamma.f90wrap_type_routing_states__get__max_spreading(self._handle)
+            return _libfgamma.f90wrap_type_routing_states__get__max_sc(self._handle)
         
-        @max_spreading.setter
-        def max_spreading(self, max_spreading):
-            _libfgamma.f90wrap_type_routing_states__set__max_spreading(self._handle, \
-                max_spreading)
+        @max_sc.setter
+        def max_sc(self, max_sc):
+            _libfgamma.f90wrap_type_routing_states__set__max_sc(self._handle, max_sc)
         
         @property
         def window_shift(self):
@@ -1439,7 +1529,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
         def scale_coef(self):
             """
             Element scale_coef ftype=real pytype=float array
-            Defined at mod_routing_states.f90 line 19
+            Defined at mod_routing_states.f90 line 18
             """
             array_ndim, array_type, array_shape, array_handle = \
                 _libfgamma.f90wrap_type_routing_states__array__scale_coef(self._handle)
@@ -1466,41 +1556,10 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
             self.scale_coef[...] = scale_coef
         
         @property
-        def param_normalisation(self):
-            """
-            Element param_normalisation ftype=real pytype=float array
-            Defined at mod_routing_states.f90 line 20
-            """
-            array_ndim, array_type, array_shape, array_handle = \
-                _libfgamma.f90wrap_type_routing_states__array__param_normalisation(self._handle)
-            array_hash = hash((array_ndim, array_type, tuple(array_shape), array_handle))
-            param_normalisation = self._arrays.get(array_hash)
-            if param_normalisation is not None:
-                # Validate cached array: check data pointer matches current handle (issue #222)
-                # Arrays can be deallocated and reallocated at same address, invalidating cache
-                if param_normalisation.ctypes.data != array_handle:
-                    param_normalisation = None
-            if param_normalisation is None:
-                try:
-                    param_normalisation = \
-                        f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
-                                            self._handle,
-                                            _libfgamma.f90wrap_type_routing_states__array__param_normalisation)
-                except TypeError:
-                    param_normalisation = f90wrap.runtime.direct_c_array(array_type, array_shape, \
-                        array_handle)
-                self._arrays[array_hash] = param_normalisation
-            return param_normalisation
-        
-        @param_normalisation.setter
-        def param_normalisation(self, param_normalisation):
-            self.param_normalisation[...] = param_normalisation
-        
-        @property
         def quantile(self):
             """
             Element quantile ftype=real pytype=float array
-            Defined at mod_routing_states.f90 line 21
+            Defined at mod_routing_states.f90 line 20
             """
             array_ndim, array_type, array_shape, array_handle = \
                 _libfgamma.f90wrap_type_routing_states__array__quantile(self._handle)
@@ -1529,7 +1588,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
         def tabulated_delay(self):
             """
             Element tabulated_delay ftype=real pytype=float array
-            Defined at mod_routing_states.f90 line 22
+            Defined at mod_routing_states.f90 line 21
             """
             array_ndim, array_type, array_shape, array_handle = \
                 _libfgamma.f90wrap_type_routing_states__array__tabulated_delay(self._handle)
@@ -1559,7 +1618,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
         def tabulated_spreading(self):
             """
             Element tabulated_spreading ftype=real pytype=float array
-            Defined at mod_routing_states.f90 line 23
+            Defined at mod_routing_states.f90 line 22
             """
             array_ndim, array_type, array_shape, array_handle = \
                 _libfgamma.f90wrap_type_routing_states__array__tabulated_spreading(self._handle)
@@ -1590,7 +1649,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
         def tabulated_routing_coef(self):
             """
             Element tabulated_routing_coef ftype=real pytype=float array
-            Defined at mod_routing_states.f90 line 25
+            Defined at mod_routing_states.f90 line 23
             """
             array_ndim, array_type, array_shape, array_handle = \
                 _libfgamma.f90wrap_type_routing_states__array__tabulated_routing_coef(self._handle)
@@ -1629,14 +1688,12 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
             ret.append(repr(self.max_mode))
             ret.append(',\n    min_mode : ')
             ret.append(repr(self.min_mode))
-            ret.append(',\n    max_spreading : ')
-            ret.append(repr(self.max_spreading))
+            ret.append(',\n    max_sc : ')
+            ret.append(repr(self.max_sc))
             ret.append(',\n    window_shift : ')
             ret.append(repr(self.window_shift))
             ret.append(',\n    scale_coef : ')
             ret.append(repr(self.scale_coef))
-            ret.append(',\n    param_normalisation : ')
-            ret.append(repr(self.param_normalisation))
             ret.append(',\n    quantile : ')
             ret.append(repr(self.quantile))
             ret.append(',\n    tabulated_delay : ')
@@ -1657,7 +1714,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
         """
         routing_state_self_initialisation(self, routing_mesh, routing_parameter, \
             routing_states)
-        Defined at mod_routing_states.f90 lines 30-86
+        Defined at mod_routing_states.f90 lines 26-73
         
         Parameters
         ----------
@@ -1675,7 +1732,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
     def routing_states_clear(self, interface_call=False):
         """
         routing_states_clear(self)
-        Defined at mod_routing_states.f90 lines 106-121
+        Defined at mod_routing_states.f90 lines 93-108
         
         Parameters
         ----------
@@ -1687,7 +1744,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
     def routing_states_copy(self, interface_call=False):
         """
         object_copy = routing_states_copy(self)
-        Defined at mod_routing_states.f90 lines 123-126
+        Defined at mod_routing_states.f90 lines 110-113
         
         Parameters
         ----------
@@ -2436,7 +2493,7 @@ mod_gamma_routing_results = Mod_Gamma_Routing_Results()
 class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
     """
     Module mod_gamma_interface
-    Defined at mod_gamma_interface.f90 lines 8-405
+    Defined at mod_gamma_interface.f90 lines 8-382
     """
     @staticmethod
     def auto_compute_boundaries(self, routing_mesh, observed_discharges, \
@@ -2456,12 +2513,11 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
     
     @staticmethod
     def routing_gamma_change_parameters(self, routing_states, routing_memory, \
-        routing_setup, routing_mesh, hydraulics_coefficient=None, spreading=None, \
-        interface_call=False):
+        routing_setup, routing_mesh, hc=None, sc=None, interface_call=False):
         """
         routing_gamma_change_parameters(self, routing_states, routing_memory, \
-            routing_setup, routing_mesh[, hydraulics_coefficient, spreading])
-        Defined at mod_gamma_interface.f90 lines 90-131
+            routing_setup, routing_mesh[, hc, sc])
+        Defined at mod_gamma_interface.f90 lines 90-132
         
         Parameters
         ----------
@@ -2470,21 +2526,20 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         routing_memory : Type_Routing_Memory
         routing_setup : Type_Routing_Setup
         routing_mesh : Type_Routing_Mesh
-        hydraulics_coefficient : float32
-        spreading : float32
+        hc : float32
+        sc : float32
         """
         _libfgamma.f90wrap_mod_gamma_interface__routing_gamma_change_parameters(routing_parameter=self._handle, \
             routing_states=routing_states._handle, \
             routing_memory=routing_memory._handle, routing_setup=routing_setup._handle, \
-            routing_mesh=routing_mesh._handle, \
-            hydraulics_coefficient=hydraulics_coefficient, spreading=spreading)
+            routing_mesh=routing_mesh._handle, hc=hc, sc=sc)
     
     @staticmethod
     def routing_gamma_precomputation(self, routing_mesh, routing_states, \
         routing_memory, interface_call=False):
         """
         routing_gamma_precomputation(self, routing_mesh, routing_states, routing_memory)
-        Defined at mod_gamma_interface.f90 lines 133-155
+        Defined at mod_gamma_interface.f90 lines 134-156
         
         Parameters
         ----------
@@ -2503,7 +2558,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         """
         routing_states_update(self, routing_setup, routing_mesh, routing_states, \
             routing_memory)
-        Defined at mod_gamma_interface.f90 lines 157-180
+        Defined at mod_gamma_interface.f90 lines 158-182
         
         Parameters
         ----------
@@ -2519,46 +2574,12 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
             routing_memory=routing_memory._handle)
     
     @staticmethod
-    def normalize_routing_parameters(self, routing_mesh, routing_parameter, \
-        interface_call=False):
-        """
-        normalize_routing_parameters(self, routing_mesh, routing_parameter)
-        Defined at mod_gamma_interface.f90 lines 182-194
-        
-        Parameters
-        ----------
-        routing_setup : Type_Routing_Setup
-        routing_mesh : Type_Routing_Mesh
-        routing_parameter : Type_Routing_Parameter
-        """
-        _libfgamma.f90wrap_mod_gamma_interface__normalize_routing_parameters(routing_setup=self._handle, \
-            routing_mesh=routing_mesh._handle, \
-            routing_parameter=routing_parameter._handle)
-    
-    @staticmethod
-    def unnormalize_routing_parameters(self, routing_mesh, routing_parameter, \
-        interface_call=False):
-        """
-        unnormalize_routing_parameters(self, routing_mesh, routing_parameter)
-        Defined at mod_gamma_interface.f90 lines 196-209
-        
-        Parameters
-        ----------
-        routing_setup : Type_Routing_Setup
-        routing_mesh : Type_Routing_Mesh
-        routing_parameter : Type_Routing_Parameter
-        """
-        _libfgamma.f90wrap_mod_gamma_interface__unnormalize_routing_parameters(routing_setup=self._handle, \
-            routing_mesh=routing_mesh._handle, \
-            routing_parameter=routing_parameter._handle)
-    
-    @staticmethod
     def routing_gamma_run(self, routing_mesh, routing_parameter, inflows, \
         routing_states, routing_memory, routing_results, interface_call=False):
         """
         routing_gamma_run(self, routing_mesh, routing_parameter, inflows, \
             routing_states, routing_memory, routing_results)
-        Defined at mod_gamma_interface.f90 lines 211-242
+        Defined at mod_gamma_interface.f90 lines 184-215
         
         Parameters
         ----------
@@ -2584,7 +2605,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         """
         routing_gamma_control(self, routing_mesh, routing_parameter, inflows, \
             observations, routing_states, routing_memory, routing_results)
-        Defined at mod_gamma_interface.f90 lines 244-279
+        Defined at mod_gamma_interface.f90 lines 217-252
         
         Parameters
         ----------
@@ -2611,7 +2632,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         """
         routing_gamma_forward_adjoint_b(self, routing_mesh, routing_parameter, inflows, \
             observations, routing_states, routing_memory, routing_results, gradients)
-        Defined at mod_gamma_interface.f90 lines 281-309
+        Defined at mod_gamma_interface.f90 lines 254-285
         
         Parameters
         ----------
@@ -2639,7 +2660,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         """
         routing_gamma_forward_adjoint_b0(self, routing_mesh, routing_parameter, inflows, \
             observations, routing_states, routing_memory, routing_results, gradients)
-        Defined at mod_gamma_interface.f90 lines 311-339
+        Defined at mod_gamma_interface.f90 lines 287-318
         
         Parameters
         ----------
@@ -2666,7 +2687,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         """
         routing_gamma_cost_function(self, routing_mesh, routing_parameter, observations, \
             qnetwork, routing_results)
-        Defined at mod_gamma_interface.f90 lines 341-371
+        Defined at mod_gamma_interface.f90 lines 320-348
         
         Parameters
         ----------
@@ -2688,7 +2709,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         """
         routing_gamma_linear_interpolation(delay, index_varying_dx, routing_states, \
             gamma_coefficient)
-        Defined at mod_gamma_interface.f90 lines 374-380
+        Defined at mod_gamma_interface.f90 lines 351-357
         
         Parameters
         ----------
@@ -2707,7 +2728,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         """
         interface_compute_routing_coefficient(scale, mode, quantile, window_shift, \
             density_function, gamma_coefficient)
-        Defined at mod_gamma_interface.f90 lines 396-404
+        Defined at mod_gamma_interface.f90 lines 373-381
         
         Parameters
         ----------

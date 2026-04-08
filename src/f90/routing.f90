@@ -102,7 +102,7 @@ program routing
     write(*,*) ""
     call routing_parameter_self_initialisation(routing_parameter=routing_parameter,routing_setup=routing_setup,&
     &routing_mesh=routing_mesh,&
-    &hydraulics_coefficient=0.5,spreading=1.)
+    &hc=0.5,sc=1.)
     
     
     write(*,*) "routing_state_self_initialisation..."
@@ -130,9 +130,8 @@ program routing
     write(*,*) "routing_states%scale_coef=",routing_states%scale_coef
     write(*,*) "routing_states%window_length=",routing_states%window_length    
     write(*,*) "routing_states%nb_spreads=",routing_states%nb_spreads    
-    write(*,*) "routing_states%max_spreading=",routing_states%max_spreading
+    write(*,*) "routing_states%max_sc=",routing_states%max_sc
     write(*,*) "routing_states%window_shift=",routing_states%window_shift 
-    write(*,*) "routing_states%param_normalisation=",routing_states%param_normalisation
     write(*,*) "routing_states%quantile=",routing_states%quantile
     write(*,*) "routing_states%tabulated_delay=",routing_states%tabulated_delay
     write(*,*) "routing_states%tabulated_routing_coef=",routing_states%tabulated_routing_coef(1,1,:,1)
@@ -195,7 +194,7 @@ program routing
     write(*,*) ""
     call routing_parameter_self_initialisation(routing_parameter=routing_parameter,routing_setup=routing_setup,&
     &routing_mesh=routing_mesh,&
-    &hydraulics_coefficient=0.5,spreading=1.)
+    &hc=0.5,sc=1.)
     
     write(*,*) "routing_state_self_initialisation..."
     write(*,*) ""
@@ -251,7 +250,7 @@ program routing
     write(*,*) ""
     call routing_parameter_self_initialisation(routing_parameter=routing_parameter,routing_setup=routing_setup,&
     &routing_mesh=routing_mesh,&
-    &hydraulics_coefficient=0.5,spreading=1.)
+    &hc=0.5,sc=1.)
     
     write(*,*) "routing_state_self_initialisation..."
     write(*,*) ""
@@ -292,7 +291,7 @@ program routing
     write(*,*) ""
     call routing_parameter_self_initialisation(routing_parameter=routing_parameter,routing_setup=routing_setup,&
     &routing_mesh=routing_mesh,&
-    &hydraulics_coefficient=0.5,spreading=1.)
+    &hc=0.5,sc=1.)
     
     write(*,*) "routing_state_self_initialisation..."
     write(*,*) ""
@@ -378,7 +377,7 @@ program routing
     write(*,*) ""
     call routing_parameter_self_initialisation(routing_parameter=routing_parameter,routing_setup=routing_setup,&
     &routing_mesh=routing_mesh,&
-    &hydraulics_coefficient=1.0,spreading=1.0)
+    &hc=1.0,sc=1.0)
     
     
     write(*,*) "routing_state_self_initialisation..."
@@ -401,7 +400,7 @@ program routing
     write(*,*) "routing_states%max_mode=",routing_states%max_mode    
     write(*,*) "routing_states%nb_mode=",routing_states%nb_mode    
     write(*,*) "routing_states%nb_spreads=",routing_states%nb_spreads    
-    write(*,*) "routing_states%max_spreading=",routing_states%max_spreading
+    write(*,*) "routing_states%max_sc=",routing_states%max_sc
     write(*,*) "routing_states%window_shift=",routing_states%window_shift 
     write(*,*) ""
     
@@ -436,10 +435,10 @@ program routing
     write(*,*) "routing_gamma_change_parameters..."
     write(*,*) ""
     call routing_gamma_change_parameters(routing_parameter,routing_states,routing_memory,routing_setup,&
-    &routing_mesh,hydraulics_coefficient=0.5,spreading=1.4)
+    &routing_mesh,hc=0.5,sc=1.4)
     
-    write(*,*) routing_parameter%hydraulics_coefficient
-    write(*,*) routing_parameter%spreading
+    write(*,*) routing_parameter%hc
+    write(*,*) routing_parameter%sc
     pause
     
     write(*,*) "routing_hydrogram_forward..."
@@ -518,7 +517,7 @@ program routing
 !~     write(*,*) "routing_states%max_mode=",routing_states%max_mode    
 !~     write(*,*) "routing_states%nb_mode=",routing_states%nb_mode    
 !~     write(*,*) "routing_states%nb_spreads=",routing_states%nb_spreads    
-!~     write(*,*) "routing_states%max_spreading=",routing_states%max_spreading
+!~     write(*,*) "routing_states%max_sc=",routing_states%max_sc
 !~     write(*,*) "routing_states%window_shift=",routing_states%window_shift 
 !~     write(*,*) ""
       
@@ -550,7 +549,7 @@ program routing
     
 !~     call routing_parameter_clear(routing_parameter)
 !~     call routing_parameter_self_initialisation(routing_parameter=routing_parameter,routing_setup=routing_setup,&
-!~     &routing_mesh=routing_mesh,hydraulics_coefficient=1,spreading=1800.)
+!~     &routing_mesh=routing_mesh,hc=1,sc=1800.)
     
     
 !~     call routing_states_clear(routing_states)
@@ -631,7 +630,7 @@ program routing
     
 !~     call routing_setup_clear(routing_setup)
 !~     call routing_setup_self_initialisation(routing_setup,dt=900.,vmin=0.1,vmax=10.,&
-!~     &max_spreading=9000.0,elongation_factor=1.0,mode_discretization_step=0.1,spreading_discretization_step=300.&
+!~     &max_sc=9000.0,elongation_factor=1.0,mode_discretization_step=0.1,spreading_discretization_step=300.&
 !~     &,velocity_computation="qmm",varying_spread=1)
     
 !~     routing_mesh%dx=1000.0
@@ -646,7 +645,7 @@ program routing
 !~     write(*,*) "routing_states%max_mode=",routing_states_3D%max_mode    
 !~     write(*,*) "routing_states%nb_mode=",routing_states_3D%nb_mode    
 !~     write(*,*) "routing_states%nb_spreads=",routing_states_3D%nb_spreads    
-!~     write(*,*) "routing_states%max_spreading=",routing_states_3D%max_spreading
+!~     write(*,*) "routing_states%max_sc=",routing_states_3D%max_sc
 !~     write(*,*) "routing_states%window_shift=",routing_states_3D%window_shift 
 !~     write(*,*) ""
       
@@ -663,18 +662,18 @@ program routing
     
 !~     velocity=0.5
 !~     mode=routing_mesh%dx(1)/(velocity*routing_setup%dt)
-!~     routing_parameter_3D%spreading=900.
+!~     routing_parameter_3D%sc=900.
 !~     elongation_coefficient=1.
     
 !~     allocate(interpolated_gamma_coefficient(maxval(routing_states_3D%window_length)))
     
-!~     !call interpolated_routing_coefficients_3D(mode,routing_parameter_3D%spreading(1),maxval(routing_states_3D%window_length)&
+!~     !call interpolated_routing_coefficients_3D(mode,routing_parameter_3D%sc(1),maxval(routing_states_3D%window_length)&
 !~     !&,size(routing_states_3D%tabulated_delay),size(routing_states_3D%tabulated_spreading),&
 !~     !&routing_states_3D%tabulated_delay,routing_states_3D%tabulated_spreading,&
 !~     !&routing_states_3D%tabulated_routing_coef,interpolated_gamma_coefficient)
     
 !~     call new_interpolated_routing_coefficients_linear(mode,routing_states_3D,interpolated_gamma_coefficient)
-!~     !call new_interpolated_routing_coefficients_3D(mode,routing_parameter_3D%spreading(1),routing_states_3D,&
+!~     !call new_interpolated_routing_coefficients_3D(mode,routing_parameter_3D%sc(1),routing_states_3D,&
 !~     !&interpolated_gamma_coefficient)
     
 !~     filename="out/new_interpolated_routing_coefficients_bilinear.txt"

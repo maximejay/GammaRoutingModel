@@ -174,14 +174,14 @@ subroutine regularization(routing_mesh,routing_parameter,penalty)
         endif
         
         penalty=penalty+&
-        &0.5*((routing_parameter%hydraulics_coefficient(current_node)-&
-        &routing_parameter%hydraulics_coefficient(previous_node))**2.&
-        &-(routing_parameter%hydraulics_coefficient(current_node)-&
-        &routing_parameter%hydraulics_coefficient(next_node))**2.)**2.
+        &0.5*((routing_parameter%hc_n(current_node)-&
+        &routing_parameter%hc_n(previous_node))**2.&
+        &-(routing_parameter%hc_n(current_node)-&
+        &routing_parameter%hc_n(next_node))**2.)**2.
         
         penalty=penalty+&
-        &0.5*((routing_parameter%spreading(current_node)-routing_parameter%spreading(previous_node))**2.&
-        &-(routing_parameter%spreading(current_node)-routing_parameter%spreading(next_node))**2.)**2.
+        &0.5*((routing_parameter%sc_n(current_node)-routing_parameter%sc_n(previous_node))**2.&
+        &-(routing_parameter%sc_n(current_node)-routing_parameter%sc_n(next_node))**2.)**2.
         
     end do
     
