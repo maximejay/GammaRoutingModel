@@ -1434,13 +1434,16 @@ def OptimizeCoupledModel(
 
 
 def calibration_parameters_smash(
-    model_smash,
-    model_gamma,
+    model_smash_bck,
+    model_gamma_bck,
     observations,
     bounds,
     states_init=True,
     memory_reset=True,
 ):
+
+    model_smash = model_smash_bck.copy()
+    model_gamma = model_gamma_bck.copy()
 
     pos_cp = np.where(model_smash.rr_parameters.keys == "cp")
     pos_ct = np.where(model_smash.rr_parameters.keys == "ct")
@@ -1486,11 +1489,20 @@ def calibration_parameters_smash(
             "disp": True,
             "maxiter": 30,
             "verbose": 1,
-            "maxfun": 30,
+            "maxfun": 100,
         },
     )
 
-    return res
+    return_var = model_smash.forward_run(
+        return_options={"q_domain": True, "q_domain_kind_qt": True}
+    )
+
+    inflows = smash_time_grid_to_time_vector_active_cells(
+        return_var.q_domain, model_smash
+    )
+    model_gamma.run(inflows.transpose(), states_init=False, memory_reset=True)
+
+    return res, model_smash, model_gamma
 
 
 def run_backward_djdx(X, model_smash, model_gamma, observations, bounds):
@@ -1498,13 +1510,13 @@ def run_backward_djdx(X, model_smash, model_gamma, observations, bounds):
     pos_cp = np.where(model_smash.rr_parameters.keys == "cp")
     pos_ct = np.where(model_smash.rr_parameters.keys == "ct")
     shape_param = model_smash.rr_parameters.values.shape
-    newX = np.reshape(X, shape=(shape_param[0], shape_param[1], 2))
+    newX = np.reshape(X, shape=(shape_param[0], 2, shape_param[1]))
 
     model_smash.rr_parameters.values[:, :, pos_cp[0][0]] = (
-        newX[:, :, 0] * (bounds["cp"][1] - bounds["cp"][0]) + bounds["cp"][0]
+        newX[:, 0, :] * (bounds["cp"][1] - bounds["cp"][0]) + bounds["cp"][0]
     )
     model_smash.rr_parameters.values[:, :, pos_ct[0][0]] = (
-        newX[:, :, 1] * (bounds["ct"][1] - bounds["ct"][0]) + bounds["ct"][0]
+        newX[:, 1, :] * (bounds["ct"][1] - bounds["ct"][0]) + bounds["ct"][0]
     )
 
     return_var = model_smash.forward_run(
@@ -1551,6 +1563,8 @@ def run_backward_djdx(X, model_smash, model_gamma, observations, bounds):
             "bounds": bounds,
         },
     )
+    # control_smash = {"ParamList": ["cp", "ct"], "bounds": bounds}
+    # SmashGradients = _get_smash_gradient(model_smash, control_smash=control_smash)
 
     gradients_cp = (
         int_gamma_gradient[:] * SmashGradients[0 : model_gamma.routing_mesh.nb_nodes]

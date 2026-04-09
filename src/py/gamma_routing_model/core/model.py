@@ -197,6 +197,27 @@ class Model(object):
         for key, value in options.items():
             setattr(self.routing_parameters, key, value)
 
+    def boundaries_change(self, **kwargs):
+
+        options = kwargs
+
+        if options is None:
+            options = {}
+
+        for key, value in options.items():
+            if key == "hydrau_coef_boundaries":
+                self.routing_setup.hydrau_coef_boundaries = value
+            elif key == "spreading_boundaries":
+                self.routing_setup.spreading_boundaries = value
+            else:
+                raise ValueError(f"Wrong parameter name {key}.")
+
+        Mod_Gamma_Routing_Parameters.normalize_routing_parameters(
+            self.routing_parameters, self.routing_setup, self.routing_mesh
+        )
+
+        self.routing_states_init()
+
     def routing_parameters_change(self, **kwargs):
 
         options = kwargs
