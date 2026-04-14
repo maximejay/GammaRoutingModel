@@ -55,16 +55,14 @@ subroutine cost_function(routing_setup,routing_mesh,routing_parameter,observatio
     cost=0.
     tab_cost=0.
     cost_final=0.
-    
-    
-    !write(*,*) any((observations-qnetwork)**2.>0)
-    
+    numobs=0.
     
     nb_controlled_nodes=size(routing_mesh%controlled_nodes)
     
     select case(trim(routing_setup%criteria))
-    case("rmse")
+    case("mse")
         
+        numobs=0.
         cost=0.
         do j=1, nb_controlled_nodes
             
@@ -75,6 +73,7 @@ subroutine cost_function(routing_setup,routing_mesh,routing_parameter,observatio
                 do i=routing_setup%pdt_start_optim,routing_setup%npdt
                     
                     if (observations(i,k)>=0.) then
+                        numobs=numobs+1.0
                         cost=cost+(observations(i,k)-qnetwork(i,k))**2.
                     end if
                 
@@ -83,6 +82,33 @@ subroutine cost_function(routing_setup,routing_mesh,routing_parameter,observatio
             endif
             
         enddo
+        
+        cost=cost/numobs
+    
+    case("rmse")
+        
+        numobs=0.
+        cost=0.
+        do j=1, nb_controlled_nodes
+            
+            k=routing_mesh%controlled_nodes(j)
+            
+            if ( (k>0) .and. (k<=routing_mesh%nb_nodes) ) then
+                
+                do i=routing_setup%pdt_start_optim,routing_setup%npdt
+                    
+                    if (observations(i,k)>=0.) then
+                        numobs=numobs+1.0
+                        cost=cost+(observations(i,k)-qnetwork(i,k))**2.
+                    end if
+                
+                end do
+                
+            endif
+            
+        enddo
+        
+        cost=sqrt(cost/numobs)
         
     case("nse")
         
@@ -130,6 +156,7 @@ subroutine cost_function(routing_setup,routing_mesh,routing_parameter,observatio
     call regularization(routing_mesh,routing_parameter,penalty)
     
     cost_final=routing_setup%ponderation_cost*cost + routing_setup%ponderation_regul*penalty
+!~     cost_final=cost + penalty
     
     tab_cost(1)=cost_final
     tab_cost(2)=cost

@@ -165,9 +165,8 @@ MODULE MOD_GAMMA_ROUTING_STATES_DIFF_D
 !the lowest mode i.e for vmax and dx min
 !the highest spreading values in s/m
 !shift so that the peak of the PDF is located at x=dmin/vmax
-!non uniform scale coefficient computed thanks to the max_spread coeff
-!~         real, dimension(2) :: param_normalisation !Array of factor to normaize the model parameters (hydraulic_coeff, spreadin
-!g)
+!non uniform scale coefficient computed thanks to the max_spread coeff &
+!&(sert seulement à calculer windows_length)
 !quantiles series to compute the Gamma pdf/cdf 
 !tabulated delay (or mode) to locate the Gamma pdf
 !tabulated spreading to spread the Gamma pdf
@@ -546,7 +545,8 @@ CONTAINS
       moded = -(temp*velocityd/velocity)
       mode = temp
       index_varying_dx = routing_mesh%index_varying_dx(current_node)
-!~             write(*,*) i,qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%dt
+!~             write(*,*) i,current_node,inflows(current_node),qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%
+!dt
       IF (routing_setup%varying_spread .EQ. 1) THEN
         spreading_unnd = X_UNN_D(routing_setup%spreading_boundaries(1), &
 &         routing_setup%spreading_boundaries(2), routing_parameter%sc_n(&
@@ -620,7 +620,8 @@ CONTAINS
       velocities(current_node) = velocity
       mode = routing_mesh%dx(current_node)/velocity/routing_setup%dt
       index_varying_dx = routing_mesh%index_varying_dx(current_node)
-!~             write(*,*) i,qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%dt
+!~             write(*,*) i,current_node,inflows(current_node),qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%
+!dt
       IF (routing_setup%varying_spread .EQ. 1) THEN
         spreading_unn = X_UNN(routing_setup%spreading_boundaries(1), &
 &         routing_setup%spreading_boundaries(2), routing_parameter%sc_n(&
@@ -1846,13 +1847,16 @@ SUBROUTINE COST_FUNCTION_D(routing_setup, routing_mesh, &
   INTEGER :: nb_controlled_nodes
   INTRINSIC SIZE
   INTRINSIC TRIM
+  INTRINSIC SQRT
+  REAL :: temp
   cost = 0.
   tab_cost = 0.
   cost_final = 0.
-!write(*,*) any((observations-qnetwork)**2.>0)
+  numobs = 0.
   nb_controlled_nodes = SIZE(routing_mesh%controlled_nodes)
   SELECT CASE  (TRIM(routing_setup%criteria)) 
-  CASE ('rmse') 
+  CASE ('mse') 
+    numobs = 0.
     cost = 0.
     costd = 0.0
     DO j=1,nb_controlled_nodes
@@ -1860,6 +1864,7 @@ SUBROUTINE COST_FUNCTION_D(routing_setup, routing_mesh, &
       IF (k .GT. 0 .AND. k .LE. routing_mesh%nb_nodes) THEN
         DO i=routing_setup%pdt_start_optim,routing_setup%npdt
           IF (observations(i, k) .GE. 0.) THEN
+            numobs = numobs + 1.0
             costd = costd - 2.*(observations(i, k)-qnetwork(i, k))*&
 &             qnetworkd(i, k)
             cost = cost + (observations(i, k)-qnetwork(i, k))**2.
@@ -1867,6 +1872,32 @@ SUBROUTINE COST_FUNCTION_D(routing_setup, routing_mesh, &
         END DO
       END IF
     END DO
+    costd = costd/numobs
+    cost = cost/numobs
+  CASE ('rmse') 
+    numobs = 0.
+    cost = 0.
+    costd = 0.0
+    DO j=1,nb_controlled_nodes
+      k = routing_mesh%controlled_nodes(j)
+      IF (k .GT. 0 .AND. k .LE. routing_mesh%nb_nodes) THEN
+        DO i=routing_setup%pdt_start_optim,routing_setup%npdt
+          IF (observations(i, k) .GE. 0.) THEN
+            numobs = numobs + 1.0
+            costd = costd - 2.*(observations(i, k)-qnetwork(i, k))*&
+&             qnetworkd(i, k)
+            cost = cost + (observations(i, k)-qnetwork(i, k))**2.
+          END IF
+        END DO
+      END IF
+    END DO
+    temp = SQRT(cost/numobs)
+    IF (cost/numobs .EQ. 0.0) THEN
+      costd = 0.0
+    ELSE
+      costd = costd/(2.0*temp*numobs)
+    END IF
+    cost = temp
   CASE ('nse') 
     cost = 0.
     costd = 0.0
@@ -1913,6 +1944,7 @@ SUBROUTINE COST_FUNCTION_D(routing_setup, routing_mesh, &
 &   ponderation_regul*penaltyd
   cost_final = routing_setup%ponderation_cost*cost + routing_setup%&
 &   ponderation_regul*penalty
+!~     cost_final=cost + penalty
   tab_cost(1) = cost_final
   tab_cost(2) = cost
   tab_cost(3) = penalty
@@ -1971,23 +2003,43 @@ SUBROUTINE COST_FUNCTION_NODIFF_D(routing_setup, routing_mesh, &
   INTEGER :: nb_controlled_nodes
   INTRINSIC SIZE
   INTRINSIC TRIM
+  INTRINSIC SQRT
   cost = 0.
   tab_cost = 0.
   cost_final = 0.
-!write(*,*) any((observations-qnetwork)**2.>0)
+  numobs = 0.
   nb_controlled_nodes = SIZE(routing_mesh%controlled_nodes)
   SELECT CASE  (TRIM(routing_setup%criteria)) 
-  CASE ('rmse') 
+  CASE ('mse') 
+    numobs = 0.
     cost = 0.
     DO j=1,nb_controlled_nodes
       k = routing_mesh%controlled_nodes(j)
       IF (k .GT. 0 .AND. k .LE. routing_mesh%nb_nodes) THEN
         DO i=routing_setup%pdt_start_optim,routing_setup%npdt
-          IF (observations(i, k) .GE. 0.) cost = cost + (observations(i&
-&             , k)-qnetwork(i, k))**2.
+          IF (observations(i, k) .GE. 0.) THEN
+            numobs = numobs + 1.0
+            cost = cost + (observations(i, k)-qnetwork(i, k))**2.
+          END IF
         END DO
       END IF
     END DO
+    cost = cost/numobs
+  CASE ('rmse') 
+    numobs = 0.
+    cost = 0.
+    DO j=1,nb_controlled_nodes
+      k = routing_mesh%controlled_nodes(j)
+      IF (k .GT. 0 .AND. k .LE. routing_mesh%nb_nodes) THEN
+        DO i=routing_setup%pdt_start_optim,routing_setup%npdt
+          IF (observations(i, k) .GE. 0.) THEN
+            numobs = numobs + 1.0
+            cost = cost + (observations(i, k)-qnetwork(i, k))**2.
+          END IF
+        END DO
+      END IF
+    END DO
+    cost = SQRT(cost/numobs)
   CASE ('nse') 
     cost = 0.
     DO j=1,nb_controlled_nodes
@@ -2018,6 +2070,7 @@ SUBROUTINE COST_FUNCTION_NODIFF_D(routing_setup, routing_mesh, &
   CALL REGULARIZATION_NODIFF_D(routing_mesh, routing_parameter, penalty)
   cost_final = routing_setup%ponderation_cost*cost + routing_setup%&
 &   ponderation_regul*penalty
+!~     cost_final=cost + penalty
   tab_cost(1) = cost_final
   tab_cost(2) = cost
   tab_cost(3) = penalty

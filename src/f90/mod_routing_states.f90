@@ -24,8 +24,8 @@ module mod_gamma_routing_states
         real :: min_mode !the lowest mode i.e for vmax and dx min
         real :: max_sc !the highest spreading values in s/m
         real :: window_shift !shift so that the peak of the PDF is located at x=dmin/vmax
-        real,dimension(:),allocatable :: scale_coef !non uniform scale coefficient computed thanks to the max_spread coeff
-!~         real, dimension(2) :: param_normalisation !Array of factor to normaize the model parameters (hydraulic_coeff, spreading)
+        real,dimension(:),allocatable :: scale_coef !non uniform scale coefficient computed thanks to the max_spread coeff &
+        !&(sert seulement à calculer windows_length)
         real, dimension(:), allocatable :: quantile !quantiles series to compute the Gamma pdf/cdf 
         real, dimension(:), allocatable :: tabulated_delay !tabulated delay (or mode) to locate the Gamma pdf
         real, dimension(:), allocatable :: tabulated_spreading !tabulated spreading to spread the Gamma pdf

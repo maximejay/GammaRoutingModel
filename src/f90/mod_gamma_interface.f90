@@ -176,15 +176,14 @@ module mod_gamma_interface
             if (routing_setup%varying_spread>0) then
                 routing_states%max_sc=routing_setup%spreading_boundaries(2)
                 routing_states%nb_spreads=int(routing_states%max_sc/routing_setup%spreading_discretization_step)+1
-            else
+            else ! pas d'optim
                 routing_states%nb_spreads=1
                 routing_states%max_sc=maxval(routing_parameter%sc)
+                !recompute and reallocate some variables in routing states
+                call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
+                call routing_memory_self_initialisation(routing_mesh, routing_states, routing_memory) 
             end if
-            
-            !recompute and reallocate some variables in routing states
-            call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
-            call routing_memory_self_initialisation(routing_mesh, routing_states, routing_memory)
-            
+
         end if
         
         call normalize_routing_parameters(routing_parameter, routing_setup, routing_mesh)
@@ -192,7 +191,7 @@ module mod_gamma_interface
     end subroutine routing_gamma_change_parameters
     
     
-    subroutine routing_gamma_precomputation(routing_setup,routing_mesh,routing_states,routing_memory)
+    subroutine routing_gamma_precomputation(routing_setup,routing_mesh,routing_states)
         
         ! Notes
         ! -----
@@ -216,10 +215,8 @@ module mod_gamma_interface
         type(type_routing_setup), intent(in) :: routing_setup
         type(type_routing_mesh), intent(in) :: routing_mesh
         type(type_routing_states), intent(inout) :: routing_states
-        type(type_routing_memory), intent(inout) :: routing_memory
         
         call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
-        call routing_memory_self_initialisation(routing_mesh, routing_states, routing_memory)
         
     end subroutine routing_gamma_precomputation
     
@@ -249,9 +246,11 @@ module mod_gamma_interface
         type(type_routing_states), intent(inout) :: routing_states
         type(type_routing_memory), intent(inout) :: routing_memory
         
-        call routing_state_self_initialisation(routing_setup,routing_mesh,routing_parameter,routing_states)
-        call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
-        call routing_memory_self_initialisation(routing_mesh, routing_states, routing_memory)
+        if (routing_setup%varying_spread .eq. 0) then
+            call routing_state_self_initialisation(routing_setup,routing_mesh,routing_parameter,routing_states)
+            call compute_gamma_parameters(routing_setup,routing_mesh,routing_states)
+            call routing_memory_self_initialisation(routing_mesh, routing_states, routing_memory)
+        end if
         
     end subroutine routing_states_update
     
@@ -289,9 +288,8 @@ module mod_gamma_interface
         type(type_routing_results), intent(inout) :: routing_results
         !real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(inout) :: qnetwork
         !real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(inout) :: vnetwork
-        
         call normalize_routing_parameters(routing_parameter, routing_setup, routing_mesh)
-
+        
         call routing_hydrogram(routing_setup,routing_mesh,routing_parameter,&
         &inflows,routing_states, routing_memory, routing_results)
         

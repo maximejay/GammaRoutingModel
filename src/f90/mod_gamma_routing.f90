@@ -164,12 +164,13 @@ module mod_gamma_routing
             mode=((routing_mesh%dx(current_node)/(velocity))/routing_setup%dt)
             index_varying_dx=routing_mesh%index_varying_dx(current_node)
             
-!~             write(*,*) i,qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%dt
+!~             write(*,*) i,current_node,inflows(current_node),qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%dt
             
             if (routing_setup%varying_spread==1) then
                 
                 spreading_unn=x_unn(routing_setup%spreading_boundaries(1),&
                 &routing_setup%spreading_boundaries(2),routing_parameter%sc_n(current_node))
+                
                 call interpolated_routing_coefficients_bilinear(mode,spreading_unn,&
                 &index_varying_dx,routing_states,gamma_coefficient)
 !~                 call interpolated_routing_coefficients_bicubic(mode,spreading_unn,&
@@ -237,7 +238,6 @@ module mod_gamma_routing
         do i=1,routing_mesh%nb_upstream_nodes
             
             upstream_node=routing_mesh%nodes_linker(i,current_node)
-            
             if (upstream_node>0) then
                 qrout = qrout + states(1,upstream_node)!ici on est en m3/s
             endif

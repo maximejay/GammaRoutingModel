@@ -726,9 +726,6 @@ module mod_gamma_function
             
                 spread_coef=real(j)*spreading_step
                 
-!~                 call generic_compute_gamma_scale(routing_mesh%varying_dx(k),routing_setup%dt,routing_setup%vmax,&
-!~                 &spread_coef,routing_setup%spreading_gamma_threshold,scale_coef)
-                
                 call compute_gamma_scale_coef(routing_mesh%varying_dx(k),routing_setup%dt,routing_setup%vmax,&
                 &spread_coef,routing_setup%spreading_gamma_threshold,scale_coef)
                 

@@ -107,7 +107,174 @@ model_smash_lr = smash.Model(setup, mesh)
 
 setup["routing_module"] = "zero"
 
-# setup["return_opt_grad"] = "qe"
+model_smash_true = smash.Model(setup, mesh)
+model_smash_bck = smash.Model(setup, mesh)
+
+prcp = np.zeros(shape=(1, 9, model_smash_true.setup.ntime_step))
+prcp[0, 0:2, 0:5] = 50.0
+model_smash_true.atmos_data.prcp = prcp
+model_smash_lr.atmos_data.prcp = prcp
+model_smash_bck.atmos_data.prcp = prcp
+model_smash_true.atmos_data.pet = 0.0
+model_smash_lr.atmos_data.pet = 0.0
+model_smash_bck.atmos_data.pet = 0.0
+
+model_smash_true.set_rr_parameters("cp", 200.0)
+model_smash_true.set_rr_parameters("ct", 100.0)
+model_smash_lr.set_rr_parameters("cp", 200.0)
+model_smash_lr.set_rr_parameters("ct", 100.0)
+
+model_smash_true.rr_initial_states.values = 0.5
+model_smash_lr.rr_initial_states.values = 0.5
+model_smash_bck.rr_initial_states.values = 0.5
+
+model_smash_lr.rr_parameters.values[:, :, 4] = 35
+model_smash_lr.forward_run()
+
+return_var_true = model_smash_true.forward_run(
+    return_options={"q_domain": True, "q_domain_kind_qt": True}
+)
+
+model_smash_bck.set_rr_parameters("cp", 100.0)
+model_smash_bck.set_rr_parameters("ct", 50.0)
+
+scenario = "1_sum"
+
+return_var_bck = model_smash_bck.forward_run(
+    return_options={"q_domain": True, "q_domain_kind_qt": True}
+)
+
+
+def smash_time_grid_to_time_vector_active_cells(grid, smash_model):
+
+    vector = np.zeros(shape=(smash_model.mesh.nac, smash_model.setup.ntime_step))
+
+    k = 0
+    for col in range(smash_model.mesh.ncol):
+
+        for row in range(smash_model.mesh.nrow):
+
+            if smash_model.mesh.active_cell[row, col] > 0:
+
+                vector[k, :] = grid[row, col, :]
+                k = k + 1
+
+    return vector
+
+
+qt_true = smash_time_grid_to_time_vector_active_cells(
+    return_var_true.q_domain, model_smash_true
+)
+qt_bck = smash_time_grid_to_time_vector_active_cells(
+    return_var_bck.q_domain, model_smash_bck
+)  #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Apr  2 16:10:01 2026
+
+@author: maxime
+"""
+import numpy as np
+import matplotlib.pyplot as plt
+import gamma_routing_model as gamma
+
+import smash
+import functions_smash_plot
+import functions_smash_stats
+import os
+import rasterio
+import re
+
+dir_results = os.path.join("src", "py", "test", "figures")
+os.makedirs(dir_results, exist_ok=True)
+
+
+def read_ascii_data(filename):
+    ascii_data = {}
+    f = open(filename, "r")
+
+    for line in f:
+
+        strip_line = line.strip()
+        split_line = strip_line.split()
+        res = re.match("[a-zA-Z]*", split_line[0])
+        if len(res.group()) > 0:
+            ascii_data.update({split_line[0]: float(split_line[1])})
+        else:
+            break
+
+    f.close()
+
+    matrix = np.loadtxt(
+        filename,
+        dtype=float,
+        comments="#",
+        delimiter=None,
+        converters=None,
+        skiprows=6,
+        usecols=None,
+        unpack=False,
+        ndmin=0,
+        encoding=None,
+        max_rows=None,
+        quotechar=None,
+        like=None,
+    )
+
+    ascii_data.update({"data": matrix})
+
+    return ascii_data
+
+
+def rasterio_write_tiff(filename, matrix, metadata):
+
+    with rasterio.Env():
+        with rasterio.open(filename, "w", compress="lzw", **metadata) as dst:
+            dst.write(matrix, 1)
+
+
+metadata = {
+    "driver": "GTiff",
+    "dtype": "float64",
+    "nodata": None,
+    "width": 10,
+    "height": 2,
+    "count": 1,
+    "crs": None,
+    "transform": rasterio.Affine(1000.0, 0.0, 1000.0, 0.0, -1000.0, 1000.0),
+}
+
+matrix = read_ascii_data("src/py/test/flwdir.ascii")
+rasterio_write_tiff("src/py/test/flwdir.tif", np.atleast_2d(matrix["data"]), metadata)
+
+
+mesh = smash.factory.generate_mesh(
+    flwdir_path="src/py/test/flwdir.tif",
+    x=[10000.0],
+    y=[0.0],
+    area=1e7,
+    code=["gauge"],
+    epsg="2154",
+)
+
+setup = {}
+setup["hydrological_module"] = "gr4"
+setup["routing_module"] = "lr"
+setup["qobs_directory"] = "/home/maxime/DATA/QOBS_60min"
+setup["prcp_directory"] = "/home/maxime/DATA/PLUIE"
+setup["pet_directory"] = "/home/maxime/DATA/ETP-SFR-FRA-INTERA_L93"
+setup["prcp_conversion_factor"] = 0.1
+setup["read_prcp"] = False
+setup["read_pet"] = False
+setup["read_qobs"] = False
+setup["daily_interannual_pet"] = False
+setup["dt"] = 3600
+setup["start_time"] = "2014-01-01 00:00"
+setup["end_time"] = "2014-01-02 00:00"
+
+model_smash_lr = smash.Model(setup, mesh)
+
+setup["routing_module"] = "zero"
 
 model_smash_true = smash.Model(setup, mesh)
 model_smash_bck = smash.Model(setup, mesh)
@@ -146,11 +313,6 @@ return_var_bck = model_smash_bck.forward_run(
     return_options={"q_domain": True, "q_domain_kind_qt": True}
 )
 
-# model_smash_true.forward_run()
-# model_smash_bck.forward_run()
-# qt_bck = model_smash_bck.response.qac
-# qt_true = model_smash_true.response.qac
-
 
 def smash_time_grid_to_time_vector_active_cells(grid, smash_model):
 
@@ -180,36 +342,95 @@ qt_bck = smash_time_grid_to_time_vector_active_cells(
 model_gamma_true = gamma.smashplug.ConfigureGammaWithSmash(
     model_smash_true,
     dt=3600.0,
-    velocity_computation="qm3",
+    velocity_computation="qmm",
     varying_spread=1,
     ponderation_regul=1000.0,
 )
+
 model_gamma_true.routing_parameters_change(hc=1.0, sc=3.0)
+model_gamma_true.routing_memory.states_init = 1.0
 model_gamma_true.run(qt_true.transpose())
 
 model_gamma_background = gamma.smashplug.ConfigureGammaWithSmash(
     model_smash_bck,
     dt=3600.0,
-    velocity_computation="qm3",
+    velocity_computation="qmm",
     varying_spread=1,
     ponderation_regul=1000.0,
 )
+
 model_gamma_background.routing_parameters_change(hc=1.0, sc=3.0)
+model_gamma_background.routing_memory.states_init = 1.0
 model_gamma_background.run(qt_bck.transpose())
 
 model_gamma_optimize = gamma.smashplug.ConfigureGammaWithSmash(
     model_smash_bck,
     dt=3600.0,
-    velocity_computation="qm3",
-    varying_spread=1,
+    velocity_computation="qmm",
+    varying_spread=0,
     ponderation_regul=1000.0,
+    ponderation_cost=100.0,
 )
-model_gamma_optimize.routing_parameters_change(hc=1.0, sc=3.0)
+
+model_gamma_optimize.routing_parameters_change(hc=1.0, sc=4.0)
+model_gamma_optimize.routing_memory.states_init = 1.0
 model_gamma_optimize.run(qt_bck.transpose())
 
 model_gamma_optimize.routing_mesh_set_control(9)
 
 model_smash_bck.response_data.q[0, :] = model_gamma_true.routing_results.discharges[:, 8]
+
+
+# compute the initial cost
+model_gamma_optimize.cost_function(
+    model_gamma_true.routing_results.discharges,
+    model_gamma_optimize.routing_results.discharges,
+)
+
+model_gamma_optimize.routing_results.costs
+
+
+model_gamma_true = gamma.smashplug.ConfigureGammaWithSmash(
+    model_smash_true,
+    dt=3600.0,
+    velocity_computation="qmm",
+    varying_spread=1,
+    ponderation_regul=1000.0,
+)
+
+model_gamma_true.routing_parameters_change(hc=1.0, sc=3.6)
+model_gamma_true.routing_memory.states_init = 0.1
+model_gamma_true.run(qt_true.transpose())
+
+model_gamma_background = gamma.smashplug.ConfigureGammaWithSmash(
+    model_smash_bck,
+    dt=3600.0,
+    velocity_computation="qmm",
+    varying_spread=1,
+    ponderation_regul=1000.0,
+)
+
+model_gamma_background.routing_parameters_change(hc=1.0, sc=3.6)
+model_gamma_background.routing_memory.states_init = 0.1
+model_gamma_background.run(qt_bck.transpose())
+
+model_gamma_optimize = gamma.smashplug.ConfigureGammaWithSmash(
+    model_smash_bck,
+    dt=3600.0,
+    velocity_computation="qmm",
+    varying_spread=1,
+    ponderation_regul=1.0,
+    ponderation_cost=1.0,
+)
+
+model_gamma_optimize.routing_parameters_change(hc=1.0, sc=3.6)
+model_gamma_optimize.routing_memory.states_init = 0.1
+model_gamma_optimize.run(qt_bck.transpose())
+
+model_gamma_optimize.routing_mesh_set_control(9)
+
+model_smash_bck.response_data.q[0, :] = model_gamma_true.routing_results.discharges[:, 8]
+
 
 # compute the initial cost
 model_gamma_optimize.cost_function(
@@ -235,6 +456,31 @@ res, model_smash_calibrated, model_gamma_calibrated = (
 )
 
 model_smash_calibrated.rr_parameters.values
+
+
+# BestControlVector, optimized_smash_model, model_gamma_optimize = (
+#     gamma.smashplug.OptimizeCoupledModel(
+#         model_smash_bck,
+#         model_gamma_optimize,
+#         model_gamma_true.routing_results.discharges,
+#         control_parameters_list=["cp", "ct"],
+#         bounds={
+#             "cp": [
+#                 0.1,
+#                 500.0,
+#             ],
+#             "ct": [0.1, 500.0],
+#         },
+#         maxiter=30,
+#         maxfun=100,
+#         tol=None,
+#         ScaleGradients=False,
+#         ScaleGammaGradientsBySurface=False,
+#         optim_type="local",
+#         local_optimizer="L-BFGS-B",  # L-BFGS-B | trust-constr | SLSQP | TNC
+#     )
+# )
+
 
 # fig = plt.figure(layout="constrained")
 # fig, axes = plt.subplots(ncols=4, nrows=1, figsize=(15, 5))
@@ -403,31 +649,7 @@ plt.subplots_adjust(wspace=0.7)
 
 # plt.show()
 
-fig.savefig(
-    os.path.join(dir_results, f"Exp_coupling_calibration_smash_{scenario}.pdf"),
-    bbox_inches="tight",
-)
-
-
-# BestControlVector, optimized_smash_model, model_gamma_optimize = (
-#     gamma.smashplug.OptimizeCoupledModel(
-#         model_smash_bck,
-#         model_gamma_optimize,
-#         model_gamma_true.routing_results.discharges,
-#         control_parameters_list=["cp", "ct"],
-#         bounds={
-#             "cp": [
-#                 0.1,
-#                 2000.0,
-#             ],
-#             "ct": [0.1, 1000.0],
-#         },
-#         maxiter=30,
-#         maxfun=30,
-#         tol=1e-6,
-#         ScaleGradients=False,
-#         ScaleGammaGradientsBySurface=False,
-#         optim_type="local",
-#         local_optimizer="L-BFGS-B",  # L-BFGS-B | trust-constr | SLSQP | TNC
-#     )
+# fig.savefig(
+#     os.path.join(dir_results, f"Exp_coupling_calibration_smash_{scenario}.pdf"),
+#     bbox_inches="tight",
 # )

@@ -260,6 +260,9 @@ def ConfigureGammaWithSmash(smash_model, dt=None, **kwargs):
     # intialise the states of the gamma model
     model_gamma.routing_states_init()
 
+    # intialise the memory of the gamma model
+    model_gamma.routing_memory_init()
+
     # return the complete gamma model object, ready for run
     return model_gamma
 
@@ -722,8 +725,6 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
 
     k = 0
 
-    # wrap_control_to_parameters(smash_model.setup, smash_model.mesh, smash_model._input_data, , wrap_options)
-
     # corresponding smash function : smash/core/simulation/_optimize/_x_to_parameters_states
     for ctrl_var in control_vector["ParamList"]:
 
@@ -789,93 +790,93 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
                 k = k + nb_nodes
 
 
-def _get_smash_gradient(model, control_smash):
+# def _get_smash_gradient(model, control_smash):
 
-    from smash.fcore._mwd_options import OptionsDT
-    from smash.fcore._mwd_returns import ReturnsDT
-    from smash.core.model._build_model import _map_dict_to_fortran_derived_type
-    from smash.core.simulation.optimize._standardize import _standardize_optimize_args
-    from smash.fcore._mwd_parameters_manipulation import (
-        parameters_to_control as wrap_parameters_to_control,
-    )
-    from smash.core.simulation.optimize._tools import (
-        _handle_bayesian_optimize_control_prior,
-    )
+#     from smash.fcore._mwd_options import OptionsDT
+#     from smash.fcore._mwd_returns import ReturnsDT
+#     from smash.core.model._build_model import _map_dict_to_fortran_derived_type
+#     from smash.core.simulation.optimize._standardize import _standardize_optimize_args
+#     from smash.fcore._mwd_parameters_manipulation import (
+#         parameters_to_control as wrap_parameters_to_control,
+#     )
+#     from smash.core.simulation.optimize._tools import (
+#         _handle_bayesian_optimize_control_prior,
+#     )
 
-    (
-        mapping,
-        optimizer,
-        optimize_options,
-        cost_options,
-        common_options,
-        return_options,
-        callback,
-    ) = _standardize_optimize_args(
-        model,
-        mapping="distributed",
-        optimizer="lbfgsb",
-        optimize_options={
-            "parameters": control_smash["ParamList"],
-            "bounds": control_smash["bounds"],
-        },
-        cost_options=None,
-        common_options=None,
-        return_options=None,
-        callback=None,
-    )
+#     (
+#         mapping,
+#         optimizer,
+#         optimize_options,
+#         cost_options,
+#         common_options,
+#         return_options,
+#         callback,
+#     ) = _standardize_optimize_args(
+#         model,
+#         mapping="distributed",
+#         optimizer="lbfgsb",
+#         optimize_options={
+#             "parameters": control_smash["ParamList"],
+#             "bounds": control_smash["bounds"],
+#         },
+#         cost_options=None,
+#         common_options=None,
+#         return_options=None,
+#         callback=None,
+#     )
 
-    wrap_options = OptionsDT(
-        model.setup,
-        model.mesh,
-        cost_options["njoc"],
-        cost_options["njrc"],
-    )
+#     wrap_options = OptionsDT(
+#         model.setup,
+#         model.mesh,
+#         cost_options["njoc"],
+#         cost_options["njrc"],
+#     )
 
-    wrap_returns = ReturnsDT(
-        model.setup,
-        model.mesh,
-        return_options["nmts"],
-        return_options["fkeys"],
-    )
+#     wrap_returns = ReturnsDT(
+#         model.setup,
+#         model.mesh,
+#         return_options["nmts"],
+#         return_options["fkeys"],
+#     )
 
-    # % Map optimize_options dict to derived type
-    _map_dict_to_fortran_derived_type(optimize_options, wrap_options.optimize)
+#     # % Map optimize_options dict to derived type
+#     _map_dict_to_fortran_derived_type(optimize_options, wrap_options.optimize)
 
-    # % Map cost_options dict to derived type
-    _map_dict_to_fortran_derived_type(
-        cost_options, wrap_options.cost, skip=["control_prior"]
-    )
+#     # % Map cost_options dict to derived type
+#     _map_dict_to_fortran_derived_type(
+#         cost_options, wrap_options.cost, skip=["control_prior"]
+#     )
 
-    # % Map common_options dict to derived type
-    _map_dict_to_fortran_derived_type(common_options, wrap_options.comm)
+#     # % Map common_options dict to derived type
+#     _map_dict_to_fortran_derived_type(common_options, wrap_options.comm)
 
-    # % Map return_options dict to derived type
-    _map_dict_to_fortran_derived_type(return_options, wrap_returns)
+#     # % Map return_options dict to derived type
+#     _map_dict_to_fortran_derived_type(return_options, wrap_returns)
 
-    # % Control prior check
-    # _handle_bayesian_optimize_control_prior(
-    #     model, cost_options["control_prior"], wrap_options
-    # )
+#     # % Control prior check
+#     # _handle_bayesian_optimize_control_prior(
+#     #     model, cost_options["control_prior"], wrap_options
+#     # )
 
-    parameters = model._parameters.copy()
+#     parameters = model._parameters.copy()
 
-    wrap_parameters_to_control(
-        model.setup,
-        model.mesh,
-        model._input_data,
-        parameters,
-        wrap_options,
-    )
-    # X0 = parameters.control.x  # X est normalisé ici
-    # setattr(parameters.control, "x", parameters.control.x.copy())
+#     wrap_parameters_to_control(
+#         model.setup,
+#         model.mesh,
+#         model._input_data,
+#         parameters,
+#         wrap_options,
+#     )
+#     # X0 = parameters.control.x  # X est normalisé ici
+#     # setattr(parameters.control, "x", parameters.control.x.copy())
 
-    parameters_q_b = smash.core.simulation.optimize._tools._get_parameters_q_b(
-        model, parameters, wrap_options, wrap_returns
-    )
+#     parameters_q_b = smash.core.simulation.optimize._tools._get_parameters_q_b(
+#         model, parameters, wrap_options, wrap_returns
+#     )
 
-    grad = parameters_q_b.control.x.copy()
+#     grad = parameters_q_b.control.x.copy()
 
-    return grad
+#     return grad
 
 
 def ComputeModelGradients(
@@ -897,6 +898,9 @@ def ComputeModelGradients(
     # - Gradient of Smash in the order of the control_vector
     # - Gradient of Gamma : 1st hc, 2nd sc
 
+    inflows_f32 = np.array(interpolated_inflows, order="F", dtype="float32")
+    observations_f32 = np.array(observations, order="F", dtype="float32")
+
     # Gradients of COST with respect to routing_parameters
     Grad_dCOST_dROUTINGPARAMETERS = np.zeros(
         shape=(2, model_gamma.routing_mesh.nb_nodes), order="F", dtype="float32"
@@ -906,8 +910,8 @@ def ComputeModelGradients(
         model_gamma.routing_setup,
         model_gamma.routing_mesh,
         model_gamma.routing_parameters,
-        interpolated_inflows,
-        observations,
+        inflows_f32,
+        observations_f32,
         model_gamma.routing_states,
         model_gamma.routing_memory,
         model_gamma.routing_results,
@@ -928,7 +932,7 @@ def ComputeModelGradients(
         np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[1, :] ** 2.0)),
     )
 
-    # Gradients of COST with respect to inflows (interpolated_inflows)
+    # Gradients of COST with respect to inflows (inflows_f32)
     Grad_dCOST_dINFLOWS = np.zeros(
         shape=(model_gamma.routing_setup.npdt, model_gamma.routing_mesh.nb_nodes),
         order="F",
@@ -939,25 +943,27 @@ def ComputeModelGradients(
         model_gamma.routing_setup,
         model_gamma.routing_mesh,
         model_gamma.routing_parameters,
-        interpolated_inflows,
-        observations,
+        inflows_f32,
+        observations_f32,
         model_gamma.routing_states,
         model_gamma.routing_memory,
         model_gamma.routing_results,
         Grad_dCOST_dINFLOWS,
     )
 
-    # Intégratioon over the time for Gradients of COST with respect to inflows (interpolated_inflows): Cost and Inflows have not the same dimension. Inflows vary in time but not Cost as it is alrady integrated. Thus Tapenade compute the gradients for all time step. We need to integrate it manually. Added 2025: start at model_gamma.routing_setup.pdt_start_optim !
-    Int_Grad_dCOST_dINFLOWS = np.zeros(Grad_dCOST_dINFLOWS.shape[1])
-    for i in range(Grad_dCOST_dINFLOWS.shape[1]):
-        # Int_Grad_dCOST_dINFLOWS[i] = np.sum(
-        #     Grad_dCOST_dINFLOWS[model_gamma.routing_setup.pdt_start_optim :, i]
-        # )
-        Int_Grad_dCOST_dINFLOWS[i] = np.sum(Grad_dCOST_dINFLOWS[:, i])
+    int_gamma_gradient = np.sum(Grad_dCOST_dINFLOWS, axis=0)
+
+    # Intégratioon over the time for Gradients of COST with respect to inflows (inflows_f32): Cost and Inflows have not the same dimension. Inflows vary in time but not Cost as it is alrady integrated. Thus Tapenade compute the gradients for all time step. We need to integrate it manually. Added 2025: start at model_gamma.routing_setup.pdt_start_optim !
+    # Int_Grad_dCOST_dINFLOWS = np.zeros(Grad_dCOST_dINFLOWS.shape[1])
+    # for i in range(Grad_dCOST_dINFLOWS.shape[1]):
+    #     # Int_Grad_dCOST_dINFLOWS[i] = np.sum(
+    #     #     Grad_dCOST_dINFLOWS[model_gamma.routing_setup.pdt_start_optim :, i]
+    #     # )
+    #     Int_Grad_dCOST_dINFLOWS[i] = np.sum(Grad_dCOST_dINFLOWS[:, i])
 
     print(
         "qin:                   ",
-        np.sqrt(np.sum((Int_Grad_dCOST_dINFLOWS) ** 2.0)),
+        np.sqrt(np.sum((int_gamma_gradient) ** 2.0)),
     )
 
     control_smash = copy.deepcopy(control_vector)
@@ -977,8 +983,6 @@ def ComputeModelGradients(
                 if p in value.keys():
                     del control_smash[key][p]
 
-    # SmashGradients = _get_smash_gradient(smash_model, control_smash)
-
     SmashGradients, name = smash_model.backward_run(
         mapping="distributed",
         grad_mode="qt",
@@ -989,15 +993,17 @@ def ComputeModelGradients(
     )
 
     nb_param_smash = len(control_smash["ParamList"])
+
     LinearizedGradientsForSmash = np.zeros(
         model_gamma.routing_mesh.nb_nodes * nb_param_smash
     )
     nbnode = model_gamma.routing_mesh.nb_nodes
 
     Proj_grad_smash = np.zeros(shape=(nb_param_smash))
+
     for i in range(nb_param_smash):
         LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] = (
-            SmashGradients[i * nbnode : nbnode + i * nbnode] * Int_Grad_dCOST_dINFLOWS[:]
+            SmashGradients[i * nbnode : nbnode + i * nbnode] * int_gamma_gradient[:]
         )
 
         Proj_grad_smash[i] = np.sqrt(
@@ -1018,65 +1024,59 @@ def ComputeModelGradients(
     # The Smash gradients are given for 1 cell and 1 input, thus for 1 km²
     # The Gamma gradients are given along the network with increasing surface from upstream to downstream.
     # We choose to normalise the Gamma gradients by the cumulated surface.
-    if (
-        ScaleGammaGradientsBySurface
-        and model_gamma.routing_setup.hydraulics_coef_uniform == 0
-    ):
-        Grad_dCOST_dROUTINGPARAMETERS[0, :] = (
-            Grad_dCOST_dROUTINGPARAMETERS[0, :]
-            / model_gamma.routing_mesh.cumulated_surface[:]
-        )
+    # if (
+    #     ScaleGammaGradientsBySurface
+    #     and model_gamma.routing_setup.hydraulics_coef_uniform == 0
+    # ):
+    #     Grad_dCOST_dROUTINGPARAMETERS[0, :] = (
+    #         Grad_dCOST_dROUTINGPARAMETERS[0, :]
+    #         / model_gamma.routing_mesh.cumulated_surface[:]
+    #     )
 
-    if ScaleGammaGradientsBySurface and model_gamma.routing_setup.spreading_uniform == 0:
-        Grad_dCOST_dROUTINGPARAMETERS[1, :] = (
-            Grad_dCOST_dROUTINGPARAMETERS[1, :]
-            / model_gamma.routing_mesh.cumulated_surface[:]
-        )
+    # if ScaleGammaGradientsBySurface and model_gamma.routing_setup.spreading_uniform == 0:
+    #     Grad_dCOST_dROUTINGPARAMETERS[1, :] = (
+    #         Grad_dCOST_dROUTINGPARAMETERS[1, :]
+    #         / model_gamma.routing_mesh.cumulated_surface[:]
+    #     )
 
-    # if ScaleGammaGradientsBySurface and model_gamma.routing_setup.spreading_uniform == 1:
-    #     Grad_dCOST_dROUTINGPARAMETERS[1, :] = Grad_dCOST_dROUTINGPARAMETERS[
-    #         1, :
-    #     ] / np.max(model_gamma.routing_mesh.cumulated_surface[:])
+    # if ScaleGradients:
 
-    if ScaleGradients:
-        # scaling_gamma = np.mean(abs(Grad_dCOST_dROUTINGPARAMETERS))
+    #     scale1 = np.mean(abs(Grad_dCOST_dROUTINGPARAMETERS[0, :]))
+    #     if model_gamma.routing_setup.varying_spread == 1:
+    #         scale2 = np.mean(abs(Grad_dCOST_dROUTINGPARAMETERS[1, :]))
+    #         scaling_gamma = 0.5 * (scale1 + scale2)
+    #     else:
+    #         scaling_gamma = scale1
 
-        scale1 = np.mean(abs(Grad_dCOST_dROUTINGPARAMETERS[0, :]))
-        if model_gamma.routing_setup.varying_spread == 1:
-            scale2 = np.mean(abs(Grad_dCOST_dROUTINGPARAMETERS[1, :]))
-            scaling_gamma = 0.5 * (scale1 + scale2)
-        else:
-            scaling_gamma = scale1
+    #     scaling_smash = np.mean(abs(LinearizedGradientsForSmash))
 
-        scaling_smash = np.mean(abs(LinearizedGradientsForSmash))
+    #     Grad_dCOST_dROUTINGPARAMETERS = Grad_dCOST_dROUTINGPARAMETERS / scaling_gamma
+    #     LinearizedGradientsForSmash = LinearizedGradientsForSmash / scaling_smash
 
-        Grad_dCOST_dROUTINGPARAMETERS = Grad_dCOST_dROUTINGPARAMETERS / scaling_gamma
-        LinearizedGradientsForSmash = LinearizedGradientsForSmash / scaling_smash
-
-    if ScaleGradients or ScaleGammaGradientsBySurface:
-        # print proj
-        print(
-            """\nNew projected scaled gradients:\n-----------------------------
-              """
-        )
-        print(
-            "hc:",
-            np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[0, :] ** 2.0)),
-        )
-        print(
-            "sc:             ",
-            np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[1, :] ** 2.0)),
-        )
-        for i in range(nb_param_smash):
-            Proj_grad_smash[i] = np.sqrt(
-                np.sum(
-                    LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] ** 2.0
-                )
-            )
-            print(
-                f"{control_smash['ParamList'][i]}:                    ",
-                Proj_grad_smash[i],
-            )
+    # if ScaleGradients or ScaleGammaGradientsBySurface:
+    #     # print proj
+    #     print(
+    #         """\nNew projected scaled gradients:\n-----------------------------
+    #           """
+    #     )
+    #     print(
+    #         "hc:",
+    #         np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[0, :] ** 2.0)),
+    #     )
+    #     print(
+    #         "sc:             ",
+    #         np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[1, :] ** 2.0)),
+    #     )
+    #     for i in range(nb_param_smash):
+    #         Proj_grad_smash[i] = np.sqrt(
+    #             np.sum(
+    #                 LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] ** 2.0
+    #             )
+    #         )
+    #         print(
+    #             f"{control_smash['ParamList'][i]}:                    ",
+    #             Proj_grad_smash[i],
+    #         )
 
     # Finally we aggregate all computed gradients in a single vector given the control_vector
     NbControledGammaParameter = 0
@@ -1092,7 +1092,6 @@ def ComputeModelGradients(
     )
 
     OutputsGradients[0 : len(LinearizedGradientsForSmash)] = LinearizedGradientsForSmash
-
     position = len(LinearizedGradientsForSmash)
 
     for ctrl_var in control_vector["ParamList"]:
@@ -1127,14 +1126,10 @@ def ComputeModelGradients(
 
                 position = position + control_vector["NbNodes"]
 
-    # ScalingNormGrad = np.sqrt(np.sum(OutputsGradients**2.0))
-    # OutputsGradients = OutputsGradients / np.sqrt(ScalingNormGrad)
-    # print(f"NewNorm={np.sqrt(np.sum(OutputsGradients**2.0))}")
-
-    return OutputsGradients
+    return np.array(OutputsGradients, dtype="float64")
 
 
-def RunCoupledModel(smash_model, model_gamma, memory_reset=True):
+def RunCoupledModel(smash_model, model_gamma, routing_memory_init=False):
     # Run the direct problem of the coupled model Smash and Gamma
 
     print("</> Run of the Smash model")
@@ -1148,7 +1143,9 @@ def RunCoupledModel(smash_model, model_gamma, memory_reset=True):
 
     # run the model
     print("</> Run the Gamma Routing model")
-    model_gamma.run(interpolated_inflows, states_init=False, memory_reset=memory_reset)
+    model_gamma.run(
+        interpolated_inflows, states_init=False, routing_memory_init=routing_memory_init
+    )
 
     print("</> Copy the simulated discharges in the smash model object")
     gamma.smashplug.CopyGammaDischargesToSmashResponse(smash_model, model_gamma)
@@ -1173,18 +1170,22 @@ def ComputeCostAndGradients(
     SetVectorizedModelParameters(control_vector, smash_model, model_gamma)
 
     print("Run the smash model")  # => will normalize param inside the model
-    ret = smash_model.forward_run(
+    return_var = smash_model.forward_run(
         return_options={"q_domain": True, "q_domain_kind_qt": True}
     )
 
     print("Interolate inflows")
-    interpolated_inflows = GetGammaInflowFromSmash(
-        smash_model, returns_smash_options=ret, dt=model_gamma.routing_setup.dt
+    # interpolated_inflows = GetGammaInflowFromSmash(
+    #     smash_model, returns_smash_options=ret, dt=model_gamma.routing_setup.dt
+    # )
+    inflows = smash_time_grid_to_time_vector_active_cells(
+        return_var.q_domain, smash_model
     )
+    inflows_transpose = inflows.transpose()
 
     # run the model
     print("Run the Gamma model")
-    model_gamma.run(interpolated_inflows, states_init=False, memory_reset=True)
+    model_gamma.run(inflows_transpose, states_init=False, routing_memory_init=False)
 
     print("Compute the cost")
     model_gamma.cost_function(observations, model_gamma.routing_results.discharges)
@@ -1200,7 +1201,7 @@ def ComputeCostAndGradients(
         control_vector,
         smash_model,
         model_gamma,
-        interpolated_inflows,
+        inflows_transpose,
         observations,
         ScaleGammaGradientsBySurface=ScaleGammaGradientsBySurface,
         ScaleGradients=ScaleGradients,
@@ -1418,12 +1419,6 @@ def OptimizeCoupledModel(
     # Run the direct coupled model Gamma o Smash-
     gamma.smashplug.RunCoupledModel(optimized_smash, optimized_gamma)
 
-    # convert Vector discharges from Smash to Gamma gridded discharges
-    # ~ GammaGriddedObservation=gamma.smashplug.SmashDataVectorsToGrid(optimized_smash.input_data.qobs,optimized_gamma,smash_dt=optimized_smash.setup.dt)
-
-    # compute the final cost
-    # ~ final_cost=model_gamma.cost_function(GammaGriddedObservation,optimized_gamma.routing_results.discharges)
-
     if inplace == True:
         model_gamma = optimized_gamma.copy()
         smash_model = optimized_smash.copy()
@@ -1439,7 +1434,7 @@ def calibration_parameters_smash(
     observations,
     bounds,
     states_init=True,
-    memory_reset=True,
+    routing_memory_init=False,
 ):
 
     model_smash = model_smash_bck.copy()
@@ -1467,9 +1462,14 @@ def calibration_parameters_smash(
     if states_init:
         model_gamma.routing_states_init()
 
-    # reset discharges states to zeros
-    if memory_reset:
-        model_gamma.routing_memory_reset()
+    if routing_memory_init:
+        model_gamma.routing_memory_init()
+
+    try:
+        _ = model_gamma.routing_memory.states[0]
+    except ValueError as e:
+        if "array is NULL" in str(e):
+            model_gamma.routing_memory_init()
 
     # initialise routing_results
     model_gamma.routing_results_init()
@@ -1482,12 +1482,12 @@ def calibration_parameters_smash(
         run_backward_djdx,
         X,
         args=(model_smash, model_gamma, observations, bounds),
-        method="L-BFGS-B",  # "L-BFGS-B", SLSQP
+        method="SLSQP",  # "L-BFGS-B", SLSQP
         jac=True,
         bounds=normalized_bounds,
         options={
             "disp": True,
-            "maxiter": 30,
+            "maxiter": 50,
             "verbose": 1,
             "maxfun": 100,
         },
@@ -1500,7 +1500,7 @@ def calibration_parameters_smash(
     inflows = smash_time_grid_to_time_vector_active_cells(
         return_var.q_domain, model_smash
     )
-    model_gamma.run(inflows.transpose(), states_init=False, memory_reset=True)
+    model_gamma.run(inflows.transpose(), states_init=False, routing_memory_init=False)
 
     return res, model_smash, model_gamma
 
@@ -1526,10 +1526,17 @@ def run_backward_djdx(X, model_smash, model_gamma, observations, bounds):
     inflows = smash_time_grid_to_time_vector_active_cells(
         return_var.q_domain, model_smash
     )
-    model_gamma.run(inflows.transpose(), states_init=False, memory_reset=True)
+    model_gamma.run(inflows.transpose(), states_init=False, routing_memory_init=False)
 
     model_gamma.cost_function(observations, model_gamma.routing_results.discharges)
+    # cost = np.float32()
     cost = model_gamma.routing_results.costs[0]
+    # print(
+    #     model_gamma.routing_results.costs,
+    #     model_gamma.routing_results.costs[0],
+    #     np.float32(model_gamma.routing_results.costs[0]),
+    #     cost,
+    # )
 
     inflows_trans = np.array(inflows.transpose(), order="F", dtype="float32")
     observations = np.array(observations, order="F", dtype="float32")
@@ -1553,7 +1560,7 @@ def run_backward_djdx(X, model_smash, model_gamma, observations, bounds):
         gamma_gradients,
     )
 
-    int_gamma_gradient = np.sum(gamma_gradients, axis=0)
+    int_gamma_gradient = np.sum(np.array(gamma_gradients, dtype="float64"), axis=0)
 
     SmashGradients, name = model_smash.backward_run(
         mapping="distributed",
@@ -1563,8 +1570,7 @@ def run_backward_djdx(X, model_smash, model_gamma, observations, bounds):
             "bounds": bounds,
         },
     )
-    # control_smash = {"ParamList": ["cp", "ct"], "bounds": bounds}
-    # SmashGradients = _get_smash_gradient(model_smash, control_smash=control_smash)
+    SmashGradients = np.array(SmashGradients, dtype="float64")
 
     gradients_cp = (
         int_gamma_gradient[:] * SmashGradients[0 : model_gamma.routing_mesh.nb_nodes]
@@ -1574,5 +1580,5 @@ def run_backward_djdx(X, model_smash, model_gamma, observations, bounds):
     )
     gradients = np.concatenate((gradients_cp, gradients_ct), axis=0)
 
-    print(f"cost={model_gamma.routing_results.costs}")
-    return cost, np.array(gradients, dtype="float64")
+    print(f"cost=", np.float64(cost))
+    return np.float64(cost), np.array(gradients, dtype="float64")

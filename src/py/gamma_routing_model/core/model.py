@@ -245,23 +245,31 @@ class Model(object):
         if options is None:
             options = {}
 
+        update_sc = False
         for key, value in options.items():
             if key == "hc_n":
                 self.routing_parameters.hc_n = value
             elif key == "sc_n":
+                update_sc = True
                 self.routing_parameters.sc_n = value
             else:
                 raise ValueError(f"Wrong parameter name {key}.")
+
         Mod_Gamma_Routing_Parameters.unnormalize_routing_parameters(
             self.routing_parameters, self.routing_setup, self.routing_mesh
         )
 
         self.routing_states_init()
 
+        if self.routing_setup.varying_spread == 0 and update_sc:
+            print(
+                "warning ! varying_spread == 0 and sc coefficient has changed. Routing_memory is reallocated."
+            )
+            self.routing_memory_init()
+
     def routing_states_init(self):
 
         self.routing_states = Mod_Gamma_Routing_States.type_routing_states()
-        self.routing_memory = Mod_Gamma_Routing_Memory.type_routing_memory()
 
         Mod_Gamma_Routing_States.routing_state_self_initialisation(
             self.routing_setup,
@@ -270,12 +278,17 @@ class Model(object):
             self.routing_states,
         )
 
-        # routing_memory is initialized inside this function
         Mod_Gamma_Interface.routing_gamma_precomputation(
             self.routing_setup,
             self.routing_mesh,
             self.routing_states,
-            self.routing_memory,
+        )
+
+    def routing_memory_init(self):
+
+        self.routing_memory = Mod_Gamma_Routing_Memory.type_routing_memory()
+        Mod_Gamma_Routing_Memory.routing_memory_self_initialisation(
+            self.routing_mesh, self.routing_states, self.routing_memory
         )
 
     def routing_memory_reset(self):
@@ -305,7 +318,7 @@ class Model(object):
             self.routing_mesh, ncontrol, nodes
         )
 
-    def run(self, inflows, states_init=True, memory_reset=True):
+    def run(self, inflows, states_init=True, routing_memory_init=False):
 
         # first check if we need to force states_init
         if self.routing_setup.varying_spread == 1:
@@ -338,9 +351,18 @@ class Model(object):
         if states_init:
             self.routing_states_init()
 
+        if routing_memory_init:
+            self.routing_memory_init()
+
+        try:
+            _ = self.routing_memory.states[0]
+        except ValueError as e:
+            if "array is NULL" in str(e):
+                self.routing_memory_init()
+
         # reset discharges states to its initial value (time-step 1)
-        if memory_reset:
-            self.routing_memory_reset()
+        # if memory_reset:
+        #     self.routing_memory_reset()
 
         # initialise routing_results
         self.routing_results_init()
@@ -357,7 +379,9 @@ class Model(object):
             self.routing_results,
         )
 
-    def calibration(self, inflows, observations, states_init=True, memory_reset=True):
+    def calibration(
+        self, inflows, observations, states_init=True, routing_memory_init=False
+    ):
 
         # first initialise states
         # initialise states
@@ -365,8 +389,14 @@ class Model(object):
             self.routing_states_init()
 
         # reset discharges states to zeros
-        if memory_reset:
-            self.routing_memory_reset()
+        if routing_memory_init:
+            self.routing_memory_init()
+
+        try:
+            _ = self.routing_memory.states[0]
+        except ValueError as e:
+            if "array is NULL" in str(e):
+                self.routing_memory_init()
 
         # initialise routing_results
         self.routing_results_init()
@@ -386,7 +416,7 @@ class Model(object):
         )
 
     def calibration_inflows(
-        self, inflows, observations, states_init=True, memory_reset=True
+        self, inflows, observations, states_init=True, routing_memory_init=False
     ):
 
         # first initialise states
@@ -395,8 +425,14 @@ class Model(object):
             self.routing_states_init()
 
         # reset discharges states to zeros
-        if memory_reset:
-            self.routing_memory_reset()
+        if routing_memory_init:
+            self.routing_memory_init()
+
+        try:
+            _ = self.routing_memory.states[0]
+        except ValueError as e:
+            if "array is NULL" in str(e):
+                self.routing_memory_init()
 
         # initialise routing_results
         self.routing_results_init()
@@ -434,7 +470,7 @@ class Model(object):
         return res
 
     def calibration_parameters(
-        self, inflows, observations, states_init=True, memory_reset=True
+        self, inflows, observations, states_init=True, routing_memory_init=False
     ):
 
         X = np.concatenate(
@@ -450,8 +486,14 @@ class Model(object):
             self.routing_states_init()
 
         # reset discharges states to zeros
-        if memory_reset:
-            self.routing_memory_reset()
+        if routing_memory_init:
+            self.routing_memory_init()
+
+        try:
+            _ = self.routing_memory.states[0]
+        except ValueError as e:
+            if "array is NULL" in str(e):
+                self.routing_memory_init()
 
         # initialise routing_results
         self.routing_results_init()
@@ -558,9 +600,8 @@ class Model(object):
 
     def cost_function(self, observations, qnetwork):
 
-        # tab_cost=np.zeros(shape=(3),order='F',dtype="float32")
-
-        # print(np.where(observations-qnetwork!=0))
+        observations = np.array(observations, order="F", dtype="float32")
+        qnetwork = np.array(qnetwork, order="F", dtype="float32")
 
         Mod_Gamma_Interface.routing_gamma_cost_function(
             self.routing_setup,

@@ -78,9 +78,9 @@ program routing
     
     write(*,*) "manual_gradient_test..."
     write(*,*) ""
-    call manual_gradient_test()
+    !call manual_gradient_test()
     
-    pause
+    !pause
     
     !simple test case
     
@@ -118,8 +118,8 @@ program routing
     call routing_memory_self_initialisation(routing_mesh,routing_states,routing_memory)
     
     write(*,*) "routing_memory:"
-    write(*,*) routing_memory%remainder
-    write(*,*) routing_memory%states
+    !write(*,*) routing_memory%remainder
+    !write(*,*) routing_memory%states
     
     pause
     
@@ -128,8 +128,8 @@ program routing
     write(*,*) "routing_states%min_mode=",routing_states%min_mode
     write(*,*) "routing_states%nb_mode=",routing_states%nb_mode
     write(*,*) "routing_states%scale_coef=",routing_states%scale_coef
-    write(*,*) "routing_states%window_length=",routing_states%window_length    
-    write(*,*) "routing_states%nb_spreads=",routing_states%nb_spreads    
+    write(*,*) "routing_states%window_length=",routing_states%window_length
+    write(*,*) "routing_states%nb_spreads=",routing_states%nb_spreads
     write(*,*) "routing_states%max_sc=",routing_states%max_sc
     write(*,*) "routing_states%window_shift=",routing_states%window_shift 
     write(*,*) "routing_states%quantile=",routing_states%quantile
@@ -148,11 +148,13 @@ program routing
     allocate(inflows(routing_setup%npdt,routing_mesh%nb_nodes))
     !inputs : initialisation
     inflows=0.0
-    inflows(1,1)=10.
+    inflows(1,1)=50.
     
     write(*,*) "routing_gamma_run..."
     call routing_gamma_run(routing_setup,routing_mesh,routing_parameter,inflows,&
     &routing_states,routing_memory,routing_results)
+    
+    write(*,*) routing_results%discharges
     
     write(*,*) "routing_gamma_cost_function..."
     allocate(observations(routing_setup%npdt,routing_mesh%nb_nodes))
@@ -163,6 +165,8 @@ program routing
     
     observations=routing_results%discharges*random_serie
     qnetwork=routing_results%discharges
+    
+    observations=1.0
     call routing_gamma_cost_function(routing_setup,routing_mesh,routing_parameter,observations,qnetwork,routing_results)
     
     write(*,*) routing_results%costs

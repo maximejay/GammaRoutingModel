@@ -2536,21 +2536,19 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
     
     @staticmethod
     def routing_gamma_precomputation(self, routing_mesh, routing_states, \
-        routing_memory, interface_call=False):
+        interface_call=False):
         """
-        routing_gamma_precomputation(self, routing_mesh, routing_states, routing_memory)
-        Defined at mod_gamma_interface.f90 lines 134-156
+        routing_gamma_precomputation(self, routing_mesh, routing_states)
+        Defined at mod_gamma_interface.f90 lines 134-154
         
         Parameters
         ----------
         routing_setup : Type_Routing_Setup
         routing_mesh : Type_Routing_Mesh
         routing_states : Type_Routing_States
-        routing_memory : Type_Routing_Memory
         """
         _libfgamma.f90wrap_mod_gamma_interface__routing_gamma_precomputation(routing_setup=self._handle, \
-            routing_mesh=routing_mesh._handle, routing_states=routing_states._handle, \
-            routing_memory=routing_memory._handle)
+            routing_mesh=routing_mesh._handle, routing_states=routing_states._handle)
     
     @staticmethod
     def routing_states_update(self, routing_setup, routing_mesh, routing_states, \
@@ -2558,7 +2556,7 @@ class Mod_Gamma_Interface(f90wrap.runtime.FortranModule):
         """
         routing_states_update(self, routing_setup, routing_mesh, routing_states, \
             routing_memory)
-        Defined at mod_gamma_interface.f90 lines 158-182
+        Defined at mod_gamma_interface.f90 lines 156-182
         
         Parameters
         ----------
