@@ -124,11 +124,11 @@ module mod_gamma_interface
         end if
         
         !write(*,*) qspe_min_obs,qspe_max_obs,routing_setup%vmin,routing_setup%vmax
-        routing_setup%hydrau_coef_boundaries(1)=routing_setup%vmin/qspe_min_obs**0.4
-        routing_setup%hydrau_coef_boundaries(2)=routing_setup%vmax/qspe_max_obs**0.4
+        routing_setup%hc_bnd(1)=routing_setup%vmin/qspe_min_obs**0.4
+        routing_setup%hc_bnd(2)=routing_setup%vmax/qspe_max_obs**0.4
         
-        routing_setup%spreading_boundaries(1)=routing_setup%dt
-        routing_setup%spreading_boundaries(2)=routing_setup%dt+100.*sqrt(routing_setup%dt)
+        routing_setup%sc_bnd(1)=routing_setup%dt
+        routing_setup%sc_bnd(2)=routing_setup%dt+100.*sqrt(routing_setup%dt)
         
     end subroutine auto_compute_boundaries
     
@@ -174,7 +174,7 @@ module mod_gamma_interface
             routing_parameter%sc=sc
             
             if (routing_setup%varying_spread>0) then
-                routing_states%max_sc=routing_setup%spreading_boundaries(2)
+                routing_states%max_sc=routing_setup%sc_bnd(2)
                 routing_states%nb_spreads=int(routing_states%max_sc/routing_setup%spreading_discretization_step)+1
             else ! pas d'optim
                 routing_states%nb_spreads=1

@@ -9,7 +9,7 @@ import weakref
 class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
     """
     Module mod_gamma_routing_setup
-    Defined at mod_routing_setup.f90 lines 8-156
+    Defined at mod_routing_setup.f90 lines 8-152
     """
     @f90wrap.runtime.register_class("libfgamma.type_routing_setup")
     class type_routing_setup(f90wrap.runtime.FortranDerivedType):
@@ -154,66 +154,62 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
                 spreading_discretization_step)
         
         @property
-        def hydrau_coef_boundaries(self):
+        def hc_bnd(self):
             """
-            Element hydrau_coef_boundaries ftype=real pytype=float array
+            Element hc_bnd ftype=real pytype=float array
             Defined at mod_routing_setup.f90 line 19
             """
             array_ndim, array_type, array_shape, array_handle = \
-                _libfgamma.f90wrap_type_routing_setup__array__hydrau_coef_boundaries(self._handle)
+                _libfgamma.f90wrap_type_routing_setup__array__hc_bnd(self._handle)
             array_hash = hash((array_ndim, array_type, tuple(array_shape), array_handle))
-            hydrau_coef_boundaries = self._arrays.get(array_hash)
-            if hydrau_coef_boundaries is not None:
+            hc_bnd = self._arrays.get(array_hash)
+            if hc_bnd is not None:
                 # Validate cached array: check data pointer matches current handle (issue #222)
                 # Arrays can be deallocated and reallocated at same address, invalidating cache
-                if hydrau_coef_boundaries.ctypes.data != array_handle:
-                    hydrau_coef_boundaries = None
-            if hydrau_coef_boundaries is None:
+                if hc_bnd.ctypes.data != array_handle:
+                    hc_bnd = None
+            if hc_bnd is None:
                 try:
-                    hydrau_coef_boundaries = \
-                        f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
+                    hc_bnd = f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
                                             self._handle,
-                                            _libfgamma.f90wrap_type_routing_setup__array__hydrau_coef_boundaries)
+                                            _libfgamma.f90wrap_type_routing_setup__array__hc_bnd)
                 except TypeError:
-                    hydrau_coef_boundaries = f90wrap.runtime.direct_c_array(array_type, array_shape, \
-                        array_handle)
-                self._arrays[array_hash] = hydrau_coef_boundaries
-            return hydrau_coef_boundaries
+                    hc_bnd = f90wrap.runtime.direct_c_array(array_type, array_shape, array_handle)
+                self._arrays[array_hash] = hc_bnd
+            return hc_bnd
         
-        @hydrau_coef_boundaries.setter
-        def hydrau_coef_boundaries(self, hydrau_coef_boundaries):
-            self.hydrau_coef_boundaries[...] = hydrau_coef_boundaries
+        @hc_bnd.setter
+        def hc_bnd(self, hc_bnd):
+            self.hc_bnd[...] = hc_bnd
         
         @property
-        def spreading_boundaries(self):
+        def sc_bnd(self):
             """
-            Element spreading_boundaries ftype=real pytype=float array
+            Element sc_bnd ftype=real pytype=float array
             Defined at mod_routing_setup.f90 line 20
             """
             array_ndim, array_type, array_shape, array_handle = \
-                _libfgamma.f90wrap_type_routing_setup__array__spreading_boundaries(self._handle)
+                _libfgamma.f90wrap_type_routing_setup__array__sc_bnd(self._handle)
             array_hash = hash((array_ndim, array_type, tuple(array_shape), array_handle))
-            spreading_boundaries = self._arrays.get(array_hash)
-            if spreading_boundaries is not None:
+            sc_bnd = self._arrays.get(array_hash)
+            if sc_bnd is not None:
                 # Validate cached array: check data pointer matches current handle (issue #222)
                 # Arrays can be deallocated and reallocated at same address, invalidating cache
-                if spreading_boundaries.ctypes.data != array_handle:
-                    spreading_boundaries = None
-            if spreading_boundaries is None:
+                if sc_bnd.ctypes.data != array_handle:
+                    sc_bnd = None
+            if sc_bnd is None:
                 try:
-                    spreading_boundaries = \
-                        f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
+                    sc_bnd = f90wrap.runtime.get_array(f90wrap.runtime.sizeof_fortran_t,
                                             self._handle,
-                                            _libfgamma.f90wrap_type_routing_setup__array__spreading_boundaries)
+                                            _libfgamma.f90wrap_type_routing_setup__array__sc_bnd)
                 except TypeError:
-                    spreading_boundaries = f90wrap.runtime.direct_c_array(array_type, array_shape, \
-                        array_handle)
-                self._arrays[array_hash] = spreading_boundaries
-            return spreading_boundaries
+                    sc_bnd = f90wrap.runtime.direct_c_array(array_type, array_shape, array_handle)
+                self._arrays[array_hash] = sc_bnd
+            return sc_bnd
         
-        @spreading_boundaries.setter
-        def spreading_boundaries(self, spreading_boundaries):
-            self.spreading_boundaries[...] = spreading_boundaries
+        @sc_bnd.setter
+        def sc_bnd(self, sc_bnd):
+            self.sc_bnd[...] = sc_bnd
         
         @property
         def ponderation_regul(self):
@@ -365,10 +361,10 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
             ret.append(repr(self.mode_discretization_step))
             ret.append(',\n    spreading_discretization_step : ')
             ret.append(repr(self.spreading_discretization_step))
-            ret.append(',\n    hydrau_coef_boundaries : ')
-            ret.append(repr(self.hydrau_coef_boundaries))
-            ret.append(',\n    spreading_boundaries : ')
-            ret.append(repr(self.spreading_boundaries))
+            ret.append(',\n    hc_bnd : ')
+            ret.append(repr(self.hc_bnd))
+            ret.append(',\n    sc_bnd : ')
+            ret.append(repr(self.sc_bnd))
             ret.append(',\n    ponderation_regul : ')
             ret.append(repr(self.ponderation_regul))
             ret.append(',\n    ponderation_cost : ')
@@ -408,7 +404,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
             ponderation_regul, ponderation_cost, auto_reg, hydraulics_coef_uniform, \
             spreading_uniform, iter_max, velocity_computation, criteria, \
             varying_spread])
-        Defined at mod_routing_setup.f90 lines 36-135
+        Defined at mod_routing_setup.f90 lines 36-131
         
         Parameters
         ----------
@@ -444,7 +440,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
     def routing_setup_clear(self, interface_call=False):
         """
         routing_setup_clear(self)
-        Defined at mod_routing_setup.f90 lines 137-151
+        Defined at mod_routing_setup.f90 lines 133-147
         
         Parameters
         ----------
@@ -456,7 +452,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
     def routing_setup_copy(self, interface_call=False):
         """
         object_copy = routing_setup_copy(self)
-        Defined at mod_routing_setup.f90 lines 153-156
+        Defined at mod_routing_setup.f90 lines 149-152
         
         Parameters
         ----------
@@ -1422,10 +1418,84 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
                 self._finalizer = weakref.finalize(self, destructor, self._handle)
         
         @property
+        def nb_mode(self):
+            """
+            Element nb_mode ftype=integer  pytype=int32
+            Defined at mod_routing_states.f90 line 11
+            """
+            return _libfgamma.f90wrap_type_routing_states__get__nb_mode(self._handle)
+        
+        @nb_mode.setter
+        def nb_mode(self, nb_mode):
+            _libfgamma.f90wrap_type_routing_states__set__nb_mode(self._handle, nb_mode)
+        
+        @property
+        def nb_spreads(self):
+            """
+            Element nb_spreads ftype=integer  pytype=int32
+            Defined at mod_routing_states.f90 line 12
+            """
+            return _libfgamma.f90wrap_type_routing_states__get__nb_spreads(self._handle)
+        
+        @nb_spreads.setter
+        def nb_spreads(self, nb_spreads):
+            _libfgamma.f90wrap_type_routing_states__set__nb_spreads(self._handle, \
+                nb_spreads)
+        
+        @property
+        def max_mode(self):
+            """
+            Element max_mode ftype=real  pytype=float32
+            Defined at mod_routing_states.f90 line 13
+            """
+            return _libfgamma.f90wrap_type_routing_states__get__max_mode(self._handle)
+        
+        @max_mode.setter
+        def max_mode(self, max_mode):
+            _libfgamma.f90wrap_type_routing_states__set__max_mode(self._handle, max_mode)
+        
+        @property
+        def min_mode(self):
+            """
+            Element min_mode ftype=real  pytype=float32
+            Defined at mod_routing_states.f90 line 14
+            """
+            return _libfgamma.f90wrap_type_routing_states__get__min_mode(self._handle)
+        
+        @min_mode.setter
+        def min_mode(self, min_mode):
+            _libfgamma.f90wrap_type_routing_states__set__min_mode(self._handle, min_mode)
+        
+        @property
+        def max_sc(self):
+            """
+            Element max_sc ftype=real  pytype=float32
+            Defined at mod_routing_states.f90 line 15
+            """
+            return _libfgamma.f90wrap_type_routing_states__get__max_sc(self._handle)
+        
+        @max_sc.setter
+        def max_sc(self, max_sc):
+            _libfgamma.f90wrap_type_routing_states__set__max_sc(self._handle, max_sc)
+        
+        @property
+        def window_shift(self):
+            """
+            Element window_shift ftype=real  pytype=float32
+            Defined at mod_routing_states.f90 line 16
+            """
+            return _libfgamma.f90wrap_type_routing_states__get__window_shift(self._handle)
+        
+        @window_shift.setter
+        def window_shift(self, window_shift):
+            _libfgamma.f90wrap_type_routing_states__set__window_shift(self._handle, \
+                window_shift)
+        
+        @property
         def window_length(self):
             """
             Element window_length ftype=integer pytype=int array
-            Defined at mod_routing_states.f90 line 11
+            Defined at mod_routing_states.f90 line 17
             """
             array_ndim, array_type, array_shape, array_handle = \
                 _libfgamma.f90wrap_type_routing_states__array__window_length(self._handle)
@@ -1450,80 +1520,6 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
         @window_length.setter
         def window_length(self, window_length):
             self.window_length[...] = window_length
-        
-        @property
-        def nb_mode(self):
-            """
-            Element nb_mode ftype=integer  pytype=int32
-            Defined at mod_routing_states.f90 line 12
-            """
-            return _libfgamma.f90wrap_type_routing_states__get__nb_mode(self._handle)
-        
-        @nb_mode.setter
-        def nb_mode(self, nb_mode):
-            _libfgamma.f90wrap_type_routing_states__set__nb_mode(self._handle, nb_mode)
-        
-        @property
-        def nb_spreads(self):
-            """
-            Element nb_spreads ftype=integer  pytype=int32
-            Defined at mod_routing_states.f90 line 13
-            """
-            return _libfgamma.f90wrap_type_routing_states__get__nb_spreads(self._handle)
-        
-        @nb_spreads.setter
-        def nb_spreads(self, nb_spreads):
-            _libfgamma.f90wrap_type_routing_states__set__nb_spreads(self._handle, \
-                nb_spreads)
-        
-        @property
-        def max_mode(self):
-            """
-            Element max_mode ftype=real  pytype=float32
-            Defined at mod_routing_states.f90 line 14
-            """
-            return _libfgamma.f90wrap_type_routing_states__get__max_mode(self._handle)
-        
-        @max_mode.setter
-        def max_mode(self, max_mode):
-            _libfgamma.f90wrap_type_routing_states__set__max_mode(self._handle, max_mode)
-        
-        @property
-        def min_mode(self):
-            """
-            Element min_mode ftype=real  pytype=float32
-            Defined at mod_routing_states.f90 line 15
-            """
-            return _libfgamma.f90wrap_type_routing_states__get__min_mode(self._handle)
-        
-        @min_mode.setter
-        def min_mode(self, min_mode):
-            _libfgamma.f90wrap_type_routing_states__set__min_mode(self._handle, min_mode)
-        
-        @property
-        def max_sc(self):
-            """
-            Element max_sc ftype=real  pytype=float32
-            Defined at mod_routing_states.f90 line 16
-            """
-            return _libfgamma.f90wrap_type_routing_states__get__max_sc(self._handle)
-        
-        @max_sc.setter
-        def max_sc(self, max_sc):
-            _libfgamma.f90wrap_type_routing_states__set__max_sc(self._handle, max_sc)
-        
-        @property
-        def window_shift(self):
-            """
-            Element window_shift ftype=real  pytype=float32
-            Defined at mod_routing_states.f90 line 17
-            """
-            return _libfgamma.f90wrap_type_routing_states__get__window_shift(self._handle)
-        
-        @window_shift.setter
-        def window_shift(self, window_shift):
-            _libfgamma.f90wrap_type_routing_states__set__window_shift(self._handle, \
-                window_shift)
         
         @property
         def scale_coef(self):
@@ -1678,9 +1674,7 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
         
         def __str__(self):
             ret = ['<type_routing_states>{\n']
-            ret.append('    window_length : ')
-            ret.append(repr(self.window_length))
-            ret.append(',\n    nb_mode : ')
+            ret.append('    nb_mode : ')
             ret.append(repr(self.nb_mode))
             ret.append(',\n    nb_spreads : ')
             ret.append(repr(self.nb_spreads))
@@ -1692,6 +1686,8 @@ class Mod_Gamma_Routing_States(f90wrap.runtime.FortranModule):
             ret.append(repr(self.max_sc))
             ret.append(',\n    window_shift : ')
             ret.append(repr(self.window_shift))
+            ret.append(',\n    window_length : ')
+            ret.append(repr(self.window_length))
             ret.append(',\n    scale_coef : ')
             ret.append(repr(self.scale_coef))
             ret.append(',\n    quantile : ')

@@ -25,8 +25,8 @@ module mod_gamma_routing_setup
         real :: elongation_factor=1.0 ! Time space deformation to reduce the computation time 1<=f<=2. Good values should not exeed 1.2
         real :: mode_discretization_step=0.1 !Discretization of the mode of the Gamma PDF
         real :: spreading_discretization_step=0.1 ! Discretization of the spreading of the Gamma PDF
-        real,dimension(2) :: hydrau_coef_boundaries !depend on vmin,vmax
-        real,dimension(2) :: spreading_boundaries !min_spreading=dt/dx, max_spreading=?
+        real,dimension(2) :: hc_bnd = (/ 0.1, 10. /) !depend on vmin,vmax
+        real,dimension(2) :: sc_bnd = (/ 0.5, 5. /)  !min_spreading=dt/dx, max_spreading=?
         real :: ponderation_regul=0.0 !factor of the regularisation
         real :: ponderation_cost=1.0 !factor of the regularisation
         integer :: pdt_start_optim=1 ! time step number to start the computation of the cost function
@@ -90,7 +90,7 @@ module mod_gamma_routing_setup
         character(4), optional :: criteria
         
         
-        if (present(dt)) then
+        if (present(npdt)) then
             routing_setup%npdt=npdt
         end if
         if (present(dt)) then
@@ -110,12 +110,6 @@ module mod_gamma_routing_setup
         end if
         if (present(spreading_discretization_step)) then 
             routing_setup%spreading_discretization_step=spreading_discretization_step
-            
-            if (spreading_discretization_step>dt .and. routing_setup%varying_spread>0) then
-                write(*,*) "spreading_discretization_step have to be lower then dt !"
-                stop 0
-            end if
-            
         end if
         if (present(ponderation_regul)) then 
             routing_setup%ponderation_regul=ponderation_regul
@@ -146,13 +140,13 @@ module mod_gamma_routing_setup
         end if
         
         !bounds auto calculation, can be changed after initialisation
-        routing_setup%hydrau_coef_boundaries(1)=0.1
-        routing_setup%hydrau_coef_boundaries(2)=10.
-        routing_setup%spreading_boundaries(1)=0.5
-!~         routing_setup%spreading_boundaries(2)=10800.
-!~         routing_setup%spreading_boundaries(2)=routing_setup%dt+300.*sqrt(routing_setup%dt)
-        routing_setup%spreading_boundaries(2)=5.
-!~         routing_setup%spreading_boundaries(2)=routing_setup%dt/1000.+0.3*sqrt(routing_setup%dt)
+        routing_setup%hc_bnd(1)=0.1
+        routing_setup%hc_bnd(2)=10.
+        routing_setup%sc_bnd(1)=0.5
+!~         routing_setup%sc_bnd(2)=10800.
+!~         routing_setup%sc_bnd(2)=routing_setup%dt+300.*sqrt(routing_setup%dt)
+        routing_setup%sc_bnd(2)=5.
+!~         routing_setup%sc_bnd(2)=routing_setup%dt/1000.+0.3*sqrt(routing_setup%dt)
         
     end subroutine routing_setup_self_initialisation
     

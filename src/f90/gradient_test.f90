@@ -100,10 +100,10 @@ subroutine manual_gradient_test()
         &,velocity_computation="qmm",varying_spread=1)
         
         !Set bounds between 0 and 5
-        routing_setup%hydrau_coef_boundaries(1)=0.
-        routing_setup%spreading_boundaries(1)=0.
-        routing_setup%hydrau_coef_boundaries(2)=5.
-        routing_setup%spreading_boundaries(2)=5.
+        routing_setup%hc_bnd(1)=0.
+        routing_setup%sc_bnd(1)=0.
+        routing_setup%hc_bnd(2)=5.
+        routing_setup%sc_bnd(2)=5.
         
         write(*,*) "routing_mesh_self_initialisation..."
         write(*,*) ""
@@ -276,11 +276,11 @@ subroutine manual_gradient_test()
             write(*,*) "cost -pdx=",COST_F(3)
             
             if (ni .eq. 1) then
-                normalize_pdx=(pdx-routing_setup%hydrau_coef_boundaries(1))/&
-                &(routing_setup%hydrau_coef_boundaries(2)-routing_setup%hydrau_coef_boundaries(1))
+                normalize_pdx=(pdx-routing_setup%hc_bnd(1))/&
+                &(routing_setup%hc_bnd(2)-routing_setup%hc_bnd(1))
             else if (ni .eq. 2) then
-                normalize_pdx=(pdx-routing_setup%spreading_boundaries(1))/&
-                &(routing_setup%spreading_boundaries(2)-routing_setup%spreading_boundaries(1))
+                normalize_pdx=(pdx-routing_setup%sc_bnd(1))/&
+                &(routing_setup%sc_bnd(2)-routing_setup%sc_bnd(1))
             end if
             !Calcul de la variation du cout:
             WRITE(*,*) "Direct Model, derivative = ", (COST_F(2)-COST_F(3))/2.0/normalize_pdx

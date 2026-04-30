@@ -17,13 +17,16 @@ module mod_gamma_routing_states
     implicit none
     
     type type_routing_states
+        
+        integer :: nb_mode = 0 !number of discretization mode
+        integer :: nb_spreads = 0!number of discretization spreads
+        real :: max_mode = 0. !the highest mode i.e for vmin and dx max
+        real :: min_mode =0. !the lowest mode i.e for vmax and dx min
+        real :: max_sc =0. !the highest spreading values in s/m
+        real :: window_shift =0. !shift so that the peak of the PDF is located at x=dmin/vmax
+        
         integer,dimension(:),allocatable :: window_length ! length of the delay windows (model memory)
-        integer :: nb_mode !number of discretization mode
-        integer :: nb_spreads!number of discretization spreads
-        real :: max_mode !the highest mode i.e for vmin and dx max
-        real :: min_mode !the lowest mode i.e for vmax and dx min
-        real :: max_sc !the highest spreading values in s/m
-        real :: window_shift !shift so that the peak of the PDF is located at x=dmin/vmax
+        
         real,dimension(:),allocatable :: scale_coef !non uniform scale coefficient computed thanks to the max_spread coeff &
         !&(sert seulement à calculer windows_length)
         real, dimension(:), allocatable :: quantile !quantiles series to compute the Gamma pdf/cdf 
@@ -75,7 +78,7 @@ module mod_gamma_routing_states
         
         
         if (routing_setup%varying_spread>0) then
-            routing_states%max_sc=routing_setup%spreading_boundaries(2)
+            routing_states%max_sc=routing_setup%sc_bnd(2)
             routing_states%nb_spreads=int(routing_states%max_sc/routing_setup%spreading_discretization_step)+1
         else
             routing_states%nb_spreads=1

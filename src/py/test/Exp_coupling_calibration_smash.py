@@ -167,7 +167,9 @@ qt_true = smash_time_grid_to_time_vector_active_cells(
 )
 qt_bck = smash_time_grid_to_time_vector_active_cells(
     return_var_bck.q_domain, model_smash_bck
-)  #!/usr/bin/env python3
+)
+
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Thu Apr  2 16:10:01 2026
@@ -398,7 +400,7 @@ model_gamma_true = gamma.smashplug.ConfigureGammaWithSmash(
     ponderation_regul=1000.0,
 )
 
-model_gamma_true.routing_parameters_change(hc=1.0, sc=3.6)
+model_gamma_true.routing_parameters_change(hc=1.0, sc=3.0)
 model_gamma_true.routing_memory.states_init = 0.1
 model_gamma_true.run(qt_true.transpose())
 
@@ -410,7 +412,7 @@ model_gamma_background = gamma.smashplug.ConfigureGammaWithSmash(
     ponderation_regul=1000.0,
 )
 
-model_gamma_background.routing_parameters_change(hc=1.0, sc=3.6)
+model_gamma_background.routing_parameters_change(hc=1.0, sc=3.0)
 model_gamma_background.routing_memory.states_init = 0.1
 model_gamma_background.run(qt_bck.transpose())
 
@@ -423,7 +425,7 @@ model_gamma_optimize = gamma.smashplug.ConfigureGammaWithSmash(
     ponderation_cost=1.0,
 )
 
-model_gamma_optimize.routing_parameters_change(hc=1.0, sc=3.6)
+model_gamma_optimize.routing_parameters_change(hc=1.0, sc=3.0)
 model_gamma_optimize.routing_memory.states_init = 0.1
 model_gamma_optimize.run(qt_bck.transpose())
 

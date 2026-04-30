@@ -1482,7 +1482,7 @@ def calibration_parameters_smash(
         run_backward_djdx,
         X,
         args=(model_smash, model_gamma, observations, bounds),
-        method="SLSQP",  # "L-BFGS-B", SLSQP
+        method="L-BFGS-B",  # "L-BFGS-B", SLSQP
         jac=True,
         bounds=normalized_bounds,
         options={
@@ -1560,7 +1560,7 @@ def run_backward_djdx(X, model_smash, model_gamma, observations, bounds):
         gamma_gradients,
     )
 
-    int_gamma_gradient = np.sum(np.array(gamma_gradients, dtype="float64"), axis=0)
+    int_gamma_gradient = np.mean(np.array(gamma_gradients, dtype="float64"), axis=0)
 
     SmashGradients, name = model_smash.backward_run(
         mapping="distributed",
@@ -1579,6 +1579,8 @@ def run_backward_djdx(X, model_smash, model_gamma, observations, bounds):
         int_gamma_gradient[:] * SmashGradients[model_gamma.routing_mesh.nb_nodes :]
     )
     gradients = np.concatenate((gradients_cp, gradients_ct), axis=0)
+
+    # gradients = gradients / np.max(np.sqrt(gradients**2.0))
 
     print(f"cost=", np.float64(cost))
     return np.float64(cost), np.array(gradients, dtype="float64")

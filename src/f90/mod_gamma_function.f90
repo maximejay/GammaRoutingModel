@@ -750,6 +750,8 @@ module mod_gamma_function
             
         end do
         
+        !write(*,*) routing_states%tabulated_routing_coef
+        
         call tabulated_delay_for_gamma(routing_states%nb_mode,&
         &routing_setup%mode_discretization_step,routing_states%tabulated_delay)
         
@@ -757,6 +759,7 @@ module mod_gamma_function
         call tabulated_spreading_for_gamma(routing_states%nb_spreads,&
             &spreading_step,routing_states%tabulated_spreading)
         
+        !write(*,*) routing_states%tabulated_spreading
         
     end subroutine tabulated_routing_coefficients_3D
     

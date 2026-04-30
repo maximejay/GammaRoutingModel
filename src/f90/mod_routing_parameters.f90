@@ -77,20 +77,20 @@ module mod_gamma_routing_parameters
         sc_copy=-99.
         if (present(hc)) then
             hc_copy=hc
-            if (hc_copy<routing_setup%hydrau_coef_boundaries(1)) then
-            hc_copy=routing_setup%hydrau_coef_boundaries(1)
+            if (hc_copy<routing_setup%hc_bnd(1)) then
+            hc_copy=routing_setup%hc_bnd(1)
             end if
-            if (hc_copy>routing_setup%hydrau_coef_boundaries(2)) then
-                hc_copy=routing_setup%hydrau_coef_boundaries(2)
+            if (hc_copy>routing_setup%hc_bnd(2)) then
+                hc_copy=routing_setup%hc_bnd(2)
             end if
         end if
         if (present(sc)) then
             sc_copy=sc
-            if (sc_copy<routing_setup%spreading_boundaries(1)) then
-            sc_copy=routing_setup%spreading_boundaries(1)
+            if (sc_copy<routing_setup%sc_bnd(1)) then
+            sc_copy=routing_setup%sc_bnd(1)
             end if
-            if (sc_copy>routing_setup%spreading_boundaries(2)) then
-                sc_copy=routing_setup%spreading_boundaries(2)
+            if (sc_copy>routing_setup%sc_bnd(2)) then
+                sc_copy=routing_setup%sc_bnd(2)
             end if
         end if
         
@@ -119,12 +119,12 @@ module mod_gamma_routing_parameters
         type(type_routing_mesh), intent(in) :: routing_mesh
         
         routing_parameter%hc_n=(routing_parameter%hc -&
-        & routing_setup%hydrau_coef_boundaries(1)) /&
-        &(routing_setup%hydrau_coef_boundaries(2)-routing_setup%hydrau_coef_boundaries(1))
+        & routing_setup%hc_bnd(1)) /&
+        &(routing_setup%hc_bnd(2)-routing_setup%hc_bnd(1))
         
         routing_parameter%sc_n=(routing_parameter%sc -&
-        & routing_setup%spreading_boundaries(1)) /&
-        &(routing_setup%spreading_boundaries(2)-routing_setup%spreading_boundaries(1))
+        & routing_setup%sc_bnd(1)) /&
+        &(routing_setup%sc_bnd(2)-routing_setup%sc_bnd(1))
 
     end subroutine normalize_routing_parameters
     
@@ -135,12 +135,12 @@ module mod_gamma_routing_parameters
         type(type_routing_mesh), intent(in) :: routing_mesh
         
         routing_parameter%hc=routing_parameter%hc_n*&
-        &(routing_setup%hydrau_coef_boundaries(2)-routing_setup%hydrau_coef_boundaries(1))&
-        &+routing_setup%hydrau_coef_boundaries(1)
+        &(routing_setup%hc_bnd(2)-routing_setup%hc_bnd(1))&
+        &+routing_setup%hc_bnd(1)
         
         routing_parameter%sc=routing_parameter%sc_n*&
-        &(routing_setup%spreading_boundaries(2)-routing_setup%spreading_boundaries(1))&
-        &+routing_setup%spreading_boundaries(1)
+        &(routing_setup%sc_bnd(2)-routing_setup%sc_bnd(1))&
+        &+routing_setup%sc_bnd(1)
         
     end subroutine unnormalize_routing_parameters
     

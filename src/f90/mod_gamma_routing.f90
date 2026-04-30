@@ -154,8 +154,8 @@ module mod_gamma_routing
             qnetwork(current_node)=qcell
             
             !write(*,*) i,current_node,qcell
-            hydro_param_unn=x_unn(routing_setup%hydrau_coef_boundaries(1),&
-            &routing_setup%hydrau_coef_boundaries(2),routing_parameter%hc_n(current_node))
+            hydro_param_unn=x_unn(routing_setup%hc_bnd(1),&
+            &routing_setup%hc_bnd(2),routing_parameter%hc_n(current_node))
             
             call compute_velocity(hydro_param_unn,&
             &routing_setup,routing_mesh,routing_states,current_node,qcell,velocity)
@@ -164,12 +164,14 @@ module mod_gamma_routing
             mode=((routing_mesh%dx(current_node)/(velocity))/routing_setup%dt)
             index_varying_dx=routing_mesh%index_varying_dx(current_node)
             
-!~             write(*,*) i,current_node,inflows(current_node),qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%dt
+!~             if (qcell>10. .or. qcell<0.0) then
+!~                 write(*,*) i,current_node,inflows(current_node),qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%dt
+!~             endif
             
             if (routing_setup%varying_spread==1) then
                 
-                spreading_unn=x_unn(routing_setup%spreading_boundaries(1),&
-                &routing_setup%spreading_boundaries(2),routing_parameter%sc_n(current_node))
+                spreading_unn=x_unn(routing_setup%sc_bnd(1),&
+                &routing_setup%sc_bnd(2),routing_parameter%sc_n(current_node))
                 
                 call interpolated_routing_coefficients_bilinear(mode,spreading_unn,&
                 &index_varying_dx,routing_states,gamma_coefficient)
@@ -185,6 +187,10 @@ module mod_gamma_routing
             !if (current_node==10) then 
             !    write(*,*) velocity,mode,gamma_coefficient 
             !endif
+            
+!~             if (current_node==10 .AND. (qcell> 10.0 .OR. qcell<0.0)) then
+!~                 write(*,*) current_node, qcell, velocity, mode, gamma_coefficient
+!~             end if
             
             call LocalMemStorage(routing_mesh,routing_states,gamma_coefficient,qcell,current_node,&
             &remainder,states)
@@ -588,6 +594,9 @@ module mod_gamma_routing
         
         do t=1,routing_states%window_length(current_node)
             states(t,current_node)=states(t,current_node) + gamma_coefficient(t)*qcell
+!~             if (current_node==10 .AND. t==1 .AND. states(t,current_node)> 100.0) then
+!~                 write(*,*) t, current_node, qcell, gamma_coefficient(t), states(t,current_node)
+!~             end if
         enddo
         
     endsubroutine LocalMemStorage

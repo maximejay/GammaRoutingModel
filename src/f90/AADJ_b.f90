@@ -60,17 +60,17 @@ CONTAINS
     sc_copy = -99.
     IF (PRESENT(hc)) THEN
       hc_copy = hc
-      IF (hc_copy .LT. routing_setup%hydrau_coef_boundaries(1)) hc_copy&
-&        = routing_setup%hydrau_coef_boundaries(1)
-      IF (hc_copy .GT. routing_setup%hydrau_coef_boundaries(2)) hc_copy&
-&        = routing_setup%hydrau_coef_boundaries(2)
+      IF (hc_copy .LT. routing_setup%hc_bnd(1)) hc_copy = routing_setup%&
+&         hc_bnd(1)
+      IF (hc_copy .GT. routing_setup%hc_bnd(2)) hc_copy = routing_setup%&
+&         hc_bnd(2)
     END IF
     IF (PRESENT(sc)) THEN
       sc_copy = sc
-      IF (sc_copy .LT. routing_setup%spreading_boundaries(1)) sc_copy = &
-&         routing_setup%spreading_boundaries(1)
-      IF (sc_copy .GT. routing_setup%spreading_boundaries(2)) sc_copy = &
-&         routing_setup%spreading_boundaries(2)
+      IF (sc_copy .LT. routing_setup%sc_bnd(1)) sc_copy = routing_setup%&
+&         sc_bnd(1)
+      IF (sc_copy .GT. routing_setup%sc_bnd(2)) sc_copy = routing_setup%&
+&         sc_bnd(2)
     END IF
     IF (hc_copy .GT. 0.0) THEN
       routing_parameter%hc = hc_copy
@@ -97,12 +97,10 @@ CONTAINS
     TYPE(TYPE_ROUTING_PARAMETER), INTENT(INOUT) :: routing_parameter
     TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
-    routing_parameter%hc_n = (routing_parameter%hc-routing_setup%&
-&     hydrau_coef_boundaries(1))/(routing_setup%hydrau_coef_boundaries(2&
-&     )-routing_setup%hydrau_coef_boundaries(1))
-    routing_parameter%sc_n = (routing_parameter%sc-routing_setup%&
-&     spreading_boundaries(1))/(routing_setup%spreading_boundaries(2)-&
-&     routing_setup%spreading_boundaries(1))
+    routing_parameter%hc_n = (routing_parameter%hc-routing_setup%hc_bnd(&
+&     1))/(routing_setup%hc_bnd(2)-routing_setup%hc_bnd(1))
+    routing_parameter%sc_n = (routing_parameter%sc-routing_setup%sc_bnd(&
+&     1))/(routing_setup%sc_bnd(2)-routing_setup%sc_bnd(1))
   END SUBROUTINE NORMALIZE_ROUTING_PARAMETERS
 
   SUBROUTINE UNNORMALIZE_ROUTING_PARAMETERS(routing_parameter, &
@@ -111,12 +109,10 @@ CONTAINS
     TYPE(TYPE_ROUTING_PARAMETER), INTENT(INOUT) :: routing_parameter
     TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
-    routing_parameter%hc = routing_parameter%hc_n*(routing_setup%&
-&     hydrau_coef_boundaries(2)-routing_setup%hydrau_coef_boundaries(1))&
-&     + routing_setup%hydrau_coef_boundaries(1)
-    routing_parameter%sc = routing_parameter%sc_n*(routing_setup%&
-&     spreading_boundaries(2)-routing_setup%spreading_boundaries(1)) + &
-&     routing_setup%spreading_boundaries(1)
+    routing_parameter%hc = routing_parameter%hc_n*(routing_setup%hc_bnd(&
+&     2)-routing_setup%hc_bnd(1)) + routing_setup%hc_bnd(1)
+    routing_parameter%sc = routing_parameter%sc_n*(routing_setup%sc_bnd(&
+&     2)-routing_setup%sc_bnd(1)) + routing_setup%sc_bnd(1)
   END SUBROUTINE UNNORMALIZE_ROUTING_PARAMETERS
 
   SUBROUTINE ROUTING_PARAMETER_CLEAR(routing_parameter)
@@ -158,13 +154,13 @@ END MODULE MOD_GAMMA_ROUTING_PARAMETERS_DIFF
 !~ Contact: maxime.jay.allemand@hydris-hydrologie.fr
 MODULE MOD_GAMMA_ROUTING_STATES_DIFF
   IMPLICIT NONE
-! length of the delay windows (model memory)
 !number of discretization mode
 !number of discretization spreads
 !the highest mode i.e for vmin and dx max
 !the lowest mode i.e for vmax and dx min
 !the highest spreading values in s/m
 !shift so that the peak of the PDF is located at x=dmin/vmax
+! length of the delay windows (model memory)
 !non uniform scale coefficient computed thanks to the max_spread coeff &
 !&(sert seulement à calculer windows_length)
 !quantiles series to compute the Gamma pdf/cdf 
@@ -172,13 +168,13 @@ MODULE MOD_GAMMA_ROUTING_STATES_DIFF
 !tabulated spreading to spread the Gamma pdf
 !tabulated routing coefficient for the unit hydrogram
   TYPE TYPE_ROUTING_STATES
+      INTEGER :: nb_mode=0
+      INTEGER :: nb_spreads=0
+      REAL :: max_mode=0.
+      REAL :: min_mode=0.
+      REAL :: max_sc=0.
+      REAL :: window_shift=0.
       INTEGER, DIMENSION(:), ALLOCATABLE :: window_length
-      INTEGER :: nb_mode
-      INTEGER :: nb_spreads
-      REAL :: max_mode
-      REAL :: min_mode
-      REAL :: max_sc
-      REAL :: window_shift
       REAL, DIMENSION(:), ALLOCATABLE :: scale_coef
       REAL, DIMENSION(:), ALLOCATABLE :: quantile
       REAL, DIMENSION(:), ALLOCATABLE :: tabulated_delay
@@ -227,7 +223,7 @@ CONTAINS
     END IF
     ALLOCATE(routing_states%scale_coef(SIZE(routing_mesh%varying_dx)))
     IF (routing_setup%varying_spread .GT. 0) THEN
-      routing_states%max_sc = routing_setup%spreading_boundaries(2)
+      routing_states%max_sc = routing_setup%sc_bnd(2)
       routing_states%nb_spreads = INT(routing_states%max_sc/&
 &       routing_setup%spreading_discretization_step) + 1
     ELSE
@@ -529,22 +525,22 @@ CONTAINS
 !qnetwork is always in m3 => output discharges
 !write(*,*) i,current_node,qcell
       CALL PUSHREAL4(hydro_param_unn)
-      hydro_param_unn = X_UNN(routing_setup%hydrau_coef_boundaries(1), &
-&       routing_setup%hydrau_coef_boundaries(2), routing_parameter%hc_n(&
-&       current_node))
+      hydro_param_unn = X_UNN(routing_setup%hc_bnd(1), routing_setup%&
+&       hc_bnd(2), routing_parameter%hc_n(current_node))
       CALL PUSHREAL4(velocity)
       CALL PUSHREAL4(qcell)
       CALL COMPUTE_VELOCITY(hydro_param_unn, routing_setup, routing_mesh&
 &                     , routing_states, current_node, qcell, velocity)
       mode = routing_mesh%dx(current_node)/velocity/routing_setup%dt
       index_varying_dx = routing_mesh%index_varying_dx(current_node)
-!~             write(*,*) i,current_node,inflows(current_node),qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%
-!dt
+!~             if (qcell>10. .or. qcell<0.0) then
+!~                 write(*,*) i,current_node,inflows(current_node),qcell,velocity, mode, routing_mesh%dx(current_node),routing_se
+!tup%dt
+!~             endif
       IF (routing_setup%varying_spread .EQ. 1) THEN
         CALL PUSHREAL4(spreading_unn)
-        spreading_unn = X_UNN(routing_setup%spreading_boundaries(1), &
-&         routing_setup%spreading_boundaries(2), routing_parameter%sc_n(&
-&         current_node))
+        spreading_unn = X_UNN(routing_setup%sc_bnd(1), routing_setup%&
+&         sc_bnd(2), routing_parameter%sc_n(current_node))
         CALL PUSHREAL4ARRAY(gamma_coefficient, SIZE(routing_states%&
 &                     quantile))
         CALL INTERPOLATED_ROUTING_COEFFICIENTS_BILINEAR(mode, &
@@ -567,6 +563,9 @@ CONTAINS
 !if (current_node==10) then 
 !    write(*,*) velocity,mode,gamma_coefficient 
 !endif
+!~             if (current_node==10 .AND. (qcell> 10.0 .OR. qcell<0.0)) then
+!~                 write(*,*) current_node, qcell, velocity, mode, gamma_coefficient
+!~             end if
       CALL LOCALMEMSTORAGE(routing_mesh, routing_states, &
 &                    gamma_coefficient, qcell, current_node, remainder, &
 &                    states)
@@ -596,10 +595,9 @@ CONTAINS
 &                                                   gamma_coefficient, &
 &                                                   gamma_coefficientb)
         CALL POPREAL4(spreading_unn)
-        CALL X_UNN_B(routing_setup%spreading_boundaries(1), &
-&              routing_setup%spreading_boundaries(2), routing_parameter%&
-&              sc_n(current_node), routing_parameterb%sc_n(current_node)&
-&              , spreading_unnb)
+        CALL X_UNN_B(routing_setup%sc_bnd(1), routing_setup%sc_bnd(2), &
+&              routing_parameter%sc_n(current_node), routing_parameterb%&
+&              sc_n(current_node), spreading_unnb)
       ELSE
         index_varying_dx = routing_mesh%index_varying_dx(current_node)
         mode = routing_mesh%dx(current_node)/velocity/routing_setup%dt
@@ -620,10 +618,9 @@ CONTAINS
 &                       current_node, qcell, qcellb, velocity, velocityb&
 &                      )
       CALL POPREAL4(hydro_param_unn)
-      CALL X_UNN_B(routing_setup%hydrau_coef_boundaries(1), &
-&            routing_setup%hydrau_coef_boundaries(2), routing_parameter%&
-&            hc_n(current_node), routing_parameterb%hc_n(current_node), &
-&            hydro_param_unnb)
+      CALL X_UNN_B(routing_setup%hc_bnd(1), routing_setup%hc_bnd(2), &
+&            routing_parameter%hc_n(current_node), routing_parameterb%&
+&            hc_n(current_node), hydro_param_unnb)
       qcellb = qcellb + qnetworkb(current_node)
       qnetworkb(current_node) = 0.0
       CALL POPREAL4(qcell)
@@ -666,20 +663,20 @@ CONTAINS
 !qnetwork is always in m3 => output discharges
       qnetwork(current_node) = qcell
 !write(*,*) i,current_node,qcell
-      hydro_param_unn = X_UNN(routing_setup%hydrau_coef_boundaries(1), &
-&       routing_setup%hydrau_coef_boundaries(2), routing_parameter%hc_n(&
-&       current_node))
+      hydro_param_unn = X_UNN(routing_setup%hc_bnd(1), routing_setup%&
+&       hc_bnd(2), routing_parameter%hc_n(current_node))
       CALL COMPUTE_VELOCITY(hydro_param_unn, routing_setup, routing_mesh&
 &                     , routing_states, current_node, qcell, velocity)
       velocities(current_node) = velocity
       mode = routing_mesh%dx(current_node)/velocity/routing_setup%dt
       index_varying_dx = routing_mesh%index_varying_dx(current_node)
-!~             write(*,*) i,current_node,inflows(current_node),qcell,velocity, mode, routing_mesh%dx(current_node),routing_setup%
-!dt
+!~             if (qcell>10. .or. qcell<0.0) then
+!~                 write(*,*) i,current_node,inflows(current_node),qcell,velocity, mode, routing_mesh%dx(current_node),routing_se
+!tup%dt
+!~             endif
       IF (routing_setup%varying_spread .EQ. 1) THEN
-        spreading_unn = X_UNN(routing_setup%spreading_boundaries(1), &
-&         routing_setup%spreading_boundaries(2), routing_parameter%sc_n(&
-&         current_node))
+        spreading_unn = X_UNN(routing_setup%sc_bnd(1), routing_setup%&
+&         sc_bnd(2), routing_parameter%sc_n(current_node))
         CALL INTERPOLATED_ROUTING_COEFFICIENTS_BILINEAR(mode, &
 &                                                 spreading_unn, &
 &                                                 index_varying_dx, &
@@ -696,6 +693,9 @@ CONTAINS
 !if (current_node==10) then 
 !    write(*,*) velocity,mode,gamma_coefficient 
 !endif
+!~             if (current_node==10 .AND. (qcell> 10.0 .OR. qcell<0.0)) then
+!~                 write(*,*) current_node, qcell, velocity, mode, gamma_coefficient
+!~             end if
       CALL LOCALMEMSTORAGE(routing_mesh, routing_states, &
 &                    gamma_coefficient, qcell, current_node, remainder, &
 &                    states)
@@ -1421,6 +1421,9 @@ CONTAINS
 &   gamma_coefficient, gamma_coefficientb, qcell, qcellb, current_node, &
 &   remainder, states, statesb)
     IMPLICIT NONE
+!~             if (current_node==10 .AND. t==1 .AND. states(t,current_node)> 100.0) then
+!~                 write(*,*) t, current_node, qcell, gamma_coefficient(t), states(t,current_node)
+!~             end if
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
     TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
     INTRINSIC SIZE
@@ -1450,6 +1453,9 @@ CONTAINS
   SUBROUTINE LOCALMEMSTORAGE(routing_mesh, routing_states, &
 &   gamma_coefficient, qcell, current_node, remainder, states)
     IMPLICIT NONE
+!~             if (current_node==10 .AND. t==1 .AND. states(t,current_node)> 100.0) then
+!~                 write(*,*) t, current_node, qcell, gamma_coefficient(t), states(t,current_node)
+!~             end if
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
     TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
     INTRINSIC SIZE

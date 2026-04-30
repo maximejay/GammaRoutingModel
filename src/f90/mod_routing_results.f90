@@ -19,7 +19,7 @@ module mod_gamma_routing_results
     type type_routing_results
         real, dimension(:,:), allocatable :: discharges 
         real, dimension(:,:), allocatable :: velocities
-        real, dimension(3) :: costs
+        real, dimension(3) :: costs = -99.
         real, dimension(:,:), allocatable :: allgrads_hydraulic_coef
         real, dimension(:,:), allocatable :: allgrads_spreading
         real, dimension(:), allocatable :: gradients_hydraulic_coef

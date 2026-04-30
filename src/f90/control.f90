@@ -132,8 +132,8 @@ subroutine control(routing_setup,routing_mesh,routing_parameter,&
     
     write(*,*) "nparam=",nn
     
-    !write(*,*)routing_setup%hydrau_coef_boundaries
-    !write(*,*)routing_setup%spreading_boundaries
+    !write(*,*)routing_setup%hc_bnd
+    !write(*,*)routing_setup%sc_bnd
     
     !pause
     

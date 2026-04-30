@@ -141,6 +141,12 @@ class Model(object):
 
         self.routing_setup = Mod_Gamma_Routing_Setup.type_routing_setup()
 
+        # bounds calculation : default bounds
+        # self.routing_setup.hc_bnd[0] = 0.1
+        # self.routing_setup.hc_bnd[1] = 10.0
+        # self.routing_setup.sc_bnd[0] = 0.5
+        # self.routing_setup.sc_bnd[1] = 5.0
+
         options = kwargs
 
         if options is None:
@@ -149,12 +155,7 @@ class Model(object):
         for key, value in options.items():
             setattr(self.routing_setup, key, value)
 
-        # bounds calculation : default bounds
-        self.routing_setup.hydrau_coef_boundaries[0] = 0.1
-        self.routing_setup.hydrau_coef_boundaries[1] = 10.0
-        self.routing_setup.spreading_boundaries[0] = 0.5
-        self.routing_setup.spreading_boundaries[1] = 5.0
-        # ~ self.routing_setup.spreading_boundaries[1]=self.routing_setup.dt+300.*(self.routing_setup.dt**0.5)
+        # self.routing_setup.sc_bnd[1]=self.routing_setup.dt+300.*(self.routing_setup.dt**0.5)
 
     def routing_mesh_init(self, **kwargs):
 
@@ -205,10 +206,10 @@ class Model(object):
             options = {}
 
         for key, value in options.items():
-            if key == "hydrau_coef_boundaries":
-                self.routing_setup.hydrau_coef_boundaries = value
-            elif key == "spreading_boundaries":
-                self.routing_setup.spreading_boundaries = value
+            if key == "hc_bnd":
+                self.routing_setup.hc_bnd = value
+            elif key == "sc_bnd":
+                self.routing_setup.sc_bnd = value
             else:
                 raise ValueError(f"Wrong parameter name {key}.")
 
@@ -225,18 +226,27 @@ class Model(object):
         if options is None:
             options = {}
 
+        update_sc = False
         for key, value in options.items():
             if key == "hc":
                 self.routing_parameters.hc = value
             elif key == "sc":
+                update_sc = True
                 self.routing_parameters.sc = value
             else:
                 raise ValueError(f"Wrong parameter name {key}.")
+
         Mod_Gamma_Routing_Parameters.normalize_routing_parameters(
             self.routing_parameters, self.routing_setup, self.routing_mesh
         )
 
         self.routing_states_init()
+
+        if self.routing_setup.varying_spread == 0 and update_sc:
+            print(
+                "warning ! varying_spread == 0 and sc coefficient has changed. Routing_memory is reallocated."
+            )
+            self.routing_memory_init()
 
     def routing_parameters_normalized_change(self, **kwargs):
 
@@ -323,7 +333,7 @@ class Model(object):
         # first check if we need to force states_init
         if self.routing_setup.varying_spread == 1:
 
-            max_sc = self.routing_setup.spreading_boundaries[1]
+            max_sc = self.routing_setup.sc_bnd[1]
 
             nb_spreads = (
                 int(max_sc / self.routing_setup.spreading_discretization_step) + 1
@@ -350,6 +360,7 @@ class Model(object):
         # initialise states
         if states_init:
             self.routing_states_init()
+            self.routing_memory_init()
 
         if routing_memory_init:
             self.routing_memory_init()
@@ -568,7 +579,7 @@ class Model(object):
             sc_n=X[self.routing_mesh.nb_nodes :],
         )
 
-        self.run(inflows, states_init=False, memory_reset=True)
+        self.run(inflows, states_init=False, routing_memory_init=False)
 
         self.cost_function(observations, self.routing_results.discharges)
         cost = self.routing_results.costs[0]
