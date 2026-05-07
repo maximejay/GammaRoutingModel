@@ -18,7 +18,9 @@ module mod_gamma_routing_setup
     
     type type_routing_setup
         integer :: npdt=1 !nb de pas de temps
+        integer :: npdt_inflows = 1 !nb de pas de temps of the inflows
         real :: dt = 3600. !time-step en seconds (s)
+        real :: dt_inflows = 3600. !time-step en seconds (s) of the inflows
         real :: vmin = 0.1 !minimum velocity (m/s)
         real :: vmax = 10.0 !maximum velocity (m/s)
         real :: spreading_gamma_threshold=0.1 !objective value for the ratio Gamma(x+delta)/Gamma(x) where delta=spreading/dt and x the time-step position: spreading_gamma_threshold=0.1 is a good choice since that respect the differentiability condition and make the damping parameter the accurate for the modeller
@@ -42,7 +44,7 @@ module mod_gamma_routing_setup
     
     contains
     
-    subroutine routing_setup_self_initialisation(routing_setup,npdt,dt,vmin,vmax,&
+    subroutine routing_setup_self_initialisation(routing_setup,npdt,npdt_inflows,dt,dt_inflows,vmin,vmax,&
     &elongation_factor,mode_discretization_step,spreading_discretization_step,&
     &ponderation_regul,ponderation_cost,auto_reg,hydraulics_coef_uniform,spreading_uniform,&
     &iter_max,velocity_computation,criteria,varying_spread)
@@ -73,7 +75,9 @@ module mod_gamma_routing_setup
         
         type(type_routing_setup), intent(inout) :: routing_setup
         integer, optional :: npdt
+        integer, optional :: npdt_inflows
         real, optional :: dt
+        real, optional :: dt_inflows
         real, optional :: vmin
         real, optional :: vmax
         real, optional :: elongation_factor
@@ -92,10 +96,44 @@ module mod_gamma_routing_setup
         
         if (present(npdt)) then
             routing_setup%npdt=npdt
+            routing_setup%npdt_inflows=npdt !initialisation
         end if
+        
+        if (present(npdt_inflows)) then
+            routing_setup%npdt_inflows=npdt_inflows
+        end if
+        
         if (present(dt)) then
             routing_setup%dt=dt
+            routing_setup%dt_inflows=dt !initiatlisation
         end if
+        
+        if (present(dt_inflows)) then
+            routing_setup%dt_inflows=dt_inflows
+        end if
+        
+!~         if (present(dt_inflows)) then
+!~             routing_setup%dt_inflows=dt_inflows
+!~             if (routing_setup%dt<routing_setup%dt_inflows) then
+!~                 if (modulo(routing_setup%dt_inflows,routing_setup%dt)>0) then
+!~                     write(*,*) "Error: dt_inflows n'est pas un multiple de dt !"
+!~                     stop
+!~                 end if
+!~                 if (.not.present(npdt_inflows)) then
+!~                     routing_setup%npdt_inflows=routing_setup%npdt*int(routing_setup%dt_inflows/routing_setup%dt)
+!~                 end if
+!~             else
+!~                 if (modulo(routing_setup%dt,routing_setup%dt_inflows)>0) then
+!~                     write(*,*) "Error: dt_inflows n'est pas un multiple de dt !"
+!~                     stop
+!~                 end if
+!~                 if (.not.present(npdt_inflows)) then
+!~                     routing_setup%npdt_inflows=int(routing_setup%npdt*routing_setup%dt/routing_setup%dt_inflows)
+!~                 end if
+!~             end if
+            
+!~         end if
+        
         if (present(vmin)) then
             routing_setup%vmin=vmin
         end if
@@ -143,9 +181,8 @@ module mod_gamma_routing_setup
         routing_setup%hc_bnd(1)=0.1
         routing_setup%hc_bnd(2)=10.
         routing_setup%sc_bnd(1)=0.5
-!~         routing_setup%sc_bnd(2)=10800.
-!~         routing_setup%sc_bnd(2)=routing_setup%dt+300.*sqrt(routing_setup%dt)
         routing_setup%sc_bnd(2)=5.
+!~         routing_setup%sc_bnd(2)=routing_setup%dt+300.*sqrt(routing_setup%dt)
 !~         routing_setup%sc_bnd(2)=routing_setup%dt/1000.+0.3*sqrt(routing_setup%dt)
         
     end subroutine routing_setup_self_initialisation

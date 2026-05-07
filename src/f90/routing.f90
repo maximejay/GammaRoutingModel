@@ -86,7 +86,7 @@ program routing
     
     write(*,*) "routing_setup_self_initialisation..."
     write(*,*) ""
-    call routing_setup_self_initialisation(routing_setup,npdt=100,dt=900.,vmin=0.1,vmax=10.,&
+    call routing_setup_self_initialisation(routing_setup,npdt=100,npdt_inflows=25,dt=900.,dt_inflows=3600.,vmin=0.1,vmax=10.,&
     &elongation_factor=1.0,mode_discretization_step=0.1,spreading_discretization_step=0.1,ponderation_regul=10000.0&
     &,velocity_computation="qm3",varying_spread=1)
     
@@ -145,14 +145,20 @@ program routing
     write(*,*) "routing_results_self_initialisation..."
     call routing_results_self_initialisation(routing_setup,routing_mesh,routing_results)
     
-    allocate(inflows(routing_setup%npdt,routing_mesh%nb_nodes))
+!~     allocate(inflows(routing_setup%npdt,routing_mesh%nb_nodes))
+    allocate(inflows(routing_setup%npdt_inflows,routing_mesh%nb_nodes))
     !inputs : initialisation
     inflows=0.0
     inflows(1,1)=50.
+    inflows(25,1)=50.
+    inflows(2,1)=25.
+    inflows(3,1)=1.
     
     write(*,*) "routing_gamma_run..."
     call routing_gamma_run(routing_setup,routing_mesh,routing_parameter,inflows,&
     &routing_states,routing_memory,routing_results)
+    
+    pause
     
     write(*,*) routing_results%discharges
     

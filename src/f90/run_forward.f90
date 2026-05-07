@@ -48,7 +48,8 @@ subroutine routing_hydrogram_forward(routing_setup,routing_mesh,routing_paramete
     type(type_routing_setup), intent(in) :: routing_setup
     type(type_routing_mesh), intent(in) :: routing_mesh
     type(type_routing_parameter), intent(inout) :: routing_parameter
-    real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: inflows
+    real, dimension(routing_setup%npdt_inflows,routing_mesh%nb_nodes), intent(in) :: inflows
+!~     real, dimension(:,:), intent(in) :: inflows
     real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: observations
     type(type_routing_states), intent(inout) :: routing_states
     type(type_routing_memory), intent(inout) :: routing_memory
@@ -65,6 +66,10 @@ subroutine routing_hydrogram_forward(routing_setup,routing_mesh,routing_paramete
         
     real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes) :: remainder
     real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes) :: states
+    
+    real, dimension(routing_setup%npdt,routing_mesh%nb_nodes) :: interpolated_inflows
+    
+    call interpolate_inflows(routing_setup, routing_mesh, inflows, interpolated_inflows)
     
     if (routing_setup%hydraulics_coef_uniform==1) then
         do i=1,routing_mesh%nb_nodes
@@ -85,7 +90,7 @@ subroutine routing_hydrogram_forward(routing_setup,routing_mesh,routing_paramete
     do i=1,routing_setup%npdt
         velocities=0.
         qmesh=0.
-        inflow=inflows(i,1:routing_mesh%nb_nodes)
+        inflow=interpolated_inflows(i,1:routing_mesh%nb_nodes)
         call routing_flow(routing_setup,routing_mesh,routing_parameter,inflow,routing_states,&
         &remainder,states,qmesh,velocities)
         

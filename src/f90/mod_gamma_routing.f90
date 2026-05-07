@@ -61,7 +61,7 @@ module mod_gamma_routing
         type(type_routing_setup), intent(in) :: routing_setup
         type(type_routing_mesh), intent(in) :: routing_mesh
         type(type_routing_parameter), intent(in) :: routing_parameter
-        real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: inflows
+        real, dimension(routing_setup%npdt_inflows,routing_mesh%nb_nodes), intent(in) :: inflows
         type(type_routing_states), intent(inout) :: routing_states
         type(type_routing_memory), intent(inout) :: routing_memory
         type(type_routing_results), intent(inout) :: routing_results
@@ -77,13 +77,17 @@ module mod_gamma_routing
         real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes) :: remainder
         real, dimension(size(routing_states%quantile),routing_mesh%nb_nodes) :: states
         
+        real, dimension(routing_setup%npdt,routing_mesh%nb_nodes) :: interpolated_inflows
+        
+        call interpolate_inflows(routing_setup, routing_mesh, inflows, interpolated_inflows)
+        
         remainder=routing_memory%remainder_init
         states=routing_memory%states_init
         
         do i=1,routing_setup%npdt
             velocities=0.
             qmesh=0.
-            inflow=inflows(i,1:routing_mesh%nb_nodes)
+            inflow=interpolated_inflows(i,1:routing_mesh%nb_nodes)
             call routing_flow(routing_setup,routing_mesh,routing_parameter,inflow,routing_states,remainder,&
             &states,qmesh,velocities)
             qnetwork(i,:)=qmesh
@@ -98,6 +102,77 @@ module mod_gamma_routing
         routing_results%velocities=vnetwork
         
     end subroutine routing_hydrogram
+    
+    subroutine interpolate_inflows(routing_setup, routing_mesh, inflows, interpolated_inflows)
+        type(type_routing_setup), intent(in) :: routing_setup
+        type(type_routing_mesh), intent(in) :: routing_mesh
+        real, dimension(routing_setup%npdt_inflows,routing_mesh%nb_nodes), intent(in) :: inflows
+!~         real, dimension(:,:), intent(in) :: inflows
+        real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(inout) :: interpolated_inflows
+        
+!~         integer :: t, tt, tn, j, npdt, frac_dt
+        integer :: ts, k,j,n
+        
+        if (routing_setup%npdt_inflows*routing_setup%dt_inflows<routing_setup%npdt*routing_setup%dt) then
+                write(*,*) "Incompatible dimension 1 of array inflows:", routing_setup%npdt_inflows*routing_setup%dt_inflows,&
+                & "s <",routing_setup%npdt*routing_setup%dt, "s. Not enough data !"
+                stop
+        end if
+        
+        interpolated_inflows=0.0
+        
+        if (routing_setup%dt<routing_setup%dt_inflows) then
+            
+            n = int(routing_setup%dt_inflows / routing_setup%dt)
+            k = 1
+            do ts=1,routing_setup%npdt_inflows
+                do j=1,n
+                    interpolated_inflows(k,:) = inflows(ts,:)
+                    k = k + 1
+                end do
+            end do
+        
+        else if (routing_setup%dt>routing_setup%dt_inflows) then
+            
+            n=int(routing_setup%dt/routing_setup%dt_inflows)
+            
+            k=1
+            do ts=1,routing_setup%npdt_inflows
+                interpolated_inflows(ts,:)=sum(inflows(k:k+n,:))/n
+                k=k+n
+            end do
+            
+        else
+            
+            interpolated_inflows(:,:)=inflows(:,:)
+            
+        end if
+            
+!~             tt=1
+!~             do t=1,routing_setup%npdt_inflows-1
+            
+!~                 tn=int(t+1.0/frac_dt)
+                
+!~                 do j=1,frac_dt
+!~                     interpolated_inflows(tt,:)=(inflows(t+1,:)-inflows(t,:))*(tn-t) + inflows(t,:)
+                
+!~                     tt=tt+1
+!~                     tn=tn + int(1/frac_dt)
+!~                 end do
+            
+!~             end do
+            
+            !cdl
+!~             do t=routing_setup%npdt-frac_dt+1,routing_setup%npdt
+!~                 write(*,*) t,routing_setup%npdt-frac_dt,routing_setup%npdt
+!~                 interpolated_inflows(t,:)=inflows(routing_setup%npdt_inflows,:)
+!~             end do
+            
+        
+        
+!~         write(*,*) inflows(:,1)
+!~         write(*,*) interpolated_inflows(:,1)
+    end subroutine interpolate_inflows
     
     subroutine routing_flow(routing_setup,routing_mesh,routing_parameter,inflows,routing_states,&
     &remainder,states,qnetwork,velocities)

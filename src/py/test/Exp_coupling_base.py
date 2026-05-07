@@ -172,7 +172,6 @@ qt = smash_time_grid_to_time_vector_active_cells(return_var.q_domain, model_smas
 
 model.run(qt.transpose())
 
-
 model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
     model_smash, dt=3600.0, velocity_computation="qm3"
 )

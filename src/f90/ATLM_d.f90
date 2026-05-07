@@ -435,8 +435,8 @@ CONTAINS
     TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
     TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
     TYPE(TYPE_ROUTING_PARAMETER), INTENT(IN) :: routing_parameter
-    REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(&
-&   IN) :: inflows
+    REAL, DIMENSION(routing_setup%npdt_inflows, routing_mesh%nb_nodes), &
+&   INTENT(IN) :: inflows
     TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
     TYPE(TYPE_ROUTING_MEMORY), INTENT(INOUT) :: routing_memory
     TYPE(TYPE_ROUTING_RESULTS), INTENT(INOUT) :: routing_results
@@ -453,12 +453,16 @@ CONTAINS
 &   ) :: remainder
     REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes&
 &   ) :: states
+    REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes) :: &
+&   interpolated_inflows
+    CALL INTERPOLATE_INFLOWS(routing_setup, routing_mesh, inflows, &
+&                      interpolated_inflows)
     remainder = routing_memory%remainder_init
     states = routing_memory%states_init
     DO i=1,routing_setup%npdt
       velocities = 0.
       qmesh = 0.
-      inflow = inflows(i, 1:routing_mesh%nb_nodes)
+      inflow = interpolated_inflows(i, 1:routing_mesh%nb_nodes)
       CALL ROUTING_FLOW(routing_setup, routing_mesh, routing_parameter, &
 &                 inflow, routing_states, remainder, states, qmesh, &
 &                 velocities)
@@ -471,6 +475,140 @@ CONTAINS
     routing_results%discharges = qnetwork
     routing_results%velocities = vnetwork
   END SUBROUTINE ROUTING_HYDROGRAM
+
+!  Differentiation of interpolate_inflows in forward (tangent) mode (with options fixinterface):
+!   variations   of useful results: interpolated_inflows
+!   with respect to varying inputs: inflows
+  SUBROUTINE INTERPOLATE_INFLOWS_D(routing_setup, routing_mesh, inflows&
+&   , inflowsd, interpolated_inflows, interpolated_inflowsd)
+    IMPLICIT NONE
+!~             tt=1
+!~             do t=1,routing_setup%npdt_inflows-1
+!~                 tn=int(t+1.0/frac_dt)
+!~                 do j=1,frac_dt
+!~                     interpolated_inflows(tt,:)=(inflows(t+1,:)-inflows(t,:))*(tn-t) + inflows(t,:)
+!~                     tt=tt+1
+!~                     tn=tn + int(1/frac_dt)
+!~                 end do
+!~             end do
+!cdl
+!~             do t=routing_setup%npdt-frac_dt+1,routing_setup%npdt
+!~                 write(*,*) t,routing_setup%npdt-frac_dt,routing_setup%npdt
+!~                 interpolated_inflows(t,:)=inflows(routing_setup%npdt_inflows,:)
+!~             end do
+!~         write(*,*) inflows(:,1)
+!~         write(*,*) interpolated_inflows(:,1)
+    TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
+    TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
+    REAL, DIMENSION(routing_setup%npdt_inflows, routing_mesh%nb_nodes), &
+&   INTENT(IN) :: inflows
+    REAL, DIMENSION(routing_setup%npdt_inflows, routing_mesh%nb_nodes), &
+&   INTENT(IN) :: inflowsd
+!~         real, dimension(:,:), intent(in) :: inflows
+    REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(&
+&   INOUT) :: interpolated_inflows
+    REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(&
+&   INOUT) :: interpolated_inflowsd
+!~         integer :: t, tt, tn, j, npdt, frac_dt
+    INTEGER :: ts, k, l, j, n
+    INTRINSIC INT
+    INTRINSIC SUM
+    IF (routing_setup%npdt_inflows*routing_setup%dt_inflows .LT. &
+&       routing_setup%npdt*routing_setup%dt) THEN
+      WRITE(*, *) 'Incompatible dimension 1 of array inflows:', &
+&     routing_setup%npdt_inflows*routing_setup%dt_inflows, 's <', &
+&     routing_setup%npdt*routing_setup%dt, 's. Not enough data !'
+      STOP
+    ELSE
+      interpolated_inflows = 0.0
+      IF (routing_setup%dt .LT. routing_setup%dt_inflows) THEN
+        n = INT(routing_setup%dt_inflows/routing_setup%dt)
+        k = 1
+        l = n
+        interpolated_inflowsd = 0.0
+        DO ts=1,routing_setup%npdt_inflows
+          DO j=1,n
+            interpolated_inflowsd(k, :) = inflowsd(ts, :)
+            interpolated_inflows(k, :) = inflows(ts, :)
+            k = k + 1
+          END DO
+        END DO
+      ELSE IF (routing_setup%dt .GT. routing_setup%dt_inflows) THEN
+        n = INT(routing_setup%dt/routing_setup%dt_inflows)
+        k = 1
+        interpolated_inflowsd = 0.0
+        DO ts=1,routing_setup%npdt_inflows
+          interpolated_inflowsd(ts, :) = SUM(inflowsd(k:k+n, :))/n
+          interpolated_inflows(ts, :) = SUM(inflows(k:k+n, :))/n
+          k = k + n
+        END DO
+      ELSE
+        interpolated_inflowsd(:, :) = inflowsd(:, :)
+        interpolated_inflows(:, :) = inflows(:, :)
+      END IF
+    END IF
+  END SUBROUTINE INTERPOLATE_INFLOWS_D
+
+  SUBROUTINE INTERPOLATE_INFLOWS(routing_setup, routing_mesh, inflows, &
+&   interpolated_inflows)
+    IMPLICIT NONE
+!~             tt=1
+!~             do t=1,routing_setup%npdt_inflows-1
+!~                 tn=int(t+1.0/frac_dt)
+!~                 do j=1,frac_dt
+!~                     interpolated_inflows(tt,:)=(inflows(t+1,:)-inflows(t,:))*(tn-t) + inflows(t,:)
+!~                     tt=tt+1
+!~                     tn=tn + int(1/frac_dt)
+!~                 end do
+!~             end do
+!cdl
+!~             do t=routing_setup%npdt-frac_dt+1,routing_setup%npdt
+!~                 write(*,*) t,routing_setup%npdt-frac_dt,routing_setup%npdt
+!~                 interpolated_inflows(t,:)=inflows(routing_setup%npdt_inflows,:)
+!~             end do
+!~         write(*,*) inflows(:,1)
+!~         write(*,*) interpolated_inflows(:,1)
+    TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
+    TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
+    REAL, DIMENSION(routing_setup%npdt_inflows, routing_mesh%nb_nodes), &
+&   INTENT(IN) :: inflows
+!~         real, dimension(:,:), intent(in) :: inflows
+    REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(&
+&   INOUT) :: interpolated_inflows
+!~         integer :: t, tt, tn, j, npdt, frac_dt
+    INTEGER :: ts, k, l, j, n
+    INTRINSIC INT
+    INTRINSIC SUM
+    IF (routing_setup%npdt_inflows*routing_setup%dt_inflows .LT. &
+&       routing_setup%npdt*routing_setup%dt) THEN
+      WRITE(*, *) 'Incompatible dimension 1 of array inflows:', &
+&     routing_setup%npdt_inflows*routing_setup%dt_inflows, 's <', &
+&     routing_setup%npdt*routing_setup%dt, 's. Not enough data !'
+      STOP
+    ELSE
+      interpolated_inflows = 0.0
+      IF (routing_setup%dt .LT. routing_setup%dt_inflows) THEN
+        n = INT(routing_setup%dt_inflows/routing_setup%dt)
+        k = 1
+        l = n
+        DO ts=1,routing_setup%npdt_inflows
+          DO j=1,n
+            interpolated_inflows(k, :) = inflows(ts, :)
+            k = k + 1
+          END DO
+        END DO
+      ELSE IF (routing_setup%dt .GT. routing_setup%dt_inflows) THEN
+        n = INT(routing_setup%dt/routing_setup%dt_inflows)
+        k = 1
+        DO ts=1,routing_setup%npdt_inflows
+          interpolated_inflows(ts, :) = SUM(inflows(k:k+n, :))/n
+          k = k + n
+        END DO
+      ELSE
+        interpolated_inflows(:, :) = inflows(:, :)
+      END IF
+    END IF
+  END SUBROUTINE INTERPOLATE_INFLOWS
 
 !  Differentiation of routing_flow in forward (tangent) mode (with options fixinterface):
 !   variations   of useful results: remainder states qnetwork
@@ -1480,10 +1618,11 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_D0(routing_setup, routing_mesh, &
   TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
   TYPE(TYPE_ROUTING_PARAMETER), INTENT(INOUT) :: routing_parameter
   TYPE(TYPE_ROUTING_PARAMETER_DIFF), INTENT(INOUT) :: routing_parameterd
-  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
-& :: inflows
-  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
-& :: inflowsd
+  REAL, DIMENSION(routing_setup%npdt_inflows, routing_mesh%nb_nodes), &
+& INTENT(IN) :: inflows
+  REAL, DIMENSION(routing_setup%npdt_inflows, routing_mesh%nb_nodes), &
+& INTENT(IN) :: inflowsd
+!~     real, dimension(:,:), intent(in) :: inflows
   REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
 & :: observations
   TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
@@ -1511,6 +1650,13 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_D0(routing_setup, routing_mesh, &
 & :: states
   REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes) &
 & :: statesd
+  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes) :: &
+& interpolated_inflows
+  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes) :: &
+& interpolated_inflowsd
+  CALL INTERPOLATE_INFLOWS_D(routing_setup, routing_mesh, inflows, &
+&                      inflowsd, interpolated_inflows, &
+&                      interpolated_inflowsd)
   IF (routing_setup%hydraulics_coef_uniform .EQ. 1) THEN
     DO i=1,routing_mesh%nb_nodes
       routing_parameterd%hc(i) = 0.0
@@ -1535,8 +1681,8 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_D0(routing_setup, routing_mesh, &
   DO i=1,routing_setup%npdt
     velocities = 0.
     qmesh = 0.
-    inflowd = inflowsd(i, 1:routing_mesh%nb_nodes)
-    inflow = inflows(i, 1:routing_mesh%nb_nodes)
+    inflowd = interpolated_inflowsd(i, 1:routing_mesh%nb_nodes)
+    inflow = interpolated_inflows(i, 1:routing_mesh%nb_nodes)
     routing_parameterd%hc_n = 0.0
     routing_parameterd%sc_n = 0.0
     CALL ROUTING_FLOW_D(routing_setup, routing_mesh, routing_parameter, &
@@ -1615,9 +1761,11 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_D(routing_setup, routing_mesh, &
   TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
   TYPE(TYPE_ROUTING_PARAMETER), INTENT(INOUT) :: routing_parameter
   TYPE(TYPE_ROUTING_PARAMETER_DIFF), INTENT(INOUT) :: routing_parameterd
-  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
-& :: inflows
-  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes) :: inflowsd
+  REAL, DIMENSION(routing_setup%npdt_inflows, routing_mesh%nb_nodes), &
+& INTENT(IN) :: inflows
+  REAL, DIMENSION(routing_setup%npdt_inflows, routing_mesh%nb_nodes) :: &
+& inflowsd
+!~     real, dimension(:,:), intent(in) :: inflows
   REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
 & :: observations
   TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
@@ -1645,6 +1793,12 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_D(routing_setup, routing_mesh, &
 & :: states
   REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes) &
 & :: statesd
+  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes) :: &
+& interpolated_inflows
+  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes) :: &
+& interpolated_inflowsd
+  CALL INTERPOLATE_INFLOWS(routing_setup, routing_mesh, inflows, &
+&                    interpolated_inflows)
   IF (routing_setup%hydraulics_coef_uniform .EQ. 1) THEN
     DO i=1,routing_mesh%nb_nodes
       routing_parameterd%hc(i) = 0.0
@@ -1669,7 +1823,7 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_D(routing_setup, routing_mesh, &
   DO i=1,routing_setup%npdt
     velocities = 0.
     qmesh = 0.
-    inflow = inflows(i, 1:routing_mesh%nb_nodes)
+    inflow = interpolated_inflows(i, 1:routing_mesh%nb_nodes)
     inflowd = 0.0
     CALL ROUTING_FLOW_D(routing_setup, routing_mesh, routing_parameter, &
 &                 routing_parameterd, inflow, inflowd, routing_states, &
@@ -1735,8 +1889,9 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF_D(routing_setup, routing_mesh&
   TYPE(TYPE_ROUTING_SETUP), INTENT(IN) :: routing_setup
   TYPE(TYPE_ROUTING_MESH), INTENT(IN) :: routing_mesh
   TYPE(TYPE_ROUTING_PARAMETER), INTENT(INOUT) :: routing_parameter
-  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
-& :: inflows
+  REAL, DIMENSION(routing_setup%npdt_inflows, routing_mesh%nb_nodes), &
+& INTENT(IN) :: inflows
+!~     real, dimension(:,:), intent(in) :: inflows
   REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes), INTENT(IN)&
 & :: observations
   TYPE(TYPE_ROUTING_STATES), INTENT(INOUT) :: routing_states
@@ -1755,6 +1910,10 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF_D(routing_setup, routing_mesh&
 & :: remainder
   REAL, DIMENSION(SIZE(routing_states%quantile), routing_mesh%nb_nodes) &
 & :: states
+  REAL, DIMENSION(routing_setup%npdt, routing_mesh%nb_nodes) :: &
+& interpolated_inflows
+  CALL INTERPOLATE_INFLOWS(routing_setup, routing_mesh, inflows, &
+&                    interpolated_inflows)
   IF (routing_setup%hydraulics_coef_uniform .EQ. 1) THEN
     DO i=1,routing_mesh%nb_nodes
       routing_parameter%hc(i) = routing_parameter%hc(1)
@@ -1772,7 +1931,7 @@ SUBROUTINE ROUTING_HYDROGRAM_FORWARD_NODIFF_D(routing_setup, routing_mesh&
   DO i=1,routing_setup%npdt
     velocities = 0.
     qmesh = 0.
-    inflow = inflows(i, 1:routing_mesh%nb_nodes)
+    inflow = interpolated_inflows(i, 1:routing_mesh%nb_nodes)
     CALL ROUTING_FLOW(routing_setup, routing_mesh, routing_parameter, &
 &               inflow, routing_states, remainder, states, qmesh, &
 &               velocities)

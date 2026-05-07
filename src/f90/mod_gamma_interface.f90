@@ -282,7 +282,7 @@ module mod_gamma_interface
         type(type_routing_setup), intent(in) :: routing_setup
         type(type_routing_mesh), intent(in) :: routing_mesh
         type(type_routing_parameter), intent(inout) :: routing_parameter
-        real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: inflows
+        real, dimension(routing_setup%npdt_inflows,routing_mesh%nb_nodes), intent(in) :: inflows
         type(type_routing_states), intent(inout) :: routing_states
         type(type_routing_memory), intent(inout) :: routing_memory
         type(type_routing_results), intent(inout) :: routing_results
@@ -393,15 +393,15 @@ module mod_gamma_interface
         type(type_routing_setup), intent(in) :: routing_setup
         type(type_routing_mesh), intent(in) :: routing_mesh
         type(type_routing_parameter), intent(inout) :: routing_parameter
-        real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: inflows
+        real, dimension(routing_setup%npdt_inflows,routing_mesh%nb_nodes), intent(in) :: inflows
         real, dimension(routing_setup%npdt,routing_mesh%nb_nodes), intent(in) :: observations
         type(type_routing_states), intent(inout) :: routing_states
         type(type_routing_memory), intent(inout) :: routing_memory
         type(type_routing_results), intent(inout) :: routing_results
-        real,dimension(routing_setup%npdt,routing_mesh%nb_nodes),intent(inout) :: gradients
+        real,dimension(routing_setup%npdt_inflows,routing_mesh%nb_nodes),intent(inout) :: gradients
         
         type(type_routing_parameter) :: routing_parameterb
-        real, dimension(routing_setup%npdt,routing_mesh%nb_nodes) :: inflowsb
+        real, dimension(routing_setup%npdt_inflows,routing_mesh%nb_nodes) :: inflowsb
         
         real :: cost
         real :: costb

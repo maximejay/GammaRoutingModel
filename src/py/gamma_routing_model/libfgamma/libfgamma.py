@@ -9,20 +9,20 @@ import weakref
 class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
     """
     Module mod_gamma_routing_setup
-    Defined at mod_routing_setup.f90 lines 8-152
+    Defined at mod_routing_setup.f90 lines 8-183
     """
     @f90wrap.runtime.register_class("libfgamma.type_routing_setup")
     class type_routing_setup(f90wrap.runtime.FortranDerivedType):
         """
         Type(name=type_routing_setup)
-        Defined at mod_routing_setup.f90 lines 10-30
+        Defined at mod_routing_setup.f90 lines 10-32
         """
         def __init__(self, handle=None):
             """
             Automatically generated constructor for type_routing_setup
             
             self = Type_Routing_Setup()
-            Defined at mod_routing_setup.f90 lines 10-30
+            Defined at mod_routing_setup.f90 lines 10-32
             
             Returns
             -------
@@ -62,10 +62,23 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
             _libfgamma.f90wrap_type_routing_setup__set__npdt(self._handle, npdt)
         
         @property
+        def npdt_inflows(self):
+            """
+            Element npdt_inflows ftype=integer  pytype=int32
+            Defined at mod_routing_setup.f90 line 12
+            """
+            return _libfgamma.f90wrap_type_routing_setup__get__npdt_inflows(self._handle)
+        
+        @npdt_inflows.setter
+        def npdt_inflows(self, npdt_inflows):
+            _libfgamma.f90wrap_type_routing_setup__set__npdt_inflows(self._handle, \
+                npdt_inflows)
+        
+        @property
         def dt(self):
             """
             Element dt ftype=real  pytype=float32
-            Defined at mod_routing_setup.f90 line 12
+            Defined at mod_routing_setup.f90 line 13
             """
             return _libfgamma.f90wrap_type_routing_setup__get__dt(self._handle)
         
@@ -74,10 +87,22 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
             _libfgamma.f90wrap_type_routing_setup__set__dt(self._handle, dt)
         
         @property
+        def dt_inflows(self):
+            """
+            Element dt_inflows ftype=real  pytype=float32
+            Defined at mod_routing_setup.f90 line 14
+            """
+            return _libfgamma.f90wrap_type_routing_setup__get__dt_inflows(self._handle)
+        
+        @dt_inflows.setter
+        def dt_inflows(self, dt_inflows):
+            _libfgamma.f90wrap_type_routing_setup__set__dt_inflows(self._handle, dt_inflows)
+        
+        @property
         def vmin(self):
             """
             Element vmin ftype=real  pytype=float32
-            Defined at mod_routing_setup.f90 line 13
+            Defined at mod_routing_setup.f90 line 15
             """
             return _libfgamma.f90wrap_type_routing_setup__get__vmin(self._handle)
         
@@ -89,7 +114,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def vmax(self):
             """
             Element vmax ftype=real  pytype=float32
-            Defined at mod_routing_setup.f90 line 14
+            Defined at mod_routing_setup.f90 line 16
             """
             return _libfgamma.f90wrap_type_routing_setup__get__vmax(self._handle)
         
@@ -101,7 +126,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def spreading_gamma_threshold(self):
             """
             Element spreading_gamma_threshold ftype=real  pytype=float32
-            Defined at mod_routing_setup.f90 line 15
+            Defined at mod_routing_setup.f90 line 17
             """
             return \
                 _libfgamma.f90wrap_type_routing_setup__get__spreading_gamma_threshold(self._handle)
@@ -115,7 +140,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def elongation_factor(self):
             """
             Element elongation_factor ftype=real  pytype=float32
-            Defined at mod_routing_setup.f90 line 16
+            Defined at mod_routing_setup.f90 line 18
             """
             return \
                 _libfgamma.f90wrap_type_routing_setup__get__elongation_factor(self._handle)
@@ -129,7 +154,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def mode_discretization_step(self):
             """
             Element mode_discretization_step ftype=real  pytype=float32
-            Defined at mod_routing_setup.f90 line 17
+            Defined at mod_routing_setup.f90 line 19
             """
             return \
                 _libfgamma.f90wrap_type_routing_setup__get__mode_discretization_step(self._handle)
@@ -143,7 +168,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def spreading_discretization_step(self):
             """
             Element spreading_discretization_step ftype=real  pytype=float32
-            Defined at mod_routing_setup.f90 line 18
+            Defined at mod_routing_setup.f90 line 20
             """
             return \
                 _libfgamma.f90wrap_type_routing_setup__get__spreading_discretization_step(self._handle)
@@ -157,7 +182,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def hc_bnd(self):
             """
             Element hc_bnd ftype=real pytype=float array
-            Defined at mod_routing_setup.f90 line 19
+            Defined at mod_routing_setup.f90 line 21
             """
             array_ndim, array_type, array_shape, array_handle = \
                 _libfgamma.f90wrap_type_routing_setup__array__hc_bnd(self._handle)
@@ -186,7 +211,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def sc_bnd(self):
             """
             Element sc_bnd ftype=real pytype=float array
-            Defined at mod_routing_setup.f90 line 20
+            Defined at mod_routing_setup.f90 line 22
             """
             array_ndim, array_type, array_shape, array_handle = \
                 _libfgamma.f90wrap_type_routing_setup__array__sc_bnd(self._handle)
@@ -215,7 +240,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def ponderation_regul(self):
             """
             Element ponderation_regul ftype=real  pytype=float32
-            Defined at mod_routing_setup.f90 line 21
+            Defined at mod_routing_setup.f90 line 23
             """
             return \
                 _libfgamma.f90wrap_type_routing_setup__get__ponderation_regul(self._handle)
@@ -229,7 +254,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def ponderation_cost(self):
             """
             Element ponderation_cost ftype=real  pytype=float32
-            Defined at mod_routing_setup.f90 line 22
+            Defined at mod_routing_setup.f90 line 24
             """
             return \
                 _libfgamma.f90wrap_type_routing_setup__get__ponderation_cost(self._handle)
@@ -243,7 +268,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def pdt_start_optim(self):
             """
             Element pdt_start_optim ftype=integer  pytype=int32
-            Defined at mod_routing_setup.f90 line 23
+            Defined at mod_routing_setup.f90 line 25
             """
             return _libfgamma.f90wrap_type_routing_setup__get__pdt_start_optim(self._handle)
         
@@ -256,7 +281,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def auto_reg(self):
             """
             Element auto_reg ftype=integer  pytype=int32
-            Defined at mod_routing_setup.f90 line 24
+            Defined at mod_routing_setup.f90 line 26
             """
             return _libfgamma.f90wrap_type_routing_setup__get__auto_reg(self._handle)
         
@@ -268,7 +293,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def hydraulics_coef_uniform(self):
             """
             Element hydraulics_coef_uniform ftype=integer  pytype=int32
-            Defined at mod_routing_setup.f90 line 25
+            Defined at mod_routing_setup.f90 line 27
             """
             return \
                 _libfgamma.f90wrap_type_routing_setup__get__hydraulics_coef_uniform(self._handle)
@@ -282,7 +307,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def spreading_uniform(self):
             """
             Element spreading_uniform ftype=integer  pytype=int32
-            Defined at mod_routing_setup.f90 line 26
+            Defined at mod_routing_setup.f90 line 28
             """
             return \
                 _libfgamma.f90wrap_type_routing_setup__get__spreading_uniform(self._handle)
@@ -296,7 +321,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def iter_max(self):
             """
             Element iter_max ftype=integer  pytype=int32
-            Defined at mod_routing_setup.f90 line 27
+            Defined at mod_routing_setup.f90 line 29
             """
             return _libfgamma.f90wrap_type_routing_setup__get__iter_max(self._handle)
         
@@ -308,7 +333,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def varying_spread(self):
             """
             Element varying_spread ftype=integer  pytype=int32
-            Defined at mod_routing_setup.f90 line 28
+            Defined at mod_routing_setup.f90 line 30
             """
             return _libfgamma.f90wrap_type_routing_setup__get__varying_spread(self._handle)
         
@@ -321,7 +346,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def velocity_computation(self):
             """
             Element velocity_computation ftype=character(3) pytype=str
-            Defined at mod_routing_setup.f90 line 29
+            Defined at mod_routing_setup.f90 line 31
             """
             return \
                 _libfgamma.f90wrap_type_routing_setup__get__velocity_computation(self._handle)
@@ -335,7 +360,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         def criteria(self):
             """
             Element criteria ftype=character(4) pytype=str
-            Defined at mod_routing_setup.f90 line 30
+            Defined at mod_routing_setup.f90 line 32
             """
             return _libfgamma.f90wrap_type_routing_setup__get__criteria(self._handle)
         
@@ -347,8 +372,12 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
             ret = ['<type_routing_setup>{\n']
             ret.append('    npdt : ')
             ret.append(repr(self.npdt))
+            ret.append(',\n    npdt_inflows : ')
+            ret.append(repr(self.npdt_inflows))
             ret.append(',\n    dt : ')
             ret.append(repr(self.dt))
+            ret.append(',\n    dt_inflows : ')
+            ret.append(repr(self.dt_inflows))
             ret.append(',\n    vmin : ')
             ret.append(repr(self.vmin))
             ret.append(',\n    vmax : ')
@@ -392,25 +421,28 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         
     
     @staticmethod
-    def routing_setup_self_initialisation(self, npdt=None, dt=None, vmin=None, \
-        vmax=None, elongation_factor=None, mode_discretization_step=None, \
-        spreading_discretization_step=None, ponderation_regul=None, \
-        ponderation_cost=None, auto_reg=None, hydraulics_coef_uniform=None, \
-        spreading_uniform=None, iter_max=None, velocity_computation=None, \
-        criteria=None, varying_spread=None, interface_call=False):
+    def routing_setup_self_initialisation(self, npdt=None, npdt_inflows=None, \
+        dt=None, dt_inflows=None, vmin=None, vmax=None, elongation_factor=None, \
+        mode_discretization_step=None, spreading_discretization_step=None, \
+        ponderation_regul=None, ponderation_cost=None, auto_reg=None, \
+        hydraulics_coef_uniform=None, spreading_uniform=None, iter_max=None, \
+        velocity_computation=None, criteria=None, varying_spread=None, \
+        interface_call=False):
         """
-        routing_setup_self_initialisation(self[, npdt, dt, vmin, vmax, \
-            elongation_factor, mode_discretization_step, spreading_discretization_step, \
-            ponderation_regul, ponderation_cost, auto_reg, hydraulics_coef_uniform, \
-            spreading_uniform, iter_max, velocity_computation, criteria, \
-            varying_spread])
-        Defined at mod_routing_setup.f90 lines 36-131
+        routing_setup_self_initialisation(self[, npdt, npdt_inflows, dt, dt_inflows, \
+            vmin, vmax, elongation_factor, mode_discretization_step, \
+            spreading_discretization_step, ponderation_regul, ponderation_cost, \
+            auto_reg, hydraulics_coef_uniform, spreading_uniform, iter_max, \
+            velocity_computation, criteria, varying_spread])
+        Defined at mod_routing_setup.f90 lines 38-162
         
         Parameters
         ----------
         routing_setup : Type_Routing_Setup
         npdt : int32
+        npdt_inflows : int32
         dt : float32
+        dt_inflows : float32
         vmin : float32
         vmax : float32
         elongation_factor : float32
@@ -427,7 +459,8 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
         varying_spread : int32
         """
         _libfgamma.f90wrap_mod_gamma_routing_setup__routing_setup_self_initiala6ab(routing_setup=self._handle, \
-            npdt=npdt, dt=dt, vmin=vmin, vmax=vmax, elongation_factor=elongation_factor, \
+            npdt=npdt, npdt_inflows=npdt_inflows, dt=dt, dt_inflows=dt_inflows, \
+            vmin=vmin, vmax=vmax, elongation_factor=elongation_factor, \
             mode_discretization_step=mode_discretization_step, \
             spreading_discretization_step=spreading_discretization_step, \
             ponderation_regul=ponderation_regul, ponderation_cost=ponderation_cost, \
@@ -440,7 +473,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
     def routing_setup_clear(self, interface_call=False):
         """
         routing_setup_clear(self)
-        Defined at mod_routing_setup.f90 lines 133-147
+        Defined at mod_routing_setup.f90 lines 164-178
         
         Parameters
         ----------
@@ -452,7 +485,7 @@ class Mod_Gamma_Routing_Setup(f90wrap.runtime.FortranModule):
     def routing_setup_copy(self, interface_call=False):
         """
         object_copy = routing_setup_copy(self)
-        Defined at mod_routing_setup.f90 lines 149-152
+        Defined at mod_routing_setup.f90 lines 180-183
         
         Parameters
         ----------

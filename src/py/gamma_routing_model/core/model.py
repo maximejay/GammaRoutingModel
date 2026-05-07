@@ -328,7 +328,7 @@ class Model(object):
             self.routing_mesh, ncontrol, nodes
         )
 
-    def run(self, inflows, states_init=True, routing_memory_init=False):
+    def run(self, inflows, dt_inflows=None, states_init=True, routing_memory_init=False):
 
         # first check if we need to force states_init
         if self.routing_setup.varying_spread == 1:
@@ -371,14 +371,32 @@ class Model(object):
             if "array is NULL" in str(e):
                 self.routing_memory_init()
 
-        # reset discharges states to its initial value (time-step 1)
-        # if memory_reset:
-        #     self.routing_memory_reset()
-
         # initialise routing_results
         self.routing_results_init()
 
         inflows = np.array(inflows, order="F", dtype="float32")
+
+        # set npdt_inflows and dt_inflows here
+        if dt_inflows is not None:
+            self.routing_setup.dt_inflows = dt_inflows
+        self.routing_setup.npdt_inflows = inflows.shape[0]
+
+        if (self.routing_setup.npdt_inflows * self.routing_setup.dt_inflows) != (
+            self.routing_setup.npdt * self.routing_setup.dt
+        ):
+            raise ValueError(
+                f"""Incompatible dimension 1 (npdt) of array inflows
+                ( npdt_inflows*dt_inflows != npdt*dt) :
+                {self.routing_setup.npdt_inflows * self.routing_setup.dt_inflows} 
+                != {self.routing_setup.npdt*self.routing_setup.dt}"""
+            )
+
+        if self.routing_setup.dt_inflows % self.routing_setup.dt > 0.0:
+            raise ValueError(
+                f"Incompatible time-step dt {self.routing_setup.dt} and"
+                f"dt_inflows {self.routing_setup.dt_inflows}: the fraction"
+                f" dt_inflows/dt must be a whole number."
+            )
 
         Mod_Gamma_Interface.routing_gamma_run(
             self.routing_setup,

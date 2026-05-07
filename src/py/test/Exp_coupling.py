@@ -60,7 +60,7 @@ gamma.smashplug.functions_smash_plot.plot_image(
 # configure the Gamma model
 model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
     smash_model,
-    dt=3600.0,
+    dt=900.0,
     vmin=0.1,
     vmax=10.0,
     mode_discretization_step=0.1,
@@ -70,13 +70,13 @@ model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
     varying_spread=0,
     spreading_uniform=1,
     criteria="nse",
-    ponderation_cost=10000.0,
-    # pdt_start_optim=1600,
-    pdt_start_optim=int(1600 / 4),
+    ponderation_cost=10.0,
+    pdt_start_optim=1600,
+    # pdt_start_optim=int(1600 / 4),
 )
 
 # Set parameter
-model_gamma.routing_parameters_change(sc=1.0, sc=2.0)
+model_gamma.routing_parameters_change(hc=1.0, sc=2.0)
 
 model_gamma.routing_mesh_set_control(
     model_gamma.routing_mesh.gauge_nodes[
@@ -106,7 +106,7 @@ boundaries = gamma.smashplug.get_boundaries(
     bounds={
         "cp": [0.1, 1000.0],
         "ct": [0.1, 2000.0],
-        "sc": [0.3, 5.0],
+        "hc": [0.3, 5.0],
         "sc": [0.5, 5.0],
     },
 )
@@ -115,12 +115,12 @@ boundaries = gamma.smashplug.get_boundaries(
 ControlVector = gamma.smashplug.VectorizeModelParameters(
     smash_model,
     model_gamma,
-    control_parameters_list=["cp", "ct", "sc", "sc"],
+    control_parameters_list=["cp", "ct", "hc", "sc"],
     # control_parameters_list=["sc", "sc"],
     bounds={
         "cp": [0.1, 1000.0],
         "ct": [0.1, 2000.0],
-        "sc": [0.3, 5.0],
+        "hc": [0.3, 5.0],
         "sc": [0.5, 5.0],
     },
 )
@@ -129,30 +129,38 @@ ControlVector = gamma.smashplug.VectorizeModelParameters(
 control_vector = gamma.smashplug.normalize_control_vector(ControlVector)
 
 # get the inflows
-GammaInflows = gamma.smashplug.GetGammaInflowFromSmash(smash_model, dt=3600)
+# GammaInflows = gamma.smashplug.GetGammaInflowFromSmash(smash_model, dt=3600)
 
 
-cost, grad = gamma.smashplug.ComputeCostAndGradients(
-    ControlVector["X"],
-    ControlVector,
-    smash_model,
-    model_gamma,
-    GammaGriddedObservation,
-    False,
-    False,
-)
-# Compute the gradient
-gradient = gamma.smashplug.ComputeModelGradients(
-    ControlVector, smash_model, model_gamma, GammaInflows, GammaGriddedObservation
-)
+# cost, grad = gamma.smashplug.ComputeCostAndGradients(
+#     ControlVector["X"],
+#     ControlVector,
+#     smash_model,
+#     model_gamma,
+#     GammaGriddedObservation,
+#     False,
+#     False,
+# )
+# # Compute the gradient
+# gradient = gamma.smashplug.ComputeModelGradients(
+#     ControlVector, smash_model, model_gamma, GammaInflows, GammaGriddedObservation
+# )
 
 # optimize parameters
 # Here smash parameter are not normalized. That cause slow convergence. We try some gradient normalisation technics : ScaleGradientsByBounds and ScaleGammaGradients
 # the sc coefficient will uniformly calibrated => the gradient of this variable is scaled by the nb of nodes !
 
+# data = np.zeros(10)
+# data[0] = 1.0
+# data[1] = 10.0
+# data[2] = 20.0
+# data[3] = 10.0
+# data[4] = 1.0
+# data[9] = 10.0
+# gamma.smashplug.FitDataToNewDt(data, 3600.0, 900)
 # control_parameters_list = ["cp", "ct", "sc"]
-control_parameters_list = ["cp", "ct"]
-# control_parameters_list = ["cp", "ct", "sc", "sc"]
+# control_parameters_list = ["cp", "ct"]
+control_parameters_list = ["cp", "ct", "hc", "sc"]
 
 BestControlVector, optimized_smash_model, optimized_gamma_model = (
     gamma.smashplug.OptimizeCoupledModel(
@@ -163,8 +171,8 @@ BestControlVector, optimized_smash_model, optimized_gamma_model = (
         bounds={
             "cp": [1.0, 2000.0],
             "ct": [1.0, 1000.0],
-            # "sc": [0.3, 5.0],
-            # "sc": [0.5, 5.0],
+            "hc": [0.3, 5.0],
+            "sc": [0.5, 5.0],
         },
         maxiter=30,
         maxfun=30,
