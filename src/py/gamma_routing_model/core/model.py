@@ -398,6 +398,7 @@ class Model(object):
                 f" dt_inflows/dt must be a whole number."
             )
 
+        print("call routing_gamma_run")
         Mod_Gamma_Interface.routing_gamma_run(
             self.routing_setup,
             self.routing_mesh,
@@ -408,7 +409,7 @@ class Model(object):
             self.routing_results,
         )
 
-    def calibration(
+    def f90calibration(
         self, inflows, observations, states_init=True, routing_memory_init=False
     ):
 
@@ -485,7 +486,7 @@ class Model(object):
                 inflows_copy,
                 observations,
             ),
-            method="SLSQP",  # "L-BFGS-B",
+            method="L-BFGS-B",  # "L-BFGS-B",
             jac=True,
             bounds=bounds,
             options={

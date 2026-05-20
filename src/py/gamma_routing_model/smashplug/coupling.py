@@ -273,64 +273,66 @@ def ConfigureGammaWithSmash(smash_model, dt=None, **kwargs):
     return model_gamma
 
 
-def GetGammaInflowFromSmash(smash_model, returns_smash_options, dt=None):
-    # Get the current inflow from Smash outflow
-    # Interpolate if dt gamma is lower
-    # return the the matrix 'interpolated_inflows' ready to run the gamma model with gamma.run(interpolated_inflows)
+# def GetGammaInflowFromSmash(smash_model, returns_smash_options, dt=None):
+#     # Get the current inflow from Smash outflow
+#     # Interpolate if dt gamma is lower
+#     # return the the matrix 'interpolated_inflows' ready to run the gamma model with gamma.run(interpolated_inflows)
 
-    if dt is None:
-        dt = smash_model.setup.dt
+#     if dt is None:
+#         dt = smash_model.setup.dt
 
-    npdt = int(smash_model.setup.ntime_step * smash_model.setup.dt / dt)
-    # nb_nodes = np.sum(smash_model.mesh.active_cell)
-    # ncol = smash_model.mesh.ncol
-    # nrow = smash_model.mesh.nrow
+#     npdt = int(smash_model.setup.ntime_step * smash_model.setup.dt / dt)
+#     # nb_nodes = np.sum(smash_model.mesh.active_cell)
+#     # ncol = smash_model.mesh.ncol
+#     # nrow = smash_model.mesh.nrow
 
-    # interface inflows
-    # inflows_smash = smash_model.output.qsim_domain.copy()
-    # inflows_smash = smash_model.response.qac.copy()
-    inflows_smash = smash_time_grid_to_time_vector_active_cells(
-        returns_smash_options.q_domain, smash_model
-    )
-    # inflows_domain = np.zeros(shape=(smash_model.setup.ntime_step, nb_nodes))
-    inflows_domain = inflows_smash.transpose()
+#     # interface inflows
+#     # inflows_smash = smash_model.output.qsim_domain.copy()
+#     # inflows_smash = smash_model.response.qac.copy()
+#     inflows_smash = smash_time_grid_to_time_vector_active_cells(
+#         returns_smash_options.q_domain, smash_model
+#     )
+#     # inflows_domain = np.zeros(shape=(smash_model.setup.ntime_step, nb_nodes))
+#     inflows_domain = inflows_smash.transpose()
 
-    frac_dt = int(smash_model.setup.dt / dt)
+#     frac_dt = int(smash_model.setup.dt / dt)
 
-    # interpolation si pdt gamma inférieur
-    if dt < smash_model.setup.dt:
-        # print("desagrégation ...")
+#     # interpolation si pdt gamma inférieur
+#     if dt < smash_model.setup.dt:
+#         # print("desagrégation ...")
 
-        interpolated_inflows = np.zeros(shape=(npdt, inflows_domain.shape[1]))
+#         interpolated_inflows = np.zeros(shape=(npdt, inflows_domain.shape[1]))
 
-        # Le pdt entre 0 à 1 pour gamma correspond au premier pdt de smash
-        interpolated_inflows[0:frac_dt, :] = inflows_domain[0, :]
+#         # Le pdt entre 0 à 1 pour gamma correspond au premier pdt de smash
+#         interpolated_inflows[0:frac_dt, :] = inflows_domain[0, :]
 
-        itg = frac_dt
-        for ts in range(smash_model.setup.ntime_step - 1):
+#         itg = frac_dt
+#         for ts in range(smash_model.setup.ntime_step - 1):
 
-            tg = ts + 1.0 / frac_dt
+#             tg = ts + 1.0 / frac_dt
 
-            for itfrac in range(frac_dt):
+#             for itfrac in range(frac_dt):
 
-                interpolated_inflows[itg, :] = (
-                    inflows_domain[ts + 1, :] - inflows_domain[ts, :]
-                ) * (tg - ts) / (ts + 1 - ts) + inflows_domain[ts, :]
+#                 interpolated_inflows[itg, :] = (
+#                     inflows_domain[ts + 1, :] - inflows_domain[ts, :]
+#                 ) * (tg - ts) / (ts + 1 - ts) + inflows_domain[ts, :]
 
-                itg = itg + 1
-                tg = tg + 1.0 / frac_dt
+#                 itg = itg + 1
+#                 tg = tg + 1.0 / frac_dt
 
-    else:
-        interpolated_inflows = inflows_domain[:, :].copy()
+#     else:
+#         interpolated_inflows = inflows_domain[:, :].copy()
 
-    return interpolated_inflows
+#     return interpolated_inflows
 
 
-def InterpolatedObservationsAtGauge(smash_model, dt=None):
+def InterpolatedObservationsAtGauge(smash_model, new_dt=None):
     # Interpolate the observations of the smash model at every gauge for a new time-step
 
-    if dt is None:
-        dt = smash_model.setup.dt
+    if new_dt is None:
+        new_dt = smash_model.setup.dt
+
+    dt = smash_model.setup.dt
 
     npdt = int(smash_model.setup._ntime_step * smash_model.setup.dt / dt)
     # interface observations
@@ -339,31 +341,71 @@ def InterpolatedObservationsAtGauge(smash_model, dt=None):
     # interpolation si pdt gamma inférieur
     if dt < smash_model.setup.dt:
 
-        frac_dt = int(smash_model.setup.dt / dt)
-        interpolated_observations = np.zeros(shape=(npdt, observations.shape[0]))
-        itg = frac_dt
+        npdt = int(observations.shape[0] * dt / new_dt)
+        interpolated_observations = np.zeros(npdt, observations.shape[0])
+        frac_dt = int(dt / new_dt)
 
-        # cdt initial
-        interpolated_observations[0:itg, :] = observations[:, 0]
+        n = int(dt / new_dt)
+        T = np.array(list(range(n))) + 1
+        med_T = np.median(T)
 
-        for ts in range(smash_model.setup._ntime_step - 1):
+        k = 0
+        l = n
+        for ts in range(observations.shape[0]):
 
-            tg = ts + 1.0 / frac_dt
+            for j in T:
+                interpolated_observations[k, :] = observations[ts, :]
+                k = k + 1
 
-            for itfrac in range(frac_dt):
+        # cdl
+        interpolated_observations[npdt - frac_dt : npdt, :] = observations[
+            observations.shape[0] - 1, :
+        ]
 
-                interpolated_observations[itg, :] = np.transpose(
-                    (observations[:, ts + 1] - observations[:, ts])
-                    * (tg - ts)
-                    / (ts + 1 - ts)
-                    + observations[:, ts]
-                )
+    elif new_dt > dt:
 
-                itg = itg + 1
-                tg = tg + 1.0 / frac_dt
+        npdt = int(observations.shape[0] * dt / new_dt)
+        interpolated_observations = np.zeros(npdt, observations.shape[0])
+        frac_dt = int(new_dt / dt)
+
+        n_ts = 0
+
+        for ts in range(npdt):
+
+            interpolated_observations[ts, :] = np.mean(
+                observations[n_ts : n_ts + frac_dt, :]
+            )
+            n_ts = n_ts + frac_dt
 
     else:
+
         interpolated_observations = observations[:, :].copy()
+
+        # frac_dt = int(smash_model.setup.dt / dt)
+        # interpolated_observations = np.zeros(shape=(npdt, observations.shape[0]))
+        # itg = frac_dt
+
+        # # cdt initial
+        # interpolated_observations[0:itg, :] = observations[:, 0]
+
+        # for ts in range(smash_model.setup._ntime_step - 1):
+
+        #     tg = ts + 1.0 / frac_dt
+
+        #     for itfrac in range(frac_dt):
+
+        #         interpolated_observations[itg, :] = np.transpose(
+        #             (observations[:, ts + 1] - observations[:, ts])
+        #             * (tg - ts)
+        #             / (ts + 1 - ts)
+        #             + observations[:, ts]
+        #         )
+
+        #         itg = itg + 1
+        #         tg = tg + 1.0 / frac_dt
+
+    # else:
+    #     interpolated_observations = observations[:, :].copy()
 
     return interpolated_observations
 
@@ -814,8 +856,6 @@ def ComputeModelGradients(
     interpolated_inflows,
     observations,
     set_param=False,
-    ScaleGammaGradientsBySurface=False,
-    ScaleGradients=False,
 ):
     # Compute the Gradients dCost/dX for model M(X)=M(Xgamma,Xsmash)
     # That computation required:
@@ -834,6 +874,7 @@ def ComputeModelGradients(
         shape=(2, model_gamma.routing_mesh.nb_nodes), order="F", dtype="float32"
     )
 
+    print("call routing_gamma_forward_adjoint_b")
     gamma.libfgamma.Mod_Gamma_Interface.routing_gamma_forward_adjoint_b(
         model_gamma.routing_setup,
         model_gamma.routing_mesh,
@@ -846,20 +887,6 @@ def ComputeModelGradients(
         Grad_dCOST_dROUTINGPARAMETERS,
     )
 
-    print(
-        """\nOriginal projected gradients:\n--------------------------
-             
-          """
-    )
-    print(
-        "hc:",
-        np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[0, :] ** 2.0)),
-    )
-    print(
-        "sc:             ",
-        np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[1, :] ** 2.0)),
-    )
-
     # Gradients of COST with respect to inflows (inflows_f32)
     Grad_dCOST_dINFLOWS = np.zeros(
         shape=(model_gamma.routing_setup.npdt_inflows, model_gamma.routing_mesh.nb_nodes),
@@ -867,6 +894,7 @@ def ComputeModelGradients(
         dtype="float32",
     )
 
+    print("call routing_gamma_forward_adjoint_b0")
     gamma.libfgamma.Mod_Gamma_Interface.routing_gamma_forward_adjoint_b0(
         model_gamma.routing_setup,
         model_gamma.routing_mesh,
@@ -896,6 +924,7 @@ def ComputeModelGradients(
                 if p in value.keys():
                     del control_smash[key][p]
 
+    print("call smash_model.backward_run")
     SmashGradients, name = smash_model.backward_run(
         mapping="distributed",
         grad_mode="qt",
@@ -913,19 +942,24 @@ def ComputeModelGradients(
     )
     nbnode = model_gamma.routing_mesh.nb_nodes
 
-    Proj_grad_smash = np.zeros(shape=(nb_param_smash))
-
     for i in range(nb_param_smash):
         LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] = SmashGradients[
             i * nbnode : nbnode + i * nbnode
         ]
 
-        Proj_grad_smash[i] = np.sqrt(
-            np.sum(LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] ** 2.0)
-        )
+    print("""\nOriginal projected gradients:\n-----------------------------""")
+    print(
+        "hc:",
+        np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[0, :] ** 2.0)),
+    )
+    print(
+        "sc:",
+        np.sqrt(np.sum(Grad_dCOST_dROUTINGPARAMETERS[1, :] ** 2.0)),
+    )
 
+    for i in range(nb_param_smash):
         print(
-            f"{control_smash['ParamList'][i]}:                    ",
+            f"{control_smash['ParamList'][i]}:",
             np.sqrt(
                 np.sum(
                     LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] ** 2.0
@@ -992,11 +1026,7 @@ def RunCoupledModel(smash_model, model_gamma, routing_memory_init=False):
         return_options={"q_domain": True, "q_domain_kind_qt": True}
     )
 
-    # interpolated_inflows = GetGammaInflowFromSmash(
-    #     smash_model, returns_smash_options=ret, dt=model_gamma.routing_setup.dt
-    # )
     inflows_smash = smash_time_grid_to_time_vector_active_cells(ret.q_domain, smash_model)
-    # inflows_domain = np.zeros(shape=(smash_model.setup.ntime_step, nb_nodes))
     inflows_domain = inflows_smash.transpose()
 
     # run the model
@@ -1015,8 +1045,6 @@ def ComputeCostAndGradients(
     smash_model,
     model_gamma,
     observations,
-    ScaleGammaGradientsBySurface=False,
-    ScaleGradients=False,
 ):
     # Compute the gamma cost function and the gradients of dCost/(dXsmash,dXgamma)
 
@@ -1032,10 +1060,7 @@ def ComputeCostAndGradients(
         return_options={"q_domain": True, "q_domain_kind_qt": True}
     )
 
-    print("Interolate inflows")
-    # interpolated_inflows = GetGammaInflowFromSmash(
-    #     smash_model, returns_smash_options=ret, dt=model_gamma.routing_setup.dt
-    # )
+    print("Get inflows from Smash")
     inflows = smash_time_grid_to_time_vector_active_cells(
         return_var.q_domain, smash_model
     )
@@ -1061,8 +1086,6 @@ def ComputeCostAndGradients(
         model_gamma,
         inflows_transpose,
         observations,
-        ScaleGammaGradientsBySurface=ScaleGammaGradientsBySurface,
-        ScaleGradients=ScaleGradients,
     )
 
     return cost, gradient
@@ -1127,15 +1150,6 @@ def get_boundaries(
                         f"Error: The controlled variable hc is not in the boundaries definition"
                     )
 
-                # ~ model_gamma.routing_states.param_normalisation[0] = bounds[
-                # ~ "hc"
-                # ~ ][1]
-
-                # bounds["hc"] = (
-                #     np.array(bounds["hc"])
-                #     / bounds["hc"][1]
-                # )
-
                 boundaries[position : position + nnodes, 0] = bounds["hc"][0]
                 boundaries[position : position + nnodes, 1] = bounds["hc"][1]
 
@@ -1149,12 +1163,6 @@ def get_boundaries(
                     raise ValueError(
                         f"Error: The controlled variable sc is not in the boundaries definition"
                     )
-
-                # ~ model_gamma.routing_states.param_normalisation[1] = bounds["sc"][1]
-
-                # bounds["sc"] = (
-                #     np.array(bounds["sc"]) / bounds["sc"][1]
-                # )
 
                 boundaries[position : position + nnodes, 0] = bounds["sc"][0]
                 boundaries[position : position + nnodes, 1] = bounds["sc"][1]
@@ -1179,8 +1187,6 @@ def OptimizeCoupledModel(
     maxiter=10,
     maxfun=20,
     tol=None,
-    ScaleGammaGradientsBySurface=True,
-    ScaleGradients=True,
     inplace=False,
     optim_type="local",
     local_optimizer="L-BFGS-B",
@@ -1190,6 +1196,13 @@ def OptimizeCoupledModel(
 
     optimized_gamma = model_gamma.copy()
     optimized_smash = smash_model.copy()
+
+    # set bounds to Gamma model
+    for key, bnd in bounds.items():
+        if key == "hc":
+            optimized_gamma.boundaries_change(hc_bnd=bounds["hc"])
+        if key == "sc":
+            optimized_gamma.boundaries_change(sc_bnd=bounds["sc"])
 
     if observations is None:
         observations = gamma.smashplug.SmashDataVectorsToGrid(
@@ -1226,8 +1239,6 @@ def OptimizeCoupledModel(
                 optimized_smash,
                 optimized_gamma,
                 observations,
-                ScaleGammaGradientsBySurface,
-                ScaleGradients,
             ),
             method=local_optimizer,
             jac=True,
@@ -1250,8 +1261,6 @@ def OptimizeCoupledModel(
                 optimized_smash,
                 optimized_gamma,
                 observations,
-                ScaleGammaGradientsBySurface,
-                ScaleGradients,
             ),
             n=10,
             options={

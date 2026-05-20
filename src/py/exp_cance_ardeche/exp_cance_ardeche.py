@@ -23,62 +23,48 @@ mode = args.mode
 catchment = args.catchment
 scenario_key = args.scenario_key
 
-# mode = "smash_gamma"
-# catchment = "Cance"
-# scenario_key = "s1"
-
-# Optimizer : SLSQP ?? au lieu de LBGSFB ?
+mode = "smash_gamma"
+catchment = "Cance"
+scenario_key = "s1"
 
 scenarios_gamma = {
     "s1": {
-        "control_vector": ["cp", "ct", "hydraulics_coefficient"],
-        "ScaleGammaGradientsBySurface": False,
-        "ScaleGradients": False,
+        "control_vector": ["cp", "ct", "hc"],
         "gamma_settings": {
             "varying_spread": 0,
             "spreading_uniform": 1,
         },
     },
     "s2": {
-        "control_vector": ["cp", "ct", "hydraulics_coefficient", "spreading"],
-        "ScaleGammaGradientsBySurface": True,
-        "ScaleGradients": True,
+        "control_vector": ["cp", "ct", "hc", "sc"],
         "gamma_settings": {
             "varying_spread": 1,
             "spreading_uniform": 1,
         },
     },
     "s3": {
-        "control_vector": ["cp", "ct", "hydraulics_coefficient", "spreading"],
-        "ScaleGammaGradientsBySurface": True,
-        "ScaleGradients": True,
+        "control_vector": ["cp", "ct", "hc", "sc"],
         "gamma_settings": {
             "varying_spread": 1,
             "spreading_uniform": 0,
         },
     },
     "s4": {
-        "control_vector": ["hydraulics_coefficient"],
-        "ScaleGammaGradientsBySurface": True,
-        "ScaleGradients": False,
+        "control_vector": ["hc"],
         "gamma_settings": {
             "varying_spread": 0,
             "spreading_uniform": 1,
         },
     },
     "s5": {
-        "control_vector": ["hydraulics_coefficient", "spreading"],
-        "ScaleGammaGradientsBySurface": True,
-        "ScaleGradients": False,
+        "control_vector": ["hc", "sc"],
         "gamma_settings": {
             "varying_spread": 1,
             "spreading_uniform": 1,
         },
     },
     "s6": {
-        "control_vector": ["hydraulics_coefficient", "spreading"],
-        "ScaleGammaGradientsBySurface": True,
-        "ScaleGradients": False,
+        "control_vector": ["hc", "sc"],
         "gamma_settings": {
             "varying_spread": 1,
             "spreading_uniform": 0,
@@ -102,8 +88,8 @@ bounds = {
     "cp": [1, 2000],
     "ct": [1, 1000],
     "llr": [1, 200],
-    "hydraulics_coefficient": [0.3, 5],
-    "spreading": [0.5, 5],
+    "hc": [0.3, 5],
+    "sc": [0.5, 5],
 }
 
 working_path = "/home/maxime/DEV/GammaRoutingModel/src/py/exp_cance_ardeche/"
@@ -113,8 +99,8 @@ os.makedirs(path_gamma_hdf5, exist_ok=True)
 start_time = "2008-01-01 00:00"
 end_time = "2018-01-01 00:00"
 
-# start_time = "2014-09-01 00:00"
-# end_time = "2014-12-01 00:00"
+start_time = "2014-09-01 00:00"
+end_time = "2014-12-01 00:00"
 
 # start_time = "2014-10-01 00:00"
 # end_time = "2014-11-14 00:00"
@@ -122,11 +108,11 @@ end_time = "2018-01-01 00:00"
 val_start_time = "2018-01-01 00:00"
 val_end_time = "2025-01-01 00:00"
 
-# val_start_time = "2014-12-01 00:00"
-# val_end_time = "2015-03-01 00:00"
+val_start_time = "2014-12-01 00:00"
+val_end_time = "2015-03-01 00:00"
 
 gamma_dt = 900.0
-warmup_time = 450
+warmup_time = 30
 
 # pdt_start_optim = int(warmup_time * 24 * 3600 / gamma_dt)
 # end_warmup = (
@@ -144,7 +130,7 @@ gamma_settings = {
     "varying_spread": 1,
     "spreading_uniform": 1,
     "criteria": "nse",
-    "ponderation_cost": 10000.0,
+    "ponderation_cost": 10.0,
     "pdt_start_optim": int(warmup_time * 24 * 3600 / gamma_dt),
 }
 
@@ -168,7 +154,7 @@ sbc.myparam.set_param(
         "coord_y": "Y_L93",
         "area": "SURF",
         "id": "CODE_SITE",
-        "id_shapefile": "code",
+        "id_shapefile": "CODE_BNBV",
     },
 )
 
@@ -191,7 +177,7 @@ def init_models(sbc, catchment, start_time, end_time, warmup_time):
     # for simul with gamma: create the required base model:
     sbc.copymodel(f"{catchment}_init", f"{catchment}_Gamma_init")
     model = getattr(sbc, f"{catchment}_Gamma_init")
-    model.mysetup.update_setup({"routing_module": "zero", "return_opt_grad": "qe"})
+    model.mysetup.update_setup({"routing_module": "zero"})
     model.model()  # rebuild model because setup has changed but without reading the data
     sbc.copymodeldata(f"{catchment}_init", f"{catchment}_Gamma_init")  # copy the data
     model.forward_run()  # run anc copy warming states
@@ -203,8 +189,8 @@ def init_models(sbc, catchment, start_time, end_time, warmup_time):
 
     # Set parameter
     model_gamma.routing_parameters_change(
-        hydraulics_coefficient=1.0,
-        spreading=2.0,
+        hc=1.0,
+        sc=2.0,
     )
 
     gamma.smashplug.RunCoupledModel(model.mysmashmodel, model_gamma)
@@ -322,7 +308,7 @@ def optimize_smash_gamma_model(
     model = getattr(sbc, f"{catchment}_Gamma_optimize_{s}")
     model.generate_mesh()
     model.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
-    model.mysetup.update_setup({"routing_module": "zero", "return_opt_grad": "qe"})
+    model.mysetup.update_setup({"routing_module": "zero"})
     new_start_time = (
         datetime.datetime.fromisoformat(start_time) - datetime.timedelta(days=warmup_time)
     ).strftime("%Y-%m-%d %H:%M")
@@ -340,8 +326,8 @@ def optimize_smash_gamma_model(
 
     # Set parameter (initial guess)
     model_gamma.routing_parameters_change(
-        hydraulics_coefficient=1.0,
-        spreading=2.0,
+        hc=1.0,
+        sc=2.0,
     )
 
     model_gamma.routing_mesh.controlled_nodes = 0
@@ -372,13 +358,11 @@ def optimize_smash_gamma_model(
             model_gamma,
             control_parameters_list=scenario[s]["control_vector"],
             bounds=new_bounds,
-            maxiter=20,
+            maxiter=30,
             maxfun=20,
             tol=1e-6,
-            ScaleGradients=scenario[s]["ScaleGradients"],
-            ScaleGammaGradientsBySurface=scenario[s]["ScaleGammaGradientsBySurface"],
             optim_type="local",
-            local_optimizer="SLSQP",  # L-BFGS-B | trust-constr | SLSQP | TNC
+            local_optimizer="L-BFGS-B",  # L-BFGS-B | trust-constr | SLSQP | TNC
         )
     )
 
@@ -396,7 +380,7 @@ def optimize_smash_gamma_model(
     model = getattr(sbc, f"{catchment}_Gamma_calibrated_{s}")
     model.generate_mesh()
     model.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
-    model.mysetup.update_setup({"routing_module": "zero", "return_opt_grad": "qe"})
+    model.mysetup.update_setup({"routing_module": "zero"})
     model.mysetup.update_setup({"start_time": start_time, "end_time": end_time})
     model.model()
     model.optimize_model = optimized_smash_model.copy()
@@ -408,8 +392,8 @@ def optimize_smash_gamma_model(
     )
     # Set parameter
     model_gamma_warmup.routing_parameters_change(
-        hydraulics_coefficient=optimized_gamma_model.routing_parameters.hydraulics_coefficient,
-        spreading=optimized_gamma_model.routing_parameters.spreading,
+        hc=optimized_gamma_model.routing_parameters.hc,
+        sc=optimized_gamma_model.routing_parameters.sc,
     )
     gamma.smashplug.RunCoupledModel(model.warmup_model, model_gamma_warmup)
 
@@ -419,8 +403,8 @@ def optimize_smash_gamma_model(
     )
     # Set parameter
     model_gamma.routing_parameters_change(
-        hydraulics_coefficient=optimized_gamma_model.routing_parameters.hydraulics_coefficient,
-        spreading=optimized_gamma_model.routing_parameters.spreading,
+        hc=optimized_gamma_model.routing_parameters.hc,
+        sc=optimized_gamma_model.routing_parameters.sc,
     )
 
     model_gamma.routing_memory.remainder_init = (
@@ -444,7 +428,7 @@ def optimize_smash_gamma_model(
     model = getattr(sbc, f"{catchment}_Gamma_calibrated_validation_{s}")
     model.generate_mesh()
     model.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
-    model.mysetup.update_setup({"routing_module": "zero", "return_opt_grad": "qe"})
+    model.mysetup.update_setup({"routing_module": "zero"})
     model.mysetup.update_setup({"start_time": val_start_time, "end_time": val_end_time})
     model.model()
     model.mysmashmodel.rr_parameters = optimized_smash_model.rr_parameters.copy()
@@ -456,8 +440,8 @@ def optimize_smash_gamma_model(
     )
     # Set parameter
     model_gamma_validation_warmup.routing_parameters_change(
-        hydraulics_coefficient=optimized_gamma_model.routing_parameters.hydraulics_coefficient,
-        spreading=optimized_gamma_model.routing_parameters.spreading,
+        hc=optimized_gamma_model.routing_parameters.hc,
+        sc=optimized_gamma_model.routing_parameters.sc,
     )
 
     gamma.smashplug.RunCoupledModel(model.warmup_model, model_gamma_validation_warmup)
@@ -468,8 +452,8 @@ def optimize_smash_gamma_model(
     )
     # Set parameter
     model_gamma_validation.routing_parameters_change(
-        hydraulics_coefficient=optimized_gamma_model.routing_parameters.hydraulics_coefficient,
-        spreading=optimized_gamma_model.routing_parameters.spreading,
+        hc=optimized_gamma_model.routing_parameters.hc,
+        sc=optimized_gamma_model.routing_parameters.sc,
     )
     model_gamma_validation.routing_memory.remainder_init = (
         model_gamma_validation_warmup.routing_memory.remainder
@@ -636,11 +620,11 @@ if mode == "plot":
 # model_gamma_validation_warm = gamma.smashplug.ConfigureGammaWithSmash(
 #     sbc.Cance_Gamma.warmup_model, dt=gamma_dt, **gamma_settings
 # )
-# model_gamma_validation_warm.routing_parameters.hydraulics_coefficient = (
-#     optimized_gamma_model.routing_parameters.hydraulics_coefficient
+# model_gamma_validation_warm.routing_parameters.hc = (
+#     optimized_gamma_model.routing_parameters.hc
 # )
-# model_gamma_validation_warm.routing_parameters.spreading = (
-#     optimized_gamma_model.routing_parameters.spreading
+# model_gamma_validation_warm.routing_parameters.sc = (
+#     optimized_gamma_model.routing_parameters.sc
 # )
 
 # gamma.smashplug.RunCoupledModel(sbc.Cance_Gamma.warmup_model, model_gamma_validation_warm)
@@ -650,11 +634,11 @@ if mode == "plot":
 # model_gamma_validation = gamma.smashplug.ConfigureGammaWithSmash(
 #     sbc.Cance_Gamma.mysmashmodel, dt=gamma_dt, **gamma_settings
 # )
-# model_gamma_validation.routing_parameters.hydraulics_coefficient = (
-#     optimized_gamma_model.routing_parameters.hydraulics_coefficient
+# model_gamma_validation.routing_parameters.hc = (
+#     optimized_gamma_model.routing_parameters.hc
 # )
-# model_gamma_validation.routing_parameters.spreading = (
-#     optimized_gamma_model.routing_parameters.spreading
+# model_gamma_validation.routing_parameters.sc = (
+#     optimized_gamma_model.routing_parameters.sc
 # )
 # # Set initial_states : not useful, since the calibration involve a jump in discharge at the first time steps. may be better to start at 0.
 # model_gamma_validation.routing_memory.remainder_init = (
@@ -669,23 +653,23 @@ if mode == "plot":
 # sbc.Cance_Gamma_calibrated.myplot.multiplot_parameters()
 
 # Grid_Hydraulic_Coef = gamma.smashplug.GammaVectorsToSmashGrid(
-#     optimized_gamma_model.routing_parameters.hydraulics_coefficient,
+#     optimized_gamma_model.routing_parameters.hc,
 #     optimized_smash_model,
 #     optimized_gamma_model,
 # )
-# Spreading = gamma.smashplug.GammaVectorsToSmashGrid(
-#     optimized_gamma_model.routing_parameters.spreading,
+# sc = gamma.smashplug.GammaVectorsToSmashGrid(
+#     optimized_gamma_model.routing_parameters.sc,
 #     optimized_smash_model,
 #     optimized_gamma_model,
 # )
 
 
 # fig, ax = sb.plot.plot.plot_image(
-#     Spreading,
+#     sc,
 #     mask=optimized_smash_model.mesh.active_cell,
-#     ax_settings={"title": "Spreading coefficients", "title_fontsize": 14},
+#     ax_settings={"title": "sc coefficients", "title_fontsize": 14},
 #     fig_settings={
-#         "figname": f"ExpCalValRoutage_Spreading_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.spreading_uniform}_CAL{ctrl}.pdf"
+#         "figname": f"ExpCalValRoutage_sc_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.sc_uniform}_CAL{ctrl}.pdf"
 #     },
 # )
 # fig.show()
@@ -695,7 +679,7 @@ if mode == "plot":
 #     mask=optimized_smash_model.mesh.active_cell,
 #     ax_settings={"title": "Hydraulic coefficients", "title_fontsize": 14},
 #     fig_settings={
-#         "figname": f"CoefHydraulics_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.spreading_uniform}_CAL{ctrl}.pdf"
+#         "figname": f"CoefHydraulics_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.sc_uniform}_CAL{ctrl}.pdf"
 #     },
 # )
 # fig.show()

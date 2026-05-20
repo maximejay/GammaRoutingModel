@@ -67,8 +67,8 @@ model_gamma = gamma.smashplug.ConfigureGammaWithSmash(
     spreading_discretization_step=0.1,
     ponderation_regul=0.0,
     velocity_computation="qmm",
-    varying_spread=0,
-    spreading_uniform=1,
+    varying_spread=1,
+    spreading_uniform=0,
     criteria="nse",
     ponderation_cost=10.0,
     pdt_start_optim=1600,
@@ -177,8 +177,6 @@ BestControlVector, optimized_smash_model, optimized_gamma_model = (
         maxiter=30,
         maxfun=30,
         tol=1e-6,
-        ScaleGradients=False,
-        ScaleGammaGradientsBySurface=False,
         optim_type="local",
         local_optimizer="L-BFGS-B",  # L-BFGS-B | trust-constr | SLSQP | TNC
     )
@@ -190,20 +188,18 @@ for c in control_parameters_list:
     ctrl = ctrl + "-" + c
 
 Grid_Hydraulic_Coef = gamma.smashplug.GammaVectorsToSmashGrid(
-    optimized_gamma_model.routing_parameters.sc,
+    optimized_gamma_model.routing_parameters.hc,
     optimized_smash_model,
-    optimized_gamma_model,
 )
 sc = gamma.smashplug.GammaVectorsToSmashGrid(
     optimized_gamma_model.routing_parameters.sc,
     optimized_smash_model,
-    optimized_gamma_model,
 )
 
 
 gamma.smashplug.functions_smash_plot.plot_image(
     Grid_Hydraulic_Coef,
-    figname=f"CoefHydraulics_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.sc_uniform}_CAL{ctrl}.pdf",
+    figname=f"CoefHydraulics_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.spreading_uniform}_CAL{ctrl}.pdf",
     mask=optimized_smash_model.mesh.active_cell,
     title="Hydraulic coefficients",
     title_font_size=14,
@@ -211,7 +207,7 @@ gamma.smashplug.functions_smash_plot.plot_image(
 
 gamma.smashplug.functions_smash_plot.plot_image(
     sc,
-    figname=f"ExpCalValRoutage_sc_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.sc_uniform}_CAL{ctrl}.pdf",
+    figname=f"ExpCalValRoutage_sc_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.spreading_uniform}_CAL{ctrl}.pdf",
     mask=optimized_smash_model.mesh.active_cell,
     title="sc coefficients",
     title_font_size=14,
@@ -219,7 +215,7 @@ gamma.smashplug.functions_smash_plot.plot_image(
 
 gamma.smashplug.functions_smash_plot.plot_image(
     optimized_smash_model.get_rr_parameters("cp"),
-    figname=f"ExpCalValRoutage_Cp_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.sc_uniform}_CAL{ctrl}.pdf",
+    figname=f"ExpCalValRoutage_Cp_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.spreading_uniform}_CAL{ctrl}.pdf",
     mask=optimized_smash_model.mesh.active_cell,
     title="Capacities of the production reservoir",
     title_font_size=14,
@@ -227,7 +223,7 @@ gamma.smashplug.functions_smash_plot.plot_image(
 
 gamma.smashplug.functions_smash_plot.plot_image(
     optimized_smash_model.get_rr_parameters("ct"),
-    figname=f"ExpCalValRoutage_Ct_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.sc_uniform}_CAL{ctrl}.pdf",
+    figname=f"ExpCalValRoutage_Ct_VS{model_gamma.routing_setup.varying_spread}_SU{model_gamma.routing_setup.spreading_uniform}_CAL{ctrl}.pdf",
     mask=optimized_smash_model.mesh.active_cell,
     title="Capacities of the transfert reservoir",
     title_font_size=14,
@@ -307,12 +303,12 @@ save_figure(
     ysize=10,
 )
 
-# Convert Gazmma vector parameter to gridded data
-qt = gamma.smashplug.GriddedDataToSmashVectors(
-    GammaInflows,
-    optimized_gamma_model,
-    3600,
-)
+# # Convert Gazmma vector parameter to gridded data
+# qt = gamma.smashplug.GriddedDataToSmashVectors(
+#     GammaInflows,
+#     optimized_gamma_model,
+#     3600,
+# )
 
 GammaInflows = gamma.smashplug.GetGammaInflowFromSmash(smash_model, dt=900)
 pcum_gamma = np.sum(GammaInflows, axis=0)
