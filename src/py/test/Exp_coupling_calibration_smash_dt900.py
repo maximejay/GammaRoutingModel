@@ -80,7 +80,9 @@ metadata = {
 }
 
 matrix = read_ascii_data("src/py/test/flwdir.ascii")
-rasterio_write_tiff("src/py/test/flwdir.tif", np.atleast_2d(matrix["data"]), metadata)
+rasterio_write_tiff(
+    "src/py/test/flwdir.tif", np.atleast_2d(matrix["data"]), metadata
+)
 
 
 mesh = smash.factory.generate_mesh(
@@ -136,7 +138,7 @@ model_smash_lr.rr_parameters.values[:, :, 4] = 30
 model_smash_lr.forward_run()
 
 return_var_true = model_smash_true.forward_run(
-    return_options={"q_domain": True, "q_domain_kind_qt": True}
+    return_options={"q_domain": True}
 )
 
 model_smash_bck.set_rr_parameters("cp", 100.0)
@@ -144,14 +146,14 @@ model_smash_bck.set_rr_parameters("ct", 200.0)
 
 scenario = "2"
 
-return_var_bck = model_smash_bck.forward_run(
-    return_options={"q_domain": True, "q_domain_kind_qt": True}
-)
+return_var_bck = model_smash_bck.forward_run(return_options={"q_domain": True})
 
 
 def smash_time_grid_to_time_vector_active_cells(grid, smash_model):
 
-    vector = np.zeros(shape=(smash_model.mesh.nac, smash_model.setup.ntime_step))
+    vector = np.zeros(
+        shape=(smash_model.mesh.nac, smash_model.setup.ntime_step)
+    )
 
     k = 0
     for col in range(smash_model.mesh.ncol):
@@ -289,7 +291,12 @@ from matplotlib.gridspec import GridSpec
 
 fig = plt.figure(layout="constrained", figsize=(20, 10))
 gs = GridSpec(
-    3, 4, figure=fig, height_ratios=[1, 1, 1], width_ratios=[1, 1, 1, 1], hspace=0.2
+    3,
+    4,
+    figure=fig,
+    height_ratios=[1, 1, 1],
+    width_ratios=[1, 1, 1, 1],
+    hspace=0.2,
 )
 ax0 = fig.add_subplot(gs[0, 2])  # Matrice 1
 ax1 = fig.add_subplot(gs[0, 3])  # Matrice 1
@@ -318,7 +325,9 @@ cax1 = ax1.matshow(
     vmin=np.min(qt_true),
     aspect="auto",
 )
-fig.colorbar(cax1, ax=ax1, fraction=0.046, pad=0.04, label="Inflows (True) (m3/s)")
+fig.colorbar(
+    cax1, ax=ax1, fraction=0.046, pad=0.04, label="Inflows (True) (m3/s)"
+)
 
 vmin = min(
     np.min(model_smash_true.get_rr_parameters("cp")),
@@ -418,7 +427,9 @@ ax1.set_ylabel("Time-step (3600s)", fontsize=10)
 
 
 time_gamma = np.arange(
-    900 / 3600, model_gamma_true.routing_setup.npdt_inflows + 900 / 3600, 900 / 3600
+    900 / 3600,
+    model_gamma_true.routing_setup.npdt_inflows + 900 / 3600,
+    900 / 3600,
 )
 time_smash = np.arange(1, model_gamma_true.routing_setup.npdt_inflows + 1, 1)
 
@@ -449,7 +460,9 @@ ax8.plot(
     label="Gamma  discharges (optimized)",
 )
 ax8.plot(
-    time_smash, model_smash_lr.response.q[0, :], label="True Smash discharges with llr"
+    time_smash,
+    model_smash_lr.response.q[0, :],
+    label="True Smash discharges with llr",
 )
 
 ax8.set_title("Downstream discharges")
@@ -463,6 +476,8 @@ plt.subplots_adjust(wspace=0.7)
 # plt.show()
 
 fig.savefig(
-    os.path.join(dir_results, f"Exp_coupling_calibration_smash_dt900_{scenario}.pdf"),
+    os.path.join(
+        dir_results, f"Exp_coupling_calibration_smash_dt900_{scenario}.pdf"
+    ),
     bbox_inches="tight",
 )

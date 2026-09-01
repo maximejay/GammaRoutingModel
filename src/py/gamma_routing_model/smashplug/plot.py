@@ -43,7 +43,11 @@ def plot_hydrograph(model_list=({"model": None, "fig_settings": {}})):
 
 
 def multiplot_parameters(
-    sbcontainer, gammamodel, ax_settings={}, fig_settings={}, mask_active_cell=False
+    sbcontainer,
+    gammamodel,
+    ax_settings={},
+    fig_settings={},
+    mask_active_cell=False,
 ):
 
     if isinstance(gammamodel, dict):
@@ -56,11 +60,11 @@ def multiplot_parameters(
     default_fig_settings = plot.fig_properties(xsize=8, ysize=8)
     default_fig_settings.update(**fig_settings)
 
-    param = list(sbcontainer.mysmashmodel.rr_parameters.keys)
+    param = list(sbcontainer.mysmashmodel.smash.rr_parameters.keys)
     param.extend(["Hy", "Sp"])
 
     if mask_active_cell:
-        mask = sbcontainer.mysmashmodel.mesh.active_cell
+        mask = sbcontainer.mysmashmodel.smash.mesh.active_cell
     else:
         mask = None
 
@@ -88,12 +92,43 @@ def multiplot_parameters(
         )
         default_ax_settings.update(**ax_settings)
 
-        if p in list(sbcontainer.mysmashmodel.rr_parameters.keys):
+        if p in list(sbcontainer.mysmashmodel.smash.rr_parameters.keys):
             z = param.index(p)
 
+            mask2 = np.where(
+                sbcontainer.mysmashmodel.smash.mesh.active_cell == 1,
+                True,
+                False,
+            )
+            mean = round(
+                np.mean(
+                    sbcontainer.mysmashmodel.smash.rr_parameters.values[
+                        :, :, z
+                    ],
+                    where=mask2,
+                ),
+                2,
+            )
+            var = round(
+                np.var(
+                    sbcontainer.mysmashmodel.smash.rr_parameters.values[
+                        :, :, z
+                    ],
+                    where=mask2,
+                ),
+                2,
+            )
+
+            default_ax_settings.title = (
+                f"{p} parameters map \n $\mu={mean:.2f}$ ; $\sigma={var:.2f}$"
+            )
             fig, ax = plot.plot_image(
-                matrice=sbcontainer.mysmashmodel.rr_parameters.values[:, :, z],
-                bbox=geo_toolbox.get_bbox_from_smash_mesh(sbcontainer.mymesh.mesh),
+                matrice=sbcontainer.mysmashmodel.smash.rr_parameters.values[
+                    :, :, z
+                ],
+                bbox=geo_toolbox.get_bbox_from_smash_mesh(
+                    sbcontainer.mymesh.mesh
+                ),
                 mask=mask,
                 vmin=0.0,
                 catchment_polygon=sbcontainer.mymesh.catchment_polygon,
@@ -105,20 +140,30 @@ def multiplot_parameters(
             if p == "Hy":
                 matrice = gamma.smashplug.GammaVectorsToSmashGrid(
                     hc,
-                    sbcontainer.mysmashmodel,
+                    sbcontainer.mysmashmodel.smash,
                 )
+                mean = round(np.mean(hc), 2)
+                var = round(np.var(hc), 2)
             elif p == "Sp":
 
                 matrice = gamma.smashplug.GammaVectorsToSmashGrid(
                     sc,
-                    sbcontainer.mysmashmodel,
+                    sbcontainer.mysmashmodel.smash,
                 )
+                mean = round(np.mean(sc), 2)
+                var = round(np.var(sc), 2)
             else:
                 continue
 
+            default_ax_settings.title = (
+                f"{p} parameters map \n $\mu={mean:.2f}$ ; $\sigma={var:.2f}$"
+            )
+
             fig, ax = plot.plot_image(
                 matrice=matrice,
-                bbox=geo_toolbox.get_bbox_from_smash_mesh(sbcontainer.mymesh.mesh),
+                bbox=geo_toolbox.get_bbox_from_smash_mesh(
+                    sbcontainer.mymesh.mesh
+                ),
                 mask=mask,
                 vmin=0.0,
                 catchment_polygon=sbcontainer.mymesh.catchment_polygon,
