@@ -90,7 +90,14 @@ def multiplot_parameters(
 
         if p in list(sbcontainer.mysmashmodel.rr_parameters.keys):
             z = param.index(p)
-
+            
+            mask2=np.where(sbcontainer.mysmashmodel.mesh.active_cell==1,True,False)
+            mean = round(np.mean(sbcontainer.mysmashmodel.rr_parameters.values[:, :, z],where=mask2),2)
+            var = round(np.var(sbcontainer.mysmashmodel.rr_parameters.values[:, :, z],where=mask2),2)
+            
+            default_ax_settings.title = (
+                f"{p} parameters map \n $\mu={mean:.2f}$ ; $\sigma={var:.2f}$"
+            )
             fig, ax = plot.plot_image(
                 matrice=sbcontainer.mysmashmodel.rr_parameters.values[:, :, z],
                 bbox=geo_toolbox.get_bbox_from_smash_mesh(sbcontainer.mymesh.mesh),
@@ -107,15 +114,24 @@ def multiplot_parameters(
                     hc,
                     sbcontainer.mysmashmodel,
                 )
+                mean = round(np.mean(hc),2)
+                var = round(np.var(hc),2)
             elif p == "Sp":
 
                 matrice = gamma.smashplug.GammaVectorsToSmashGrid(
                     sc,
                     sbcontainer.mysmashmodel,
                 )
+                mean = round(np.mean(sc),2)
+                var = round(np.var(sc),2)
             else:
                 continue
-
+            
+            
+            default_ax_settings.title = (
+                f"{p} parameters map \n $\mu={mean:.2f}$ ; $\sigma={var:.2f}$"
+            )
+            
             fig, ax = plot.plot_image(
                 matrice=matrice,
                 bbox=geo_toolbox.get_bbox_from_smash_mesh(sbcontainer.mymesh.mesh),
