@@ -398,7 +398,7 @@ class Model(object):
                 f" dt_inflows/dt must be a whole number."
             )
 
-        print("call routing_gamma_run")
+        print("</> Forward Run")
         Mod_Gamma_Interface.routing_gamma_run(
             self.routing_setup,
             self.routing_mesh,

@@ -78,7 +78,9 @@ def VectorIndexesOfSmashGauges(smash_model):
     # index_gauge_pos=smash_model.mesh.gauge_pos[:,0]*(ncol)+smash_model.mesh.gauge_pos[:,1]
 
     index_gauge_pos = MatrixCoordsToVectorIndexes(
-        smash_model.mesh.gauge_pos[:, 0], smash_model.mesh.gauge_pos[:, 1], ncol
+        smash_model.mesh.gauge_pos[:, 0],
+        smash_model.mesh.gauge_pos[:, 1],
+        ncol,
     )
     index_vector_matrix = VectorIndexesOfActiveSmashCells(smash_model)
 
@@ -172,10 +174,15 @@ def ComputeNodeLinker(smash_model):
                         and (row_imd < nrow)
                     ):
 
-                        if smash_model.mesh.flwdir[row_imd, col_imd] == dkind[up_nd]:
+                        if (
+                            smash_model.mesh.flwdir[row_imd, col_imd]
+                            == dkind[up_nd]
+                        ):
 
                             pos_grid = row_imd * (ncol) + col_imd
-                            pos_vector = np.where(pos_grid == index_vector_matrix)
+                            pos_vector = np.where(
+                                pos_grid == index_vector_matrix
+                            )
                             nodes_linker[l, k] = pos_vector[0][0] + 1
                             l = l + 1
 
@@ -211,7 +218,9 @@ def SmashMeshToGammaMesh(smash_model, model_gamma):
 
     model_gamma.routing_mesh_set_control(gauge_pos + 1)
 
-    model_gamma.routing_mesh.surface = VectorMesh1D["dx"] ** 2.0 / 1000.0**2.0  #!km²
+    model_gamma.routing_mesh.surface = (
+        VectorMesh1D["dx"] ** 2.0 / 1000.0**2.0
+    )  #!km²
     model_gamma.routing_mesh.dx = VectorMesh1D["dx"]
 
     # Update and finalise the gamma mesh for the model_gamma object
@@ -226,7 +235,9 @@ def ConfigureGammaWithSmash(smash_model, dt=None, **kwargs):
     # **kwargs: any arguments for gamma.routing_setup
 
     if smash_model.setup.routing_module != "zero":
-        print("Warnings: you must set smash_model.setup.routing_module to zero")
+        print(
+            "Warnings: you must set smash_model.setup.routing_module to zero"
+        )
         smash_model.setup.structure = "zero"
 
     # initialise the gamma model object
@@ -488,12 +499,15 @@ def GammaVectorsToSmashGrid(vector, smash_model):
     # Convert vector from gamma model to smash grid
     # vector[nb_nodes]
 
-    grid = np.zeros(shape=(smash_model.mesh.nrow, smash_model.mesh.ncol))
+    nrow = smash_model.mesh.active_cell.shape[0]
+    ncol = smash_model.mesh.active_cell.shape[1]
+
+    grid = np.zeros(shape=(nrow, ncol))
 
     k = 0
-    for col in range(smash_model.mesh.ncol):
+    for col in range(ncol):
 
-        for row in range(smash_model.mesh.nrow):
+        for row in range(nrow):
 
             if smash_model.mesh.active_cell[row, col] > 0:
 
@@ -507,12 +521,15 @@ def SmashGridToGammaVectors(grid, smash_model, model_gamma):
     # Convert smash gridded data to vectors for gamma model
     # grid[nbx,nby]
 
+    nrow = smash_model.mesh.active_cell.shape[0]
+    ncol = smash_model.mesh.active_cell.shape[1]
+
     vector = np.zeros(shape=(model_gamma.routing_mesh.nb_nodes))
 
     k = 0
-    for col in range(smash_model.mesh.ncol):
+    for col in range(ncol):
 
-        for row in range(smash_model.mesh.nrow):
+        for row in range(nrow):
 
             if smash_model.mesh.active_cell[row, col] > 0:
 
@@ -541,7 +558,9 @@ def smash_grid_to_vector_active_cells(grid, smash_model):
 
 def smash_time_grid_to_time_vector_active_cells(grid, smash_model):
 
-    vector = np.zeros(shape=(smash_model.mesh.nac, smash_model.setup.ntime_step))
+    vector = np.zeros(
+        shape=(smash_model.mesh.nac, smash_model.setup.ntime_step)
+    )
 
     k = 0
     for col in range(smash_model.mesh.ncol):
@@ -562,7 +581,10 @@ def SmashDataVectorsToGrid(observations, model_gamma, smash_dt):
 
     gridded_observation = (
         np.zeros(
-            shape=(model_gamma.routing_setup.npdt, model_gamma.routing_mesh.nb_nodes)
+            shape=(
+                model_gamma.routing_setup.npdt,
+                model_gamma.routing_mesh.nb_nodes,
+            )
         )
         - 99.0
     )
@@ -575,7 +597,9 @@ def SmashDataVectorsToGrid(observations, model_gamma, smash_dt):
         if (k > 0) and (k <= model_gamma.routing_mesh.nb_nodes):
             # print(f"fitting at obs {pos_observation} for grid {k} from {smash_dt} to {model_gamma.routing_setup.dt}")
             gridded_observation[:, k] = FitDataToNewDt(
-                observations[position_in_smash, :], smash_dt, model_gamma.routing_setup.dt
+                observations[position_in_smash, :],
+                smash_dt,
+                model_gamma.routing_setup.dt,
             )
 
     return gridded_observation
@@ -590,7 +614,11 @@ def GriddedDataToSmashVectors(gridded_observation, model_gamma, smash_dt):
     observations = np.zeros(
         shape=(
             nb_gauge,
-            int(gridded_observation.shape[0] * model_gamma.routing_setup.dt / smash_dt),
+            int(
+                gridded_observation.shape[0]
+                * model_gamma.routing_setup.dt
+                / smash_dt
+            ),
         )
     )
 
@@ -602,7 +630,9 @@ def GriddedDataToSmashVectors(gridded_observation, model_gamma, smash_dt):
         if (k > 0) and (k <= model_gamma.routing_mesh.nb_nodes):
 
             observations[position_in_smash, :] = FitDataToNewDt(
-                gridded_observation[:, k], model_gamma.routing_setup.dt, smash_dt
+                gridded_observation[:, k],
+                model_gamma.routing_setup.dt,
+                smash_dt,
             )
 
     return observations
@@ -674,7 +704,9 @@ def VectorizeModelParameters(
 
         control_parameters_list = list()
         control_parameters_list.append(
-            smash._constant.STRUCTURE_RR_PARAMETERS[smash_model.setup.structure]
+            smash._constant.STRUCTURE_RR_PARAMETERS[
+                smash_model.setup.structure
+            ]
         )
 
         control_parameters_list.append("hc")
@@ -691,11 +723,16 @@ def VectorizeModelParameters(
                 or (hasattr(model_gamma.routing_parameters, ctrl_var))
             ):
 
-                print("Error: Wrong parameter/states in control vector: " + ctrl_var)
+                print(
+                    "Error: Wrong parameter/states in control vector: "
+                    + ctrl_var
+                )
                 return
 
     SizeOfControl = len(control_parameters_list)
-    LinearizedParameters = np.zeros(SizeOfControl * model_gamma.routing_mesh.nb_nodes)
+    LinearizedParameters = np.zeros(
+        SizeOfControl * model_gamma.routing_mesh.nb_nodes
+    )
 
     k = 0  # indexe of the current cell
 
@@ -717,8 +754,12 @@ def VectorizeModelParameters(
 
         if ctrl_var in smash_model.rr_initial_states.keys:
 
-            index_state = list(smash_model.rr_initial_states).keys.index(ctrl_var)
-            states_smash = smash_model.rr_initial_states.values[:, :, index_state]
+            index_state = list(smash_model.rr_initial_states).keys.index(
+                ctrl_var
+            )
+            states_smash = smash_model.rr_initial_states.values[
+                :, :, index_state
+            ]
 
             for col in range(smash_model.mesh.ncol):
 
@@ -829,7 +870,9 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
             if ctrl_var == "hc":
 
                 if model_gamma.routing_setup.hydraulics_coef_uniform == 1:
-                    model_gamma.routing_parameters_change(hc=control_vector["Xt"][k])
+                    model_gamma.routing_parameters_change(
+                        hc=control_vector["Xt"][k]
+                    )
                 else:
                     model_gamma.routing_parameters_change(
                         hc=control_vector["Xt"][k : k + nb_nodes]
@@ -840,7 +883,9 @@ def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
             if ctrl_var == "sc":
 
                 if model_gamma.routing_setup.spreading_uniform == 1:
-                    model_gamma.routing_parameters_change(sc=control_vector["Xt"][k])
+                    model_gamma.routing_parameters_change(
+                        sc=control_vector["Xt"][k]
+                    )
                 else:
                     model_gamma.routing_parameters_change(
                         sc=control_vector["Xt"][k : k + nb_nodes]
@@ -871,7 +916,9 @@ def ComputeModelGradients(
 
     # Gradients of COST with respect to routing_parameters
     Grad_dCOST_dROUTINGPARAMETERS = np.zeros(
-        shape=(2, model_gamma.routing_mesh.nb_nodes), order="F", dtype="float32"
+        shape=(2, model_gamma.routing_mesh.nb_nodes),
+        order="F",
+        dtype="float32",
     )
 
     print("call routing_gamma_forward_adjoint_b")
@@ -889,7 +936,10 @@ def ComputeModelGradients(
 
     # Gradients of COST with respect to inflows (inflows_f32)
     Grad_dCOST_dINFLOWS = np.zeros(
-        shape=(model_gamma.routing_setup.npdt_inflows, model_gamma.routing_mesh.nb_nodes),
+        shape=(
+            model_gamma.routing_setup.npdt_inflows,
+            model_gamma.routing_mesh.nb_nodes,
+        ),
         order="F",
         dtype="float32",
     )
@@ -925,15 +975,18 @@ def ComputeModelGradients(
                     del control_smash[key][p]
 
     print("call smash_model.backward_run")
-    SmashGradients, name = smash_model.backward_run(
+    return_smash = smash_model.backward_run(
         mapping="distributed",
-        grad_mode="qt",
+        diff_target="q",
+        return_options={"grad": True},
         optimize_options={
             "parameters": control_smash["ParamList"],
             "bounds": control_smash["bounds"],
         },
-        input_derivatives=Grad_dCOST_dINFLOWS.transpose(),
+        cotangent=Grad_dCOST_dINFLOWS.transpose(),
     )
+
+    SmashGradients = return_smash.grad
 
     nb_param_smash = len(control_smash["ParamList"])
 
@@ -943,9 +996,9 @@ def ComputeModelGradients(
     nbnode = model_gamma.routing_mesh.nb_nodes
 
     for i in range(nb_param_smash):
-        LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] = SmashGradients[
-            i * nbnode : nbnode + i * nbnode
-        ]
+        LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] = (
+            SmashGradients[i * nbnode : nbnode + i * nbnode]
+        )
 
     print("""\nOriginal projected gradients:\n-----------------------------""")
     print(
@@ -962,7 +1015,10 @@ def ComputeModelGradients(
             f"{control_smash['ParamList'][i]}:",
             np.sqrt(
                 np.sum(
-                    LinearizedGradientsForSmash[i * nbnode : nbnode + i * nbnode] ** 2.0
+                    LinearizedGradientsForSmash[
+                        i * nbnode : nbnode + i * nbnode
+                    ]
+                    ** 2.0
                 )
             ),
         )
@@ -980,7 +1036,9 @@ def ComputeModelGradients(
         + NbControledGammaParameter * control_vector["NbNodes"]
     )
 
-    OutputsGradients[0 : len(LinearizedGradientsForSmash)] = LinearizedGradientsForSmash
+    OutputsGradients[0 : len(LinearizedGradientsForSmash)] = (
+        LinearizedGradientsForSmash
+    )
     position = len(LinearizedGradientsForSmash)
 
     for ctrl_var in control_vector["ParamList"]:
@@ -990,28 +1048,30 @@ def ComputeModelGradients(
             if ctrl_var == "hc":
 
                 if model_gamma.routing_setup.hydraulics_coef_uniform == 1:
-                    OutputsGradients[position : position + control_vector["NbNodes"]] = (
-                        Grad_dCOST_dROUTINGPARAMETERS[0, :]
-                        / float(control_vector["NbNodes"])
+                    OutputsGradients[
+                        position : position + control_vector["NbNodes"]
+                    ] = Grad_dCOST_dROUTINGPARAMETERS[0, :] / float(
+                        control_vector["NbNodes"]
                     )
                 else:
-                    OutputsGradients[position : position + control_vector["NbNodes"]] = (
-                        Grad_dCOST_dROUTINGPARAMETERS[0, :]
-                    )
+                    OutputsGradients[
+                        position : position + control_vector["NbNodes"]
+                    ] = Grad_dCOST_dROUTINGPARAMETERS[0, :]
 
                 position = position + control_vector["NbNodes"]
 
             if ctrl_var == "sc":
 
                 if model_gamma.routing_setup.spreading_uniform == 1:
-                    OutputsGradients[position : position + control_vector["NbNodes"]] = (
-                        Grad_dCOST_dROUTINGPARAMETERS[1, :]
-                        / float(control_vector["NbNodes"])
+                    OutputsGradients[
+                        position : position + control_vector["NbNodes"]
+                    ] = Grad_dCOST_dROUTINGPARAMETERS[1, :] / float(
+                        control_vector["NbNodes"]
                     )
                 else:
-                    OutputsGradients[position : position + control_vector["NbNodes"]] = (
-                        Grad_dCOST_dROUTINGPARAMETERS[1, :]
-                    )
+                    OutputsGradients[
+                        position : position + control_vector["NbNodes"]
+                    ] = Grad_dCOST_dROUTINGPARAMETERS[1, :]
 
                 position = position + control_vector["NbNodes"]
 
@@ -1022,21 +1082,25 @@ def RunCoupledModel(smash_model, model_gamma, routing_memory_init=False):
     # Run the direct problem of the coupled model Smash and Gamma
 
     print("</> Run of the Smash model")
-    ret = smash_model.forward_run(
-        return_options={"q_domain": True, "q_domain_kind_qt": True}
-    )
+    ret = smash_model.forward_run(return_options={"q_domain": True})
 
-    inflows_smash = smash_time_grid_to_time_vector_active_cells(ret.q_domain, smash_model)
+    inflows_smash = smash_time_grid_to_time_vector_active_cells(
+        ret.q_domain, smash_model
+    )
     inflows_domain = inflows_smash.transpose()
 
     # run the model
     print("</> Run the Gamma Routing model")
     model_gamma.run(
-        inflows_domain, states_init=False, routing_memory_init=routing_memory_init
+        inflows_domain,
+        states_init=False,
+        routing_memory_init=routing_memory_init,
     )
 
     print("</> Copy the simulated discharges in the smash model object")
-    gamma.smashplug.CopyGammaDischargesToSmashResponse(smash_model, model_gamma)
+    gamma.smashplug.CopyGammaDischargesToSmashResponse(
+        smash_model, model_gamma
+    )
 
 
 def ComputeCostAndGradients(
@@ -1056,9 +1120,7 @@ def ComputeCostAndGradients(
     SetVectorizedModelParameters(control_vector, smash_model, model_gamma)
 
     print("Run the smash model")  # => will normalize param inside the model
-    return_var = smash_model.forward_run(
-        return_options={"q_domain": True, "q_domain_kind_qt": True}
-    )
+    return_var = smash_model.forward_run(return_options={"q_domain": True})
 
     print("Get inflows from Smash")
     inflows = smash_time_grid_to_time_vector_active_cells(
@@ -1068,10 +1130,14 @@ def ComputeCostAndGradients(
 
     # run the model
     print("Run the Gamma model")
-    model_gamma.run(inflows_transpose, states_init=False, routing_memory_init=False)
+    model_gamma.run(
+        inflows_transpose, states_init=False, routing_memory_init=False
+    )
 
     print("Compute the cost")
-    model_gamma.cost_function(observations, model_gamma.routing_results.discharges)
+    model_gamma.cost_function(
+        observations, model_gamma.routing_results.discharges
+    )
     cost = model_gamma.routing_results.costs[0]
 
     print("-------------------------------------------------------------")
@@ -1079,6 +1145,34 @@ def ComputeCostAndGradients(
         f"Cost={model_gamma.routing_results.costs[0]} | J0={model_gamma.routing_results.costs[1]} | Jreg={model_gamma.routing_setup.ponderation_regul*model_gamma.routing_results.costs[2]}"
     )
     print("-------------------------------------------------------------")
+
+    # Store cost during the minimization
+    if "cost" in control_vector:
+        control_vector["cost"] = np.concatenate(
+            (
+                control_vector["cost"],
+                np.array(
+                    [
+                        control_vector["cost"][-1, 0] + 1,
+                        model_gamma.routing_results.costs[0],
+                        model_gamma.routing_results.costs[1],
+                        model_gamma.routing_results.costs[2],
+                    ],
+                    ndmin=2,
+                ),
+            ),
+            axis=0,
+        )
+    else:
+        control_vector["cost"] = np.array(
+            [
+                0,
+                model_gamma.routing_results.costs[0],
+                model_gamma.routing_results.costs[1],
+                model_gamma.routing_results.costs[2],
+            ],
+            ndmin=2,
+        )
 
     gradient = ComputeModelGradients(
         control_vector,
@@ -1153,7 +1247,9 @@ def get_boundaries(
                 boundaries[position : position + nnodes, 0] = bounds["hc"][0]
                 boundaries[position : position + nnodes, 1] = bounds["hc"][1]
 
-                model_gamma.routing_parameters.hc = model_gamma.routing_parameters.hc
+                model_gamma.routing_parameters.hc = (
+                    model_gamma.routing_parameters.hc
+                )
 
                 position = position + nnodes
 
@@ -1167,7 +1263,9 @@ def get_boundaries(
                 boundaries[position : position + nnodes, 0] = bounds["sc"][0]
                 boundaries[position : position + nnodes, 1] = bounds["sc"][1]
 
-                model_gamma.routing_parameters.sc = model_gamma.routing_parameters.sc
+                model_gamma.routing_parameters.sc = (
+                    model_gamma.routing_parameters.sc
+                )
 
                 position = position + nnodes
 
@@ -1367,7 +1465,9 @@ def calibration_parameters_smash(
     inflows = smash_time_grid_to_time_vector_active_cells(
         return_var.q_domain, model_smash
     )
-    model_gamma.run(inflows.transpose(), states_init=False, routing_memory_init=False)
+    model_gamma.run(
+        inflows.transpose(), states_init=False, routing_memory_init=False
+    )
 
     return res, model_smash, model_gamma
 
@@ -1393,9 +1493,13 @@ def run_backward_djdx(X, model_smash, model_gamma, observations, bounds):
     inflows = smash_time_grid_to_time_vector_active_cells(
         return_var.q_domain, model_smash
     )
-    model_gamma.run(inflows.transpose(), states_init=False, routing_memory_init=False)
+    model_gamma.run(
+        inflows.transpose(), states_init=False, routing_memory_init=False
+    )
 
-    model_gamma.cost_function(observations, model_gamma.routing_results.discharges)
+    model_gamma.cost_function(
+        observations, model_gamma.routing_results.discharges
+    )
     # cost = np.float32()
     cost = model_gamma.routing_results.costs[0]
 
@@ -1404,7 +1508,10 @@ def run_backward_djdx(X, model_smash, model_gamma, observations, bounds):
 
     # Gradients of COST with respect to qt
     gamma_gradients = np.zeros(
-        shape=(model_gamma.routing_setup.npdt_inflows, model_gamma.routing_mesh.nb_nodes),
+        shape=(
+            model_gamma.routing_setup.npdt_inflows,
+            model_gamma.routing_mesh.nb_nodes,
+        ),
         order="F",
         dtype="float32",
     )
@@ -1423,15 +1530,27 @@ def run_backward_djdx(X, model_smash, model_gamma, observations, bounds):
 
     # int_gamma_gradient = np.mean(np.array(gamma_gradients, dtype="float64"), axis=0)
 
-    SmashGradients, name = model_smash.backward_run(
+    # SmashGradients = model_smash.backward_run(
+    #     mapping="distributed",
+    #     grad_mode="q",
+    #     optimize_options={
+    #         "parameters": ["cp", "ct"],
+    #         "bounds": bounds,
+    #     },
+    #     input_derivatives=gamma_gradients.transpose(),
+    # )
+    return_smash = model_smash.backward_run(
         mapping="distributed",
-        grad_mode="qt",
+        diff_target="q",
+        return_options={"grad": True},
         optimize_options={
             "parameters": ["cp", "ct"],
             "bounds": bounds,
         },
-        input_derivatives=gamma_gradients.transpose(),
+        cotangent=gamma_gradients.transpose(),
     )
+
+    SmashGradients = return_smash.grad
 
     SmashGradients = np.array(SmashGradients, dtype="float64")
 

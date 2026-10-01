@@ -76,7 +76,9 @@ metadata = {
 }
 
 matrix = read_ascii_data("src/py/test/flwdir.ascii")
-rasterio_write_tiff("src/py/test/flwdir.tif", np.atleast_2d(matrix["data"]), metadata)
+rasterio_write_tiff(
+    "src/py/test/flwdir.tif", np.atleast_2d(matrix["data"]), metadata
+)
 
 
 mesh = smash.factory.generate_mesh(
@@ -131,8 +133,12 @@ model_smash_bck.rr_initial_states.values = 0.5
 model_smash_lr.rr_parameters.values[:, :, 4] = 30
 model_smash_lr.forward_run()
 
+# return_var_true = model_smash_true.forward_run(
+#     return_options={"q_domain": True, "q_domain_kind_qt": True}
+# )
+
 return_var_true = model_smash_true.forward_run(
-    return_options={"q_domain": True, "q_domain_kind_qt": True}
+    return_options={"q_domain": True}
 )
 
 model_smash_bck.set_rr_parameters("cp", 100.0)
@@ -140,14 +146,19 @@ model_smash_bck.set_rr_parameters("ct", 200.0)
 
 scenario = "2"
 
-return_var_bck = model_smash_bck.forward_run(
-    return_options={"q_domain": True, "q_domain_kind_qt": True}
-)
+# return_var_bck = model_smash_bck.forward_run(
+#     return_options={"q_domain": True, "q_domain_kind_qt": True}
+# )
+
+
+return_var_bck = model_smash_bck.forward_run(return_options={"q_domain": True})
 
 
 def smash_time_grid_to_time_vector_active_cells(grid, smash_model):
 
-    vector = np.zeros(shape=(smash_model.mesh.nac, smash_model.setup.ntime_step))
+    vector = np.zeros(
+        shape=(smash_model.mesh.nac, smash_model.setup.ntime_step)
+    )
 
     k = 0
     for col in range(smash_model.mesh.ncol):
@@ -260,7 +271,9 @@ model_gamma_optimize.run(qt_bck.transpose())
 
 model_gamma_optimize.routing_mesh_set_control(9)
 
-model_smash_bck.response_data.q[0, :] = model_gamma_true.routing_results.discharges[:, 8]
+model_smash_bck.response_data.q[0, :] = (
+    model_gamma_true.routing_results.discharges[:, 8]
+)
 
 
 # compute the initial cost
@@ -307,8 +320,6 @@ BestControlVector, model_smash_calibrated, model_gamma_calibrated = (
         maxiter=50,
         maxfun=100,
         tol=None,
-        ScaleGradients=False,
-        ScaleGammaGradientsBySurface=False,
         optim_type="local",
         local_optimizer="L-BFGS-B",  # L-BFGS-B | trust-constr | SLSQP | TNC
     )
@@ -323,7 +334,12 @@ from matplotlib.gridspec import GridSpec
 
 fig = plt.figure(layout="constrained", figsize=(20, 10))
 gs = GridSpec(
-    3, 4, figure=fig, height_ratios=[1, 1, 1], width_ratios=[1, 1, 1, 1], hspace=0.2
+    3,
+    4,
+    figure=fig,
+    height_ratios=[1, 1, 1],
+    width_ratios=[1, 1, 1, 1],
+    hspace=0.2,
 )
 ax0 = fig.add_subplot(gs[0, 2])  # Matrice 1
 ax1 = fig.add_subplot(gs[0, 3])  # Matrice 1
@@ -351,25 +367,43 @@ cax1 = ax1.matshow(
     vmin=np.min(qt_true),
     aspect="auto",
 )
-fig.colorbar(cax1, ax=ax1, fraction=0.046, pad=0.04, label="Inflows (True) (m3/s)")
+fig.colorbar(
+    cax1, ax=ax1, fraction=0.046, pad=0.04, label="Inflows (True) (m3/s)"
+)
 
 
 cax2 = ax2.plot(model_smash_true.get_rr_parameters("cp")[0], label="cp (true)")
-cax3 = ax3.plot(model_smash_bck.get_rr_parameters("cp")[0], label="cp (background)")
-cax4 = ax4.plot(model_smash_calibrated.get_rr_parameters("cp")[0], label="cp (optimized)")
+cax3 = ax3.plot(
+    model_smash_bck.get_rr_parameters("cp")[0], label="cp (background)"
+)
+cax4 = ax4.plot(
+    model_smash_calibrated.get_rr_parameters("cp")[0], label="cp (optimized)"
+)
 cax2 = ax2.plot(model_smash_true.get_rr_parameters("ct")[0], label="ct (true)")
-cax3 = ax3.plot(model_smash_bck.get_rr_parameters("ct")[0], label="ct (background)")
-cax4 = ax4.plot(model_smash_calibrated.get_rr_parameters("ct")[0], label="ct (optimized)")
+cax3 = ax3.plot(
+    model_smash_bck.get_rr_parameters("ct")[0], label="ct (background)"
+)
+cax4 = ax4.plot(
+    model_smash_calibrated.get_rr_parameters("ct")[0], label="ct (optimized)"
+)
 ax4.legend()
 ax3.legend()
 ax2.legend()
 
 cax5 = ax5.plot(model_gamma_true.routing_parameters.hc, label="hc (true)")
-cax6 = ax6.plot(model_gamma_background.routing_parameters.hc, label="hc (background)")
-cax7 = ax7.plot(model_gamma_calibrated.routing_parameters.hc, label="hc (optimized)")
+cax6 = ax6.plot(
+    model_gamma_background.routing_parameters.hc, label="hc (background)"
+)
+cax7 = ax7.plot(
+    model_gamma_calibrated.routing_parameters.hc, label="hc (optimized)"
+)
 cax5 = ax5.plot(model_gamma_true.routing_parameters.sc, label="hs (true)")
-cax6 = ax6.plot(model_gamma_background.routing_parameters.sc, label="sc (background)")
-cax7 = ax7.plot(model_gamma_calibrated.routing_parameters.sc, label="sc (optimized)")
+cax6 = ax6.plot(
+    model_gamma_background.routing_parameters.sc, label="sc (background)"
+)
+cax7 = ax7.plot(
+    model_gamma_calibrated.routing_parameters.sc, label="sc (optimized)"
+)
 ax7.legend()
 ax5.legend()
 ax6.legend()
@@ -414,7 +448,11 @@ ax8.plot(
     model_gamma_calibrated.routing_results.discharges[:, 8],
     label="Gamma  discharges (optimized)",
 )
-ax8.plot(time, model_smash_lr.response.q[0, :], label="True Smash discharges with llr")
+ax8.plot(
+    time,
+    model_smash_lr.response.q[0, :],
+    label="True Smash discharges with llr",
+)
 
 ax8.set_title("Downstream discharges")
 ax8.set_xlabel("Time-step (3600s)")
