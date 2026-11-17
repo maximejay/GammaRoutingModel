@@ -674,6 +674,117 @@ def unormalize_control_vector(control_vector):
     return control_vector
 
 
+def GetUniformModelParameters(
+    smash_model,
+    model_gamma,
+    control_parameters_list=list(),
+    bounds={
+        "cp": [0.1, 1000.0],
+        "ct": [0.1, 1000.0],
+        "hc": [0.3, 5.0],
+        "sc": [0.5, 3.0],
+    },
+):
+
+    # boundaries = gamma.smashplug.get_boundaries(
+    #     model_gamma,
+    #     smash_model,
+    #     control_parameters_list=control_parameters_list,
+    #     bounds=bounds,
+    # )
+
+    if len(control_parameters_list) == 0:
+
+        control_parameters_list = list()
+        control_parameters_list.append(
+            smash._constant.STRUCTURE_RR_PARAMETERS[
+                smash_model.setup.structure
+            ]
+        )
+
+        control_parameters_list.append("hc")
+        if model_gamma.setup.varying_spread == True:
+            control_parameters_list.append("sc")
+
+    else:
+
+        for ctrl_var in control_parameters_list:
+
+            if not (
+                ctrl_var in smash_model.rr_parameters.keys
+                or ctrl_var in smash_model.rr_initial_states.keys
+                or (hasattr(model_gamma.routing_parameters, ctrl_var))
+            ):
+
+                print(
+                    "Error: Wrong parameter/states in control vector: "
+                    + ctrl_var
+                )
+                return
+
+    boundaries = np.zeros((len(control_parameters_list), 2))
+
+    uniformParameters = np.zeros(len(control_parameters_list))
+
+    for k, ctrl_var in enumerate(control_parameters_list):
+        if ctrl_var in smash_model.rr_parameters.keys:
+
+            index_param = list(smash_model.rr_parameters.keys).index(ctrl_var)
+            param_smash = smash_model.rr_parameters.values[:, :, index_param]
+            mean_param_state = np.mean(
+                param_smash, where=(smash_model.mesh.active_cell == 1)
+            )
+
+        elif ctrl_var in smash_model.rr_initial_states.keys:
+
+            index_state = list(smash_model.rr_initial_states).keys.index(
+                ctrl_var
+            )
+            states_smash = smash_model.rr_initial_states.values[
+                :, :, index_state
+            ]
+            mean_param_state = np.mean(
+                states_smash, where=(smash_model.mesh.active_cell == 1)
+            )
+
+        elif hasattr(model_gamma.routing_parameters, ctrl_var):
+
+            if ctrl_var == "hc":
+
+                mean_param_state = np.mean(
+                    model_gamma.routing_parameters.hc[:]
+                )
+
+            if ctrl_var == "sc":
+
+                mean_param_state = np.mean(
+                    model_gamma.routing_parameters.sc[:]
+                )
+
+        else:
+            print(
+                "Error: Wrong parameter/states in control vector: " + ctrl_var
+            )
+            return
+
+        uniformParameters[k] = mean_param_state
+
+        boundaries[k, 0] = bounds[ctrl_var][0]
+        boundaries[k, 1] = bounds[ctrl_var][1]
+
+    control_vector = {
+        "X": uniformParameters,
+        "Xt": uniformParameters,
+        "ParamList": control_parameters_list,
+        "NbNodes": None,
+        "boundaries": boundaries,
+        "bounds": bounds,
+        "mapping": "uniform",
+    }
+
+    return control_vector
+
+
 def VectorizeModelParameters(
     smash_model,
     model_gamma,
@@ -797,9 +908,35 @@ def VectorizeModelParameters(
         "NbNodes": nb_nodes,
         "boundaries": boundaries,
         "bounds": bounds,
+        "mapping": "distributed",
     }
 
     return control_vector
+
+
+def SetUniformModelParameters(control_vector, smash_model, model_gamma):
+
+    for k, ctrl_var in enumerate(control_vector["ParamList"]):
+
+        if ctrl_var in smash_model.rr_parameters.keys:
+            smash_model.set_rr_parameters(ctrl_var, control_vector["X"][k])
+
+        elif ctrl_var in smash_model.rr_initial_states.keys:
+            smash_model.set_rr_initial_states(ctrl_var, control_vector["X"][k])
+
+        elif hasattr(model_gamma.routing_parameters, ctrl_var):
+            if ctrl_var == "hc":
+                model_gamma.routing_parameters_change(
+                    hc=control_vector["X"][k]
+                )
+
+            if ctrl_var == "sc":
+                model_gamma.routing_parameters_change(
+                    sc=control_vector["X"][k]
+                )
+
+        else:
+            print(f"Error, wrong parameters name {ctrl_var}")
 
 
 def SetVectorizedModelParameters(control_vector, smash_model, model_gamma):
@@ -1103,6 +1240,83 @@ def RunCoupledModel(smash_model, model_gamma, routing_memory_init=False):
     )
 
 
+def ComputeCost(
+    X,
+    control_vector,
+    smash_model,
+    model_gamma,
+    observations,
+):
+    # Compute the gamma cost function and the gradients of dCost/(dXsmash,dXgamma)
+
+    # Get the new control vector
+    print("\nUpdating the control vector")
+    control_vector["X"] = X
+
+    # Set the new control vector to the Smash and Gamma Model => unormalize parameters
+    if control_vector["mapping"] == "distributed":
+        SetVectorizedModelParameters(control_vector, smash_model, model_gamma)
+    elif control_vector["mapping"] == "uniform":
+        SetUniformModelParameters(control_vector, smash_model, model_gamma)
+
+    print("Run the smash model")  # => will normalize param inside the model
+    return_var = smash_model.forward_run(return_options={"q_domain": True})
+
+    print("Get inflows from Smash")
+    inflows = smash_time_grid_to_time_vector_active_cells(
+        return_var.q_domain, smash_model
+    )
+    inflows_transpose = inflows.transpose()
+
+    # run the model
+    print("Run the Gamma model")
+    model_gamma.run(
+        inflows_transpose, states_init=False, routing_memory_init=False
+    )
+
+    print("Compute the cost")
+    model_gamma.cost_function(
+        observations, model_gamma.routing_results.discharges
+    )
+    cost = model_gamma.routing_results.costs[0]
+
+    print("-------------------------------------------------------------")
+    print(
+        f"Cost={model_gamma.routing_results.costs[0]} | J0={model_gamma.routing_results.costs[1]} | Jreg={model_gamma.routing_setup.ponderation_regul*model_gamma.routing_results.costs[2]}"
+    )
+    print("-------------------------------------------------------------")
+
+    # Store cost during the minimization
+    if "cost" in control_vector:
+        control_vector["cost"] = np.concatenate(
+            (
+                control_vector["cost"],
+                np.array(
+                    [
+                        control_vector["cost"][-1, 0] + 1,
+                        model_gamma.routing_results.costs[0],
+                        model_gamma.routing_results.costs[1],
+                        model_gamma.routing_results.costs[2],
+                    ],
+                    ndmin=2,
+                ),
+            ),
+            axis=0,
+        )
+    else:
+        control_vector["cost"] = np.array(
+            [
+                0,
+                model_gamma.routing_results.costs[0],
+                model_gamma.routing_results.costs[1],
+                model_gamma.routing_results.costs[2],
+            ],
+            ndmin=2,
+        )
+
+    return cost
+
+
 def ComputeCostAndGradients(
     X,
     control_vector,
@@ -1314,21 +1528,32 @@ def OptimizeCoupledModel(
             f"Observations vectors has not the same shape ({observations.shape}) than the outputs discharges of Gamma ({optimized_gamma.routing_results.discharges.shape})"
         )
 
-    # define the new control vector with scaled parameters
-    ControlVector = gamma.smashplug.VectorizeModelParameters(
-        optimized_smash,
-        optimized_gamma,
-        control_parameters_list=control_parameters_list,
-        bounds=bounds,
-    )
+    if optim_type == "uniform":
 
-    ControlVector = normalize_control_vector(ControlVector)
+        ControlVector = gamma.smashplug.GetUniformModelParameters(
+            smash_model,
+            model_gamma,
+            control_parameters_list=control_parameters_list,
+            bounds=bounds,
+        )
 
-    bounds = np.zeros(shape=ControlVector["boundaries"].shape)
-    bounds[:, 0] = 0.0
-    bounds[:, 1] = 1.0
+    else:
+        # define the new control vector with scaled parameters
+        ControlVector = gamma.smashplug.VectorizeModelParameters(
+            optimized_smash,
+            optimized_gamma,
+            control_parameters_list=control_parameters_list,
+            bounds=bounds,
+        )
+
+        ControlVector = normalize_control_vector(ControlVector)
+
+        bounds = np.zeros(shape=ControlVector["boundaries"].shape)
+        bounds[:, 0] = 0.0
+        bounds[:, 1] = 1.0
 
     if optim_type == "local":
+
         res = scipy.optimize.minimize(
             gamma.smashplug.ComputeCostAndGradients,
             ControlVector["X"],
@@ -1371,15 +1596,40 @@ def OptimizeCoupledModel(
             sampling_method="simplicial",  # "halton | sobol | simplicial"
         )
 
+    elif optim_type == "uniform":
+
+        res = scipy.optimize.minimize(
+            gamma.smashplug.ComputeCost,
+            ControlVector["X"],
+            args=(
+                ControlVector,
+                optimized_smash,
+                optimized_gamma,
+                observations,
+            ),
+            method="Nelder-Mead",
+            bounds=ControlVector["boundaries"],
+            options={
+                "disp": True,
+                "maxiter": maxiter,
+            },
+        )
+
     ControlVector["scipy_res"] = res
 
     # get results
     new_parameters = res.x
     # set the optimal parameter to the Smash and Gamma Model
     ControlVector["X"] = new_parameters
-    gamma.smashplug.SetVectorizedModelParameters(
-        ControlVector, optimized_smash, optimized_gamma
-    )
+
+    if optim_type == "uniform":
+        gamma.smashplug.SetUniformModelParameters(
+            ControlVector, optimized_smash, optimized_gamma
+        )
+    else:
+        gamma.smashplug.SetVectorizedModelParameters(
+            ControlVector, optimized_smash, optimized_gamma
+        )
 
     # Run the direct coupled model Gamma o Smash-
     gamma.smashplug.RunCoupledModel(optimized_smash, optimized_gamma)
