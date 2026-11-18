@@ -1,11 +1,9 @@
 #!/bin/bash
 
-mode=$1
-catchment=$2
-scenario=$3
-
-echo $mode $catchment $scenario
-
+catchment=$1
+echo $catchment
 source ~/python_venv/smash/bin/activate
+#python /home/maxime/DEV/GammaRoutingModel/src/py/exp_setBVfr/exp_setbvfr.py -m "init" -c $catchment -s "s1"
 
-python /home/maxime/DEV/GammaRoutingModel/src/py/exp_setBVfr/exp_setbvfr.py -m  $mode -c $catchment -s $scenario
+#exec python /home/maxime/DEV/GammaRoutingModel/src/py/exp_setBVfr/exp_setbvfr.py -m "init" -c "$catchment" -s "s1"
+exec python /home/maxime/DEV/GammaRoutingModel/src/py/exp_setBVfr/exp_setbvfr.py -m "init" -c "$catchment" -s "s1"
