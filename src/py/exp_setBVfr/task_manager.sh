@@ -1,10 +1,11 @@
 #!/bin/bash
-memory_threshold=0.7
-memory_limit=0.75
+memory_threshold=0.5 # fraction x of the current free mem; free mem = available mem + current managed process mem. At the begening, there is no managed process. Above this threshold no more task will be launched until the memory lower again.
+memory_limit=0.75 # fraction x of the current free mem ; free mem = available mem + current managed process mem. At the begening, there is no managed process. Above this threshold, the last task will be killed to free memory.
 process_pattern="smash_manager"
 launcher_prog="/home/maxime/DEV/GammaRoutingModel/src/py/exp_setBVfr/launcher.sh"
-user_nb_proc_max=10
-queued_process=./queued_process.txt
+user_nb_proc_max=5 #Max number of parrallel task to run
+freq=10 #Frequency duration in second before launching a new task.
+queued_process=./queued_process.txt #File with input args in coluumn
 
 until [ $# = 0 ]
     do
@@ -57,6 +58,33 @@ until [ $# = 0 ]
             user_nb_proc_max=$1
             shift
             ;;
+            -freq)
+            shift
+            freq=$1
+            shift
+            ;;
+            -process_alive_info)
+            shift
+            if [ -e ./running_process.txt ] & [ $(cat ./running_process.txt | wc -l) -gt 0 ] ; then
+                ps -p "$(awk '{printf "%s%s", sep, $1; sep=","}' ./running_process.txt)" -o pid=,comm=
+            else
+                echo "No running process."
+            fi
+            exit
+            ;;
+            -kill_all)
+            shift
+            while read PID TAG
+            do
+                MEM=$(ps -p "$PID" -o rss= 2>/dev/null)
+                if [ -n "$MEM" ]; then
+                    kill $PID
+                    echo "Kill $PID"
+                    sed -i "/${PID}/d" ./running_process.txt
+                fi
+            done < ./running_process.txt
+            exit
+            ;;
             -args_list)
             rm ./queued_process.txt
             shift
@@ -84,6 +112,7 @@ done
 if [ ! -e ./status_task_manager.txt ] ; then
     echo "PID:"$$ > ./status_task_manager.txt
     echo "nb_proc_max:$user_nb_proc_max" >> ./status_task_manager.txt
+    echo "nb_cur_proc:0" >> ./status_task_manager.txt
 else
     echo "task_manager already running."
     exit
@@ -100,43 +129,64 @@ fi
 #launch the task killer
 nohup bash ./task_killer.sh -launcher_path $launcher_path -memory_limit $memory_limit > log_task_killer.log &
 
-next_catchment=$(cat $queued_process <(awk '{print $2}' ./running_process.txt) | sort | uniq -u | head -n 1)
+next_catchment=$(cat $queued_process <(awk '{print $2}' ./running_process.txt) | sort | uniq -u | sed '/^$/d' | head -n 1)
 
 while [ ! -z $next_catchment ] ;
 do
-    echo "process args $next_catchment"
-    free_mem=$(free -m | head -n +2 | tail -n 1 | awk '{print $7}')
-    total_mem=$(free -m | head -n +2 | tail -n 1 | awk '{print $2}')
-    syst_load=$(echo "scale=2;1-$free_mem/$total_mem" | bc)
+    echo "Process args $next_catchment"
+    TOTAL_MEM=$(free -m | head -n +2 | tail -n 1 | awk '{print $2}')
+    AVAILABLE_MEM=$(free -m | head -n +2 | tail -n 1 | awk '{print $4}')
+    ALL_MEM=$(ps -eo rss= | awk '{sum+=$1} END {print sum/1024}')
     
-    nb_cur_proc=$(ps -p "$(awk '{printf "%s%s", sep, $1; sep=","}' ./running_process.txt)" -o pid=,comm= | wc -l)
-    #nb_cur_proc=$(cat ./running_process.txt | wc -l)
+    SELECTED_MEM=0
+    while read PID TAG
+    do
+        MEM=$(ps -p "$PID" -o rss= 2>/dev/null)
+        
+        if [ -n "$MEM" ]; then
+            SELECTED_MEM=$(echo "scale=2;$SELECTED_MEM + $MEM/1024" | bc)
+        fi
+    done < ./running_process.txt
+    
+    #RESERVED_MEM=$(echo "$TOTAL_MEM - $ALL_MEM + $SELECTED_MEM" | bc)
+    RESERVED_MEM=$(echo "$AVAILABLE_MEM + $SELECTED_MEM" | bc)
+    
+    syst_load=$(echo "scale=2;$SELECTED_MEM/$RESERVED_MEM" | bc)
+    
+    echo "Total memory                        : $TOTAL_MEM Mo"
+    echo "Consumed memory                     : $ALL_MEM Mo"
+    echo "Free memory                         : $AVAILABLE_MEM Mo"
+    echo "Current memory of monitored process : $SELECTED_MEM Mo"
+    echo "Current claimed memory              : $RESERVED_MEM Mo"
+    echo "Claimed memory load                 : $( echo "$syst_load*100" | bc)% / $( echo "$memory_threshold*100" | bc )%"
+    
+    nb_cur_proc=0
+    if [ -e ./running_process.txt ] && [ $(cat ./running_process.txt | wc -l) -gt 0 ] ; then
+        nb_cur_proc=$(ps -p "$(awk '{printf "%s%s", sep, $1; sep=","}' ./running_process.txt)" -o pid=,comm= | wc -l)
+        sed -i "s/^nb_cur_proc:.*/nb_cur_proc:$nb_cur_proc/g" ./status_task_manager.txt
+    fi
+    
     nb_proc_max=$(grep "nb_proc_max:" ./status_task_manager.txt | cut -d : -f 2)
-    process_mem_total=$(ps aux | awk -v proc_pat="$process_pattern" '$11 ~ proc_pat {sum += $6} END {printf "%.2f", sum/1024}')
-    if [ -z $process_mem_total ] ; then
-        process_mem_total=0
+    
+    mem_per_proc=0
+    if [ "$nb_cur_proc" -gt 0 ] ; then
+        mem_per_proc=$(echo "$SELECTED_MEM/$nb_cur_proc" | bc)
     fi
     
-    if [ "$nb_cur_proc" -gt 0 ] ; then
-        mem_per_proc=$(echo "$process_mem_total/$nb_cur_proc" | bc)
-    else
-        mem_per_proc=0
-    fi
+    new_nb_proc_max=0
     if [ "$(echo "$mem_per_proc > 0" | bc)" -eq 1 ] ; then
-        new_nb_proc_max=$(echo "scale=0; $memory_limit*$total_mem/$mem_per_proc" | bc)
-    else
-        new_nb_proc_max=0
+        new_nb_proc_max=$(echo "scale=0; $memory_limit*$RESERVED_MEM/$mem_per_proc" | bc)
     fi
     
     if [ "$new_nb_proc_max" -gt "$nb_proc_max" ] && [ "$new_nb_proc_max" -lt "$user_nb_proc_max" ] ; then
         echo "Raise the number of process limitation to $new_nb_proc_max"
         nb_proc_max=$new_nb_proc_max
-        sed -i "s/nb_proc_max=.*/nb_proc_max=$nb_proc_max" ./status_task_manager.txt
+        sed -i "s/^nb_proc_max=.*/nb_proc_max=$nb_proc_max/g" ./status_task_manager.txt
     fi
 
     if [ "$(echo "$syst_load < $memory_threshold" | bc)" -eq 1 ] && [ $nb_cur_proc -lt $nb_proc_max ]; then
         
-        echo "System memory load lower than the memory limit threshold. We launch a new process ... "
+        echo "System memory load lower than the memory limit threshold and number of process lower than the limitation. We launch a new process ... "
         
         alias_launcher_prog="${launcher_path}/${process_pattern}_${next_catchment}"
 
@@ -150,16 +200,16 @@ do
 
         echo $PID ${next_catchment} >> ./running_process.txt
         
-        #sed -i "/${next_catchment}/d" ./queued_process.txt
-        #cat queued_process.txt running_process.txt | uniq -u > /home/maxime/DEV/GammaRoutingModel/src/py/exp_setBVfr/queued_process.txt
-        
-        echo -e "Process $alias_launcher_prog with PID '$PID' launched.\n"
-        
+        echo -e "Process $alias_launcher_prog with PID '$PID' launched."
+    else
+        echo "Memory limit / limit number of process reached. Wait for some process to end."
     fi
     
-    sleep 2
+    sleep $freq
     
     next_catchment=$(cat $queued_process <(awk '{print $2}' ./running_process.txt) | sort | uniq -u | head -n 1)
+    
+    echo -e "\n"
     
 done
 
