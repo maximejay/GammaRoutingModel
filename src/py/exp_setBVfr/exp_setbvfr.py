@@ -116,8 +116,8 @@ gamma_settings = {
 list_mesh = os.listdir(
     "/home/maxime/DEV/GammaRoutingModel/src/py/Generation_mesh_bv_france/mesh/"
 )
-mesh = list_mesh[0]
-catchment = mesh[5:13]
+#mesh = list_mesh[0]
+#catchment = mesh[5:13]
 
 sbc = sb.SmashBox()
 
@@ -781,6 +781,10 @@ if mode == "stats":
         compute_stats(catchment, sbc, list_dir=[subdir])
         plot_stats(catchment, sbc, list_dir=[subdir])
         del sbc
+
+
+with open(os.path.join(working_path,"succeed_process.txt"),"a") as f:
+    f.write(catchment+"\n")
 
 
 # save figure

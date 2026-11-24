@@ -2,7 +2,7 @@
 memory_threshold=0.5 # fraction x of the current free mem; free mem = available mem + current managed process mem. At the begening, there is no managed process. Above this threshold no more task will be launched until the memory lower again.
 memory_limit=0.75 # fraction x of the current free mem ; free mem = available mem + current managed process mem. At the begening, there is no managed process. Above this threshold, the last task will be killed to free memory.
 process_pattern="smash_manager"
-launcher_prog="/home/maxime/DEV/GammaRoutingModel/src/py/exp_setBVfr/launcher.sh"
+#script="/home/maxime/DEV/GammaRoutingModel/src/py/exp_setBVfr/launcher.sh"
 user_nb_proc_max=5 #Max number of parrallel task to run
 freq=10 #Frequency duration in second before launching a new task.
 queued_process=./queued_process.txt #File with input args in coluumn
@@ -27,15 +27,19 @@ until [ $# = 0 ]
                 else
                     echo "task_killer is not running."
                 fi
-                
-                exit
             else
                 echo "task_manager is not running."
             fi
+            exit
             ;;
             -script)
             shift
-            launcher_prog=$1
+            script=$1
+            shift
+            ;;
+            -bin)
+            shift
+            bin=$1
             shift
             ;;
             -memory_threshold)
@@ -102,12 +106,32 @@ until [ $# = 0 ]
             queued_process=$1
             shift
             ;;
+            -failed_process)
+            shift
+            cat <(awk '{print $2}' running_process.txt) succeed_process.txt  | sort | uniq -u
+            exit
+            -clean)
+            shift
+            if [ -e ./succeed_process.txt ] ; then
+                rm ./succeed_process.txt
+            fi
+            if [ -e ./running_process.txt ] ; then
+                rm ./running_process.txt
+            fi
+            if [ -e ./killed_process.txt ] ; then
+                rm ./killed_process.txt
+            fi
+            rm ./log*.log
+            exit
+            ;;
             *)
             echo "Bad input parameters $1."
             shift
             ;;
         esac
 done
+
+
 
 if [ ! -e ./status_task_manager.txt ] ; then
     echo "PID:"$$ > ./status_task_manager.txt
@@ -118,7 +142,7 @@ else
     exit
 fi
 
-launcher_path=$(dirname launcher_prog)
+launcher_path=$(realpath "$(dirname $script)")
 
 #
 if [ ! -e $queued_process ] ; then 
@@ -135,17 +159,19 @@ while [ ! -z $next_catchment ] ;
 do
     echo "Process args $next_catchment"
     TOTAL_MEM=$(free -m | head -n +2 | tail -n 1 | awk '{print $2}')
-    AVAILABLE_MEM=$(free -m | head -n +2 | tail -n 1 | awk '{print $4}')
+    AVAILABLE_MEM=$(free -m | head -n +2 | tail -n 1 | awk '{print $7}')
     ALL_MEM=$(ps -eo rss= | awk '{sum+=$1} END {print sum/1024}')
     
     SELECTED_MEM=0
     while read PID TAG
     do
         MEM=$(ps -p "$PID" -o rss= 2>/dev/null)
+        #~ echo "MEM=$MEM"
         
         if [ -n "$MEM" ]; then
             SELECTED_MEM=$(echo "scale=2;$SELECTED_MEM + $MEM/1024" | bc)
         fi
+        #~ echo $SELECTED_MEM
     done < ./running_process.txt
     
     #RESERVED_MEM=$(echo "$TOTAL_MEM - $ALL_MEM + $SELECTED_MEM" | bc)
@@ -155,7 +181,7 @@ do
     
     echo "Total memory                        : $TOTAL_MEM Mo"
     echo "Consumed memory                     : $ALL_MEM Mo"
-    echo "Free memory                         : $AVAILABLE_MEM Mo"
+    echo "Available memory                    : $AVAILABLE_MEM Mo"
     echo "Current memory of monitored process : $SELECTED_MEM Mo"
     echo "Current claimed memory              : $RESERVED_MEM Mo"
     echo "Claimed memory load                 : $( echo "$syst_load*100" | bc)% / $( echo "$memory_threshold*100" | bc )%"
@@ -188,19 +214,27 @@ do
         
         echo "System memory load lower than the memory limit threshold and number of process lower than the limitation. We launch a new process ... "
         
-        alias_launcher_prog="${launcher_path}/${process_pattern}_${next_catchment}"
-
-        if [[ -e "${alias_launcher_prog}" ]];
-        then
-            rm "${alias_launcher_prog}"
-        fi
-        ln -s $launcher_prog $alias_launcher_prog
-
-        nohup ${alias_launcher_prog} $next_catchment > ${launcher_path}/nohup_${process_pattern}_${next_catchment}.log & PID=$!
+        #~ alias_bin="${launcher_path}/alias_bin/${process_pattern}_${next_catchment}"
+        
+        #~ if [ -d ./alias_bin/ ];
+        #~ then
+            #~ if [[ -e "${alias_bin}" ]];
+            #~ then
+                #~ rm "${alias_bin}"
+            #~ fi
+        #~ else
+            #~ mkdir ./alias_bin/
+        #~ fi
+        
+        #~ ln -s ${launcher_path}/launcher.sh $alias_bin
+        
+        nohup ./launcher.sh -catchment $next_catchment -bin $bin -script $script  > ${launcher_path}/log_${process_pattern}_${next_catchment}.log & PID=$!
+        
+        #~ nohup ${alias_launcher_prog} $next_catchment > ${launcher_path}/nohup_${process_pattern}_${next_catchment}.log & PID=$!
 
         echo $PID ${next_catchment} >> ./running_process.txt
         
-        echo -e "Process $alias_launcher_prog with PID '$PID' launched."
+        echo -e "Process ${process_pattern}_${next_catchment} with PID '$PID' launched."
     else
         echo "Memory limit / limit number of process reached. Wait for some process to end."
     fi

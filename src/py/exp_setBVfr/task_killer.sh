@@ -46,7 +46,7 @@ do
 
     TOTAL_MEM=$(free -m | head -n +2 | tail -n 1 | awk '{print $2}')
     ALL_MEM=$(ps -eo rss= | awk '{sum+=$1} END {print sum/1024}')
-    AVAILABLE_MEM=$(free -m | head -n +2 | tail -n 1 | awk '{print $4}')
+    AVAILABLE_MEM=$(free -m | head -n +2 | tail -n 1 | awk '{print $7}')
     
     #process_mem_total=$(ps aux | awk -v proc_pat="$process_pattern" '$11 ~ proc_pat {sum += $6} END {printf "%.2f", sum/1024}')
     SELECTED_MEM=0
@@ -83,12 +83,14 @@ do
         kill $last_pid
         sed -i "/${last_catchment}/d" ./running_process.txt
         
-        rm "$launcher_path/smash_gamma_$last_catchment"
+        rm "$launcher_path/alias_bin/smash_gamma_$last_catchment"
         
         #update proc lim for the task manager.
-        nb_cur_proc=$(ps -p "$(awk '{printf "%s%s", sep, $1; sep=","}' ./running_process.txt)" -o pid=,comm= | wc -l)
-        sed -i "s/^nb_proc_max:.*/nb_proc_max:$nb_cur_proc/g" ./status_task_manager.txt
-        echo "Limit the number of process to $nb_cur_proc"
+        if [ -e ./running_process.txt ] && [ $(cat ./running_process.txt | wc -l) -gt 0 ] ; then
+            nb_cur_proc=$(ps -p "$(awk '{printf "%s%s", sep, $1; sep=","}' ./running_process.txt)" -o pid=,comm= | wc -l)
+            sed -i "s/^nb_proc_max:.*/nb_proc_max:$nb_cur_proc/g" ./status_task_manager.txt
+            echo "Limit the number of process to $nb_cur_proc"
+        fi
         
         echo -e "Process smash_gamma_$last_catchment with $last_pid killed."
     fi
