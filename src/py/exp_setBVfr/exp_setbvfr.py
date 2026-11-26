@@ -113,11 +113,9 @@ gamma_settings = {
     "pdt_start_optim": int(warmup_time * 24 * 3600 / gamma_dt),
 }
 
-list_mesh = os.listdir(
-    "/home/maxime/DEV/GammaRoutingModel/src/py/Generation_mesh_bv_france/mesh/"
-)
-#mesh = list_mesh[0]
-#catchment = mesh[5:13]
+list_mesh = os.listdir(f"{working_path}/mesh/")
+# mesh = list_mesh[0]
+# catchment = mesh[5:13]
 
 sbc = sb.SmashBox()
 
@@ -145,7 +143,7 @@ def init_models(
     model = getattr(sbc, f"{catchment}_init")
 
     model.mymesh.mesh = pyhdf5_handler.read_hdf5file_as_dict(
-        f"/home/maxime/DEV/GammaRoutingModel/src/py/Generation_mesh_bv_france/mesh/mesh_{catchment}.hdf5"
+        f"{working_path}/mesh/mesh_{catchment}.hdf5"
     )
 
     model.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
@@ -226,7 +224,7 @@ def optimize_smash_model(
     model = getattr(sbc, f"{catchment}_calibrated_{scenario_key}")
 
     model.mymesh.mesh = pyhdf5_handler.read_hdf5file_as_dict(
-        f"/home/maxime/DEV/GammaRoutingModel/src/py/Generation_mesh_bv_france/mesh/mesh_{catchment}.hdf5"
+        f"{working_path}/mesh/mesh_{catchment}.hdf5"
     )
 
     model.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
@@ -317,7 +315,7 @@ def optimize_smash_gamma_model(
     model = getattr(sbc, f"{catchment}_Gamma_optimize_{scenario_key}")
 
     model.mymesh.mesh = pyhdf5_handler.read_hdf5file_as_dict(
-        f"/home/maxime/DEV/GammaRoutingModel/src/py/Generation_mesh_bv_france/mesh/mesh_{catchment}.hdf5"
+        f"{working_path}/mesh/mesh_{catchment}.hdf5"
     )
     # model.generate_mesh()
 
@@ -399,7 +397,7 @@ def optimize_smash_gamma_model(
     model = getattr(sbc, f"{catchment}_Gamma_calibrated_{scenario_key}")
 
     model.mymesh.mesh = pyhdf5_handler.read_hdf5file_as_dict(
-        f"/home/maxime/DEV/GammaRoutingModel/src/py/Generation_mesh_bv_france/mesh/mesh_{catchment}.hdf5"
+        f"{working_path}/mesh/mesh_{catchment}.hdf5"
     )
 
     model.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
@@ -466,7 +464,7 @@ def optimize_smash_gamma_model(
     )
 
     model.mymesh.mesh = pyhdf5_handler.read_hdf5file_as_dict(
-        f"/home/maxime/DEV/GammaRoutingModel/src/py/Generation_mesh_bv_france/mesh/mesh_{catchment}.hdf5"
+        f"{working_path}/mesh/mesh_{catchment}.hdf5"
     )
 
     model.mysetup.setup_file = "setup_local_gr4_dt3600.yaml"
@@ -783,8 +781,8 @@ if mode == "stats":
         del sbc
 
 
-with open(os.path.join(working_path,"succeed_process.txt"),"a") as f:
-    f.write(catchment+"\n")
+with open(os.path.join(working_path, "succeed_process.txt"), "a") as f:
+    f.write(catchment + "\n")
 
 
 # save figure
