@@ -24,9 +24,7 @@ catchment = args.catchment
 scenario_key = args.scenario_key
 
 
-mode = "smash_gamma"
-catchment = "Cance"
-scenario_key = "s1"
+# Optimizer : SLSQP ?? au lieu de LBGSFB ?
 
 scenarios_gamma = {
     "s1": {
@@ -557,7 +555,8 @@ def plot(catchment, s):
         }
     )
 
-    model_smash = getattr(sbc, f"{catchment}_calibrated_{s}")
+    if hasattr(sbc, f"{catchment}_calibrated_{s}"):
+        model_smash = getattr(sbc, f"{catchment}_calibrated_{s}")
 
     model_smash.myplot.multiplot_parameters(
         fig_settings={
@@ -585,8 +584,7 @@ def plot(catchment, s):
     model_gamma_init = getattr(sbc, f"{catchment}_Gamma_init")
     model_gamma_calibrated = getattr(sbc, f"{catchment}_Gamma_calibrated_{s}")
     model_smash_calibrated = getattr(sbc, f"{catchment}_calibrated_{s}")
-    fig, ax = gamma.smashplug.plot.plot_hydrograph(
-        (
+    tuple_plot=(
             {
                 "model": model_smash_init.mysmashmodel.smash,
                 "fig_settings": {"color": "blue", "label": "Smash Regional"},
@@ -605,15 +603,19 @@ def plot(catchment, s):
                     "label": "Smash + Gamma-Calibrated",
                 },
             },
-            {
+            
+        )
+    if hasattr(sbc, f"{catchment}_calibrated_{s}"):
+        model_smash_calibrated = getattr(sbc, f"{catchment}_calibrated_{s}")
+        tuple_plot=tuple_plot+({
                 "model": model_smash_calibrated.mysmashmodel.smash,
                 "fig_settings": {
                     "color": "orange",
                     "label": "Smash Calibrated",
                 },
-            },
-        )
-    )
+            },)
+        
+    fig, ax = gamma.smashplug.plot.plot_hydrograph(tuple_plot)
     sb.plot.plot.save_figure(
         fig,
         f"{working_path}/figures/{catchment}_hydrograph_{s}.pdf",
@@ -625,23 +627,27 @@ def plot(catchment, s):
     model_gamma_validation = getattr(
         sbc, f"{catchment}_Gamma_calibrated_validation_{s}"
     )
-    fig, ax = gamma.smashplug.plot.plot_hydrograph(
-        (
+    
+    tuple_plot=(
             {
                 "model": model_smash_validation.validation_model.smash,
                 "fig_settings": {"color": "blue", "label": "Smash validation"},
                 "outlets_name": ["V3524010"],
             },
-            {
+        )
+    if hasattr(sbc, f"{catchment}_calibrated_{s}"):
+        model_smash_validation = getattr(sbc, f"{catchment}_calibrated_{s}")
+        tuple_plot=tuple_plot+({
                 "model": model_gamma_validation.mysmashmodel.smash,
                 "fig_settings": {
                     "color": "green",
                     "label": "Smash + Gamma validation",
                 },
                 "outlets_name": ["V3524010"],
-            },
-        )
-    )
+            },)
+    
+    model_gamma_validation = getattr(sbc, f"{catchment}_Gamma_calibrated_validation_{s}")
+    fig, ax = gamma.smashplug.plot.plot_hydrograph(tuple_plot)
     sb.plot.plot.save_figure(
         fig,
         f"{working_path}/figures/{catchment}_hydrograph_validation_{s}.pdf",
